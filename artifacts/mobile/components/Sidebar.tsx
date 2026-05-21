@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
   Dimensions,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -21,7 +22,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AI_MODELS, useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
-import LeafIcon from "@/components/LeafIcon";
+
+const leafIcon = require("@/assets/images/leaf-only-transparent.png");
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 330);
@@ -104,7 +106,11 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <View style={[styles.header, { paddingTop: topPad + 16 }]}>
           {/* Brand identity row */}
           <View style={styles.brandRow}>
-            <LeafIcon size={36} color={colors.foreground} />
+            <Image
+              source={leafIcon}
+              style={styles.leafIcon}
+              resizeMode="contain"
+            />
             <Text style={[styles.brandName, { color: colors.foreground }]}>
               AkılCEP
             </Text>
@@ -318,6 +324,11 @@ const styles = StyleSheet.create({
     alignItems:    "center",
     gap:           10,
     flex:          1,
+  },
+  leafIcon: {
+    width:      42,
+    height:     42,
+    flexShrink: 0,
   },
   brandName: {
     fontSize:           48,
