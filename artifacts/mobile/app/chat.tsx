@@ -27,7 +27,7 @@ import TypingIndicator from "@/components/TypingIndicator";
 import { useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 
-const logo = require("@/assets/images/logo.png");
+const logo = require("@/assets/images/logo-transparent.png");
 
 export default function ChatScreen() {
   const colors = useColors();

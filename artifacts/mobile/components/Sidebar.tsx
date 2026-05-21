@@ -22,7 +22,7 @@ import Animated, {
 import { AI_MODELS, useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 
-const logo = require("@/assets/images/logo.png");
+const logo = require("@/assets/images/logo-transparent.png");
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = SCREEN_WIDTH * 0.78;

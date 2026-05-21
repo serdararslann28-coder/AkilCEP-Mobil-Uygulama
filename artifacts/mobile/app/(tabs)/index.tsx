@@ -24,7 +24,7 @@ import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 
-const logo = require("@/assets/images/logo.png");
+const logo = require("@/assets/images/logo-transparent.png");
 
 const SUGGESTED_PROMPTS = [
   { icon: "zap" as const,       label: "Fikir üret",  text: "Bana yaratıcı bir iş fikri öner" },
@@ -46,13 +46,7 @@ export default function HomeScreen() {
   const glowScale   = useSharedValue(0.9);
   const logoFloat   = useSharedValue(0);
 
-  // Content fade-in
-  const contentOpacity = useSharedValue(0);
-
   useEffect(() => {
-    // Fade in all content immediately
-    contentOpacity.value = withTiming(1, { duration: 700 });
-
     // Breathing glow
     glowOpacity.value = withRepeat(
       withSequence(withTiming(0.10, { duration: 3000 }), withTiming(0.03, { duration: 3000 })),
@@ -70,9 +64,8 @@ export default function HomeScreen() {
     );
   }, []);
 
-  const glowStyle    = useAnimatedStyle(() => ({ opacity: glowOpacity.value, transform: [{ scale: glowScale.value }] }));
-  const floatStyle   = useAnimatedStyle(() => ({ transform: [{ translateY: logoFloat.value }] }));
-  const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
+  const glowStyle  = useAnimatedStyle(() => ({ opacity: glowOpacity.value, transform: [{ scale: glowScale.value }] }));
+  const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: logoFloat.value }] }));
 
   const handlePrompt = (text: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -107,7 +100,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <Animated.View style={[styles.flex, contentStyle]}>
+      <View style={styles.flex}>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + 120 }]}
           showsVerticalScrollIndicator={false}
@@ -183,7 +176,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
