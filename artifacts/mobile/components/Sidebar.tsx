@@ -338,32 +338,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 28,
+    marginBottom: 32,
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+    flex: 1,
   },
-  /* Crops just the leaf portion of the full logo PNG */
+  /* Crops just the leaf portion of the full logo PNG — hides text inside image */
   leafClip: {
-    width: 30,
-    height: 36,
+    width: 34,
+    height: 40,
     overflow: "hidden",
+    flexShrink: 0,
   },
   leafImage: {
-    width: 90,
-    height: 70,
-    marginLeft: -30,
+    width: 100,
+    height: 78,
+    marginLeft: -33,
     marginTop: -2,
   },
   brandName: {
-    fontSize: 44,
+    fontSize: 48,
     fontFamily: "Inter_700Bold",
-    letterSpacing: -1.5,
+    letterSpacing: -1.8,
+    includeFontPadding: false,
   },
   closeBtn: {
     padding: 4,
+    flexShrink: 0,
   },
 
   /* ── New chat ── */
