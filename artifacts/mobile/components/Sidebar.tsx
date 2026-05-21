@@ -358,9 +358,9 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   brandName: {
-    fontSize: 28,
+    fontSize: 44,
     fontFamily: "Inter_700Bold",
-    letterSpacing: -1.0,
+    letterSpacing: -1.5,
   },
   closeBtn: {
     padding: 4,
