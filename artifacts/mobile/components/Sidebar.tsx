@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
   Dimensions,
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -22,12 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AI_MODELS, useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
-
-/**
- * Rendered at 38×30px the "AkılCEP" / tagline text inside the PNG
- * becomes sub-pixel and invisible — only the bold leaf silhouette reads.
- */
-const logo = require("@/assets/images/logo-transparent.png");
+import LeafIcon from "@/components/LeafIcon";
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 330);
@@ -110,15 +104,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <View style={[styles.header, { paddingTop: topPad + 16 }]}>
           {/* Brand identity row */}
           <View style={styles.brandRow}>
-            {/*
-              PNG rendered at 38×30 — leaf silhouette reads clearly,
-              internal "AkılCEP" text inside the image is sub-pixel.
-            */}
-            <Image
-              source={logo}
-              style={styles.leafIcon}
-              resizeMode="contain"
-            />
+            <LeafIcon size={36} color={colors.foreground} />
             <Text style={[styles.brandName, { color: colors.foreground }]}>
               AkılCEP
             </Text>
@@ -332,12 +318,6 @@ const styles = StyleSheet.create({
     alignItems:    "center",
     gap:           10,
     flex:          1,
-  },
-  /* Full transparent PNG at tiny size — leaf reads, internal text invisible */
-  leafIcon: {
-    width:      38,
-    height:     30,
-    flexShrink: 0,
   },
   brandName: {
     fontSize:           48,
