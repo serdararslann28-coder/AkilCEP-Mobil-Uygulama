@@ -42,29 +42,15 @@ export default function HomeScreen() {
   const { startNewConversation, sendMessage } = useChat();
 
   // Ambient breathing around logo
-  const glowOpacity = useSharedValue(0.0);
-  const glowScale   = useSharedValue(0.9);
-  const logoFloat   = useSharedValue(0);
+  const logoFloat = useSharedValue(0);
 
   useEffect(() => {
-    // Breathing glow
-    glowOpacity.value = withRepeat(
-      withSequence(withTiming(0.10, { duration: 3000 }), withTiming(0.03, { duration: 3000 })),
-      -1, true
-    );
-    glowScale.value = withRepeat(
-      withSequence(withTiming(1.10, { duration: 3000 }), withTiming(0.90, { duration: 3000 })),
-      -1, true
-    );
-
-    // Subtle floating
     logoFloat.value = withRepeat(
-      withSequence(withTiming(-4, { duration: 2800 }), withTiming(4, { duration: 2800 })),
+      withSequence(withTiming(-5, { duration: 2800 }), withTiming(5, { duration: 2800 })),
       -1, true
     );
   }, []);
 
-  const glowStyle  = useAnimatedStyle(() => ({ opacity: glowOpacity.value, transform: [{ scale: glowScale.value }] }));
   const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: logoFloat.value }] }));
 
   const handlePrompt = (text: string) => {
@@ -108,12 +94,12 @@ export default function HomeScreen() {
         >
           {/* ── Hero / Logo ── */}
           <View style={styles.heroSection}>
-            {/* Ambient glow blob behind logo */}
-            <Animated.View style={[styles.ambientGlow, glowStyle]} />
-
-            {/* Floating logo */}
-            <Animated.View style={floatStyle}>
-              <Image source={logo} style={styles.logoImage} resizeMode="contain" />
+            <Animated.View style={[styles.logoWrap, floatStyle]}>
+              <Image
+                source={logo}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </Animated.View>
           </View>
 
@@ -212,21 +198,16 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 16,
-    paddingBottom: 8,
-    position: "relative",
-    minHeight: 220,
+    paddingTop: 20,
+    paddingBottom: 4,
   },
-  ambientGlow: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "#000000",
+  logoWrap: {
+    backgroundColor: "transparent",
   },
   logoImage: {
     width: 230,
     height: 178,
+    backgroundColor: "transparent",
   },
 
   divider: {
