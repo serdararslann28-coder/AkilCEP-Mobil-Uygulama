@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,8 +12,6 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  FadeInDown,
-  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -25,13 +24,15 @@ import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 
+const logo = require("@/assets/images/logo.png");
+
 const SUGGESTED_PROMPTS = [
-  { icon: "zap" as const,        label: "Fikir üret",  text: "Bana yaratıcı bir iş fikri öner" },
-  { icon: "book-open" as const,  label: "Özetle",      text: "Bu konuyu basitçe açıkla" },
-  { icon: "code" as const,       label: "Kod yaz",     text: "Python'da bir uygulama yaz" },
-  { icon: "edit-3" as const,     label: "Yaz",         text: "Profesyonel bir e-posta taslağı hazırla" },
-  { icon: "search" as const,     label: "Araştır",     text: "Yapay zeka trendlerini analiz et" },
-  { icon: "cpu" as const,        label: "Analiz et",   text: "Veri setimi yorumlamama yardım et" },
+  { icon: "zap" as const,       label: "Fikir üret",  text: "Bana yaratıcı bir iş fikri öner" },
+  { icon: "book-open" as const, label: "Özetle",      text: "Bu konuyu basitçe açıkla" },
+  { icon: "code" as const,      label: "Kod yaz",     text: "Python'da bir uygulama yaz" },
+  { icon: "edit-3" as const,    label: "Yaz",         text: "Profesyonel bir e-posta taslağı hazırla" },
+  { icon: "search" as const,    label: "Araştır",     text: "Yapay zeka trendlerini analiz et" },
+  { icon: "cpu" as const,       label: "Analiz et",   text: "Veri setimi yorumlamama yardım et" },
 ];
 
 export default function HomeScreen() {
@@ -40,24 +41,38 @@ export default function HomeScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const { startNewConversation, sendMessage } = useChat();
 
-  const orbScale   = useSharedValue(1);
-  const shadowOpac = useSharedValue(0.10);
+  // Ambient breathing around logo
+  const glowOpacity = useSharedValue(0.0);
+  const glowScale   = useSharedValue(0.9);
+  const logoFloat   = useSharedValue(0);
+
+  // Content fade-in
+  const contentOpacity = useSharedValue(0);
 
   useEffect(() => {
-    orbScale.value = withRepeat(
-      withSequence(withTiming(1.06, { duration: 3000 }), withTiming(1, { duration: 3000 })),
+    // Fade in all content immediately
+    contentOpacity.value = withTiming(1, { duration: 700 });
+
+    // Breathing glow
+    glowOpacity.value = withRepeat(
+      withSequence(withTiming(0.10, { duration: 3000 }), withTiming(0.03, { duration: 3000 })),
       -1, true
     );
-    shadowOpac.value = withRepeat(
-      withSequence(withTiming(0.18, { duration: 3000 }), withTiming(0.08, { duration: 3000 })),
+    glowScale.value = withRepeat(
+      withSequence(withTiming(1.10, { duration: 3000 }), withTiming(0.90, { duration: 3000 })),
+      -1, true
+    );
+
+    // Subtle floating
+    logoFloat.value = withRepeat(
+      withSequence(withTiming(-4, { duration: 2800 }), withTiming(4, { duration: 2800 })),
       -1, true
     );
   }, []);
 
-  const orbAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: orbScale.value }],
-    shadowOpacity: shadowOpac.value,
-  }));
+  const glowStyle    = useAnimatedStyle(() => ({ opacity: glowOpacity.value, transform: [{ scale: glowScale.value }] }));
+  const floatStyle   = useAnimatedStyle(() => ({ transform: [{ translateY: logoFloat.value }] }));
+  const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
 
   const handlePrompt = (text: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -73,13 +88,10 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
 
-      {/* Top bar */}
+      {/* ── Top bar ── */}
       <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
         <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSidebarVisible(true);
-          }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSidebarVisible(true); }}
           style={[styles.iconBtn, { backgroundColor: colors.card }]}
           hitSlop={8}
         >
@@ -89,94 +101,87 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.iconBtn, { backgroundColor: colors.card }]}
           hitSlop={8}
-          onPress={() => {
-            startNewConversation();
-            router.push("/chat");
-          }}
+          onPress={() => { startNewConversation(); router.push("/chat"); }}
         >
           <Feather name="edit" size={17} color={colors.foreground} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + 130 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Hero */}
-        <Animated.View entering={FadeInUp.duration(700).delay(80)} style={styles.heroSection}>
-          <Animated.View style={[styles.orbWrap, orbAnimStyle]}>
-            <View style={[styles.orb, { backgroundColor: colors.foreground }]}>
-              <View style={[styles.orbCenter, { backgroundColor: colors.background }]} />
-            </View>
-          </Animated.View>
-
-          <Text style={[styles.appName, { color: colors.foreground }]}>AkılCEP AI</Text>
-          <Text style={[styles.slogan, { color: colors.mutedForeground }]}>Cebindeki Akıl</Text>
-        </Animated.View>
-
-        {/* Prompt grid */}
-        <Animated.View entering={FadeInDown.duration(500).delay(220)} style={styles.promptsGrid}>
-          {SUGGESTED_PROMPTS.map((item) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[styles.promptCard, { backgroundColor: colors.card }]}
-              onPress={() => handlePrompt(item.text)}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.promptIcon, { backgroundColor: colors.background }]}>
-                <Feather name={item.icon} size={13} color={colors.zinc600} />
-              </View>
-              <Text style={[styles.promptLabel, { color: colors.foreground }]}>{item.label}</Text>
-              <Text style={[styles.promptText, { color: colors.mutedForeground }]} numberOfLines={2}>
-                {item.text}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
-      </ScrollView>
-
-      {/* Floating input bar */}
-      <Animated.View
-        entering={FadeInUp.duration(500).delay(350)}
-        style={[
-          styles.inputBar,
-          {
-            backgroundColor: colors.card,
-            marginBottom: bottomPad + 16,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.inputArea}
-          activeOpacity={0.8}
-          onPress={() => {
-            startNewConversation();
-            router.push("/chat");
-          }}
+      <Animated.View style={[styles.flex, contentStyle]}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + 120 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.inputPlaceholder, { color: colors.mutedForeground }]}>
-            AkılCEP'e sor...
-          </Text>
-        </TouchableOpacity>
+          {/* ── Hero / Logo ── */}
+          <View style={styles.heroSection}>
+            {/* Ambient glow blob behind logo */}
+            <Animated.View style={[styles.ambientGlow, glowStyle]} />
 
-        <View style={styles.inputActions}>
+            {/* Floating logo */}
+            <Animated.View style={floatStyle}>
+              <Image source={logo} style={styles.logoImage} resizeMode="contain" />
+            </Animated.View>
+          </View>
+
+          {/* ── Divider ── */}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* ── Prompt cards ── */}
+          <View style={styles.promptsGrid}>
+            {SUGGESTED_PROMPTS.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[styles.promptCard, { backgroundColor: colors.card }]}
+                onPress={() => handlePrompt(item.text)}
+                activeOpacity={0.72}
+              >
+                <View style={[styles.promptIconWrap, { backgroundColor: colors.background }]}>
+                  <Feather name={item.icon} size={13} color={colors.zinc600} />
+                </View>
+                <Text style={[styles.promptLabel, { color: colors.foreground }]}>
+                  {item.label}
+                </Text>
+                <Text style={[styles.promptText, { color: colors.mutedForeground }]} numberOfLines={2}>
+                  {item.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* ── Floating input bar ── */}
+        <View
+          style={[
+            styles.inputBar,
+            { backgroundColor: colors.card, marginBottom: bottomPad + 16 },
+          ]}
+        >
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.background }]}
-            hitSlop={6}
+            style={styles.inputTouchArea}
+            activeOpacity={0.8}
+            onPress={() => { startNewConversation(); router.push("/chat"); }}
           >
-            <Feather name="paperclip" size={15} color={colors.zinc500} />
+            <Text style={[styles.inputPlaceholder, { color: colors.mutedForeground }]}>
+              AkılCEP'e sor...
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.micBtn, { backgroundColor: colors.foreground }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/voice");
-            }}
-          >
-            <Feather name="mic" size={16} color={colors.primaryForeground} />
-          </TouchableOpacity>
+          <View style={styles.inputActions}>
+            <TouchableOpacity
+              style={[styles.attachBtn, { backgroundColor: colors.background }]}
+              hitSlop={6}
+            >
+              <Feather name="paperclip" size={15} color={colors.zinc500} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.micBtn, { backgroundColor: colors.foreground }]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/voice"); }}
+            >
+              <Feather name="mic" size={16} color={colors.primaryForeground} />
+            </TouchableOpacity>
+          </View>
         </View>
       </Animated.View>
     </View>
@@ -185,6 +190,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flex: { flex: 1 },
 
   topBar: {
     flexDirection: "row",
@@ -207,49 +213,39 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
   },
 
   heroSection: {
     alignItems: "center",
-    paddingVertical: 40,
-    gap: 0,
-  },
-  orbWrap: {
-    marginBottom: 26,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 28,
-  },
-  orb: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
     justifyContent: "center",
+    paddingTop: 16,
+    paddingBottom: 8,
+    position: "relative",
+    minHeight: 220,
   },
-  orbCenter: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  ambientGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "#000000",
   },
-  appName: {
-    fontSize: 34,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -1.4,
-    marginBottom: 6,
+  logoImage: {
+    width: 230,
+    height: 178,
   },
-  slogan: {
-    fontSize: 16,
-    fontFamily: "Inter_400Regular",
-    letterSpacing: 0.1,
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 16,
+    marginHorizontal: 4,
   },
 
   promptsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginTop: 4,
   },
   promptCard: {
     width: "47%",
@@ -258,10 +254,10 @@ const styles = StyleSheet.create({
     gap: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.055,
     shadowRadius: 10,
   },
-  promptIcon: {
+  promptIconWrap: {
     width: 30,
     height: 30,
     borderRadius: 10,
@@ -280,10 +276,7 @@ const styles = StyleSheet.create({
   },
 
   inputBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 16,
-    right: 16,
+    marginHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 28,
@@ -296,7 +289,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 20,
   },
-  inputArea: {
+  inputTouchArea: {
     flex: 1,
     paddingVertical: 6,
   },
@@ -309,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  actionBtn: {
+  attachBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   FlatList,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -26,16 +27,12 @@ import TypingIndicator from "@/components/TypingIndicator";
 import { useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 
+const logo = require("@/assets/images/logo.png");
+
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const {
-    currentMessages,
-    isTyping,
-    sendMessage,
-    selectedModel,
-    startNewConversation,
-  } = useChat();
+  const { currentMessages, isTyping, sendMessage, selectedModel } = useChat();
   const [inputText, setInputText] = useState("");
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -55,36 +52,25 @@ export default function ChatScreen() {
     setInputText("");
   };
 
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const topPad    = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const modelDisplay =
-    selectedModel === "gpt-4o"
-      ? "GPT-4o"
-      : selectedModel === "gpt-4-turbo"
-      ? "GPT-4 Turbo"
-      : selectedModel === "gpt-3.5-turbo"
-      ? "GPT-3.5"
-      : "Claude 3";
+    selectedModel === "gpt-4o"       ? "GPT-4o"      :
+    selectedModel === "gpt-4-turbo"  ? "GPT-4 Turbo" :
+    selectedModel === "gpt-3.5-turbo"? "GPT-3.5"     : "Claude 3";
 
   const hasText = inputText.trim().length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Sidebar
-        visible={sidebarVisible}
-        onClose={() => setSidebarVisible(false)}
-      />
+      <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
 
-      {/* Header */}
+      {/* ── Header ── */}
       <View
         style={[
           styles.header,
-          {
-            paddingTop: topPad + 8,
-            borderBottomColor: colors.border,
-            backgroundColor: colors.background,
-          },
+          { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.background },
         ]}
       >
         <TouchableOpacity
@@ -95,16 +81,13 @@ export default function ChatScreen() {
           <Feather name="chevron-left" size={20} color={colors.foreground} />
         </TouchableOpacity>
 
+        {/* Center: small logo mark + model pill */}
         <TouchableOpacity
           style={[styles.modelPill, { backgroundColor: colors.card }]}
           activeOpacity={0.75}
         >
-          <View
-            style={[styles.modelDot, { backgroundColor: colors.foreground }]}
-          />
-          <Text style={[styles.modelName, { color: colors.foreground }]}>
-            {modelDisplay}
-          </Text>
+          <View style={[styles.modelDot, { backgroundColor: colors.foreground }]} />
+          <Text style={[styles.modelName, { color: colors.foreground }]}>{modelDisplay}</Text>
           <Feather name="chevron-down" size={12} color={colors.mutedForeground} />
         </TouchableOpacity>
 
@@ -122,30 +105,10 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {currentMessages.length === 0 ? (
-          <Animated.View
-            entering={FadeIn.duration(400)}
-            style={styles.emptyState}
-          >
-            <View
-              style={[
-                styles.emptyOrb,
-                { backgroundColor: colors.foreground },
-              ]}
-            >
-              <View
-                style={[
-                  styles.emptyOrbDot,
-                  { backgroundColor: colors.background },
-                ]}
-              />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+          <Animated.View entering={FadeIn.duration(500)} style={styles.emptyState}>
+            <Image source={logo} style={styles.emptyLogo} resizeMode="contain" />
+            <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>
               Ne sormak istersiniz?
-            </Text>
-            <Text
-              style={[styles.emptySubtitle, { color: colors.mutedForeground }]}
-            >
-              {modelDisplay} ile sohbet başlatın
             </Text>
           </Animated.View>
         ) : (
@@ -168,28 +131,16 @@ export default function ChatScreen() {
           />
         )}
 
-        {/* Input area */}
+        {/* ── Input bar ── */}
         <View
           style={[
             styles.inputContainer,
-            {
-              paddingBottom: bottomPad + 8,
-              backgroundColor: colors.background,
-            },
+            { paddingBottom: bottomPad + 8, backgroundColor: colors.background },
           ]}
         >
-          <View
-            style={[
-              styles.inputRow,
-              { backgroundColor: colors.card },
-            ]}
-          >
+          <View style={[styles.inputRow, { backgroundColor: colors.card }]}>
             <TouchableOpacity style={styles.attachBtn} hitSlop={6}>
-              <Feather
-                name="paperclip"
-                size={17}
-                color={colors.mutedForeground}
-              />
+              <Feather name="paperclip" size={17} color={colors.mutedForeground} />
             </TouchableOpacity>
 
             <TextInput
@@ -220,11 +171,7 @@ export default function ChatScreen() {
                 <TouchableOpacity
                   style={[
                     styles.sendBtn,
-                    {
-                      backgroundColor: hasText
-                        ? colors.primary
-                        : colors.accent,
-                    },
+                    { backgroundColor: hasText ? colors.primary : colors.accent },
                   ]}
                   onPress={handleSend}
                   disabled={!hasText}
@@ -232,11 +179,7 @@ export default function ChatScreen() {
                   <Feather
                     name="arrow-up"
                     size={17}
-                    color={
-                      hasText
-                        ? colors.primaryForeground
-                        : colors.mutedForeground
-                    }
+                    color={hasText ? colors.primaryForeground : colors.mutedForeground}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -283,16 +226,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
   },
-  modelDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  modelName: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: -0.3,
-  },
+  modelDot: { width: 6, height: 6, borderRadius: 3 },
+  modelName: { fontSize: 14, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
 
   messageList: { paddingTop: 16 },
 
@@ -300,33 +235,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 14,
+    paddingHorizontal: 40,
+    gap: 16,
   },
-  emptyOrb: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+  emptyLogo: {
+    width: 200,
+    height: 154,
+    opacity: 0.85,
   },
-  emptyOrbDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: -0.5,
-  },
-  emptySubtitle: {
-    fontSize: 14,
+  emptyHint: {
+    fontSize: 15,
     fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    letterSpacing: 0.1,
   },
 
   inputContainer: {
@@ -342,7 +263,7 @@ const styles = StyleSheet.create({
     gap: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.07,
     shadowRadius: 16,
   },
   attachBtn: {
@@ -382,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.10,
     shadowRadius: 6,
   },
 });

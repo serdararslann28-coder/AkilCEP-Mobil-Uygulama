@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
   Dimensions,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -20,6 +21,8 @@ import Animated, {
 
 import { AI_MODELS, useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
+
+const logo = require("@/assets/images/logo.png");
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = SCREEN_WIDTH * 0.78;
@@ -41,23 +44,21 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     setSelectedModel,
   } = useChat();
 
-  const translateX    = useSharedValue(-SIDEBAR_WIDTH);
+  const translateX     = useSharedValue(-SIDEBAR_WIDTH);
   const overlayOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      translateX.value    = withTiming(0, { duration: 300 });
+      translateX.value     = withTiming(0, { duration: 300 });
       overlayOpacity.value = withTiming(1, { duration: 300 });
     } else {
-      translateX.value    = withTiming(-SIDEBAR_WIDTH, { duration: 280 });
+      translateX.value     = withTiming(-SIDEBAR_WIDTH, { duration: 280 });
       overlayOpacity.value = withTiming(0, { duration: 280 });
     }
   }, [visible]);
 
-  const sidebarStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-  const overlayStyle = useAnimatedStyle(() => ({
+  const sidebarStyle  = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  const overlayStyle  = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
     pointerEvents: overlayOpacity.value > 0 ? "auto" : "none",
   }));
@@ -76,11 +77,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     router.push("/chat");
   };
 
-  const handleDelete = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    deleteConversation(id);
-  };
-
   return (
     <>
       <Animated.View style={[styles.overlay, overlayStyle]}>
@@ -88,27 +84,17 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
       </Animated.View>
 
       <Animated.View
-        style={[
-          styles.sidebar,
-          {
-            backgroundColor: colors.surface,
-            shadowColor: "#000",
-          },
-          sidebarStyle,
-        ]}
+        style={[styles.sidebar, { backgroundColor: colors.surface, shadowColor: "#000" }, sidebarStyle]}
       >
-        {/* Header */}
+        {/* Logo header */}
         <View style={styles.header}>
-          <View style={styles.logoRow}>
-            <View style={[styles.logoDot, { backgroundColor: colors.foreground }]} />
-            <Text style={[styles.logoText, { color: colors.foreground }]}>AkılCEP AI</Text>
-          </View>
+          <Image source={logo} style={styles.sidebarLogo} resizeMode="contain" />
           <TouchableOpacity
             onPress={onClose}
             style={[styles.closeBtn, { backgroundColor: colors.card }]}
             hitSlop={10}
           >
-            <Feather name="x" size={16} color={colors.mutedForeground} />
+            <Feather name="x" size={15} color={colors.mutedForeground} />
           </TouchableOpacity>
         </View>
 
@@ -116,12 +102,10 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <TouchableOpacity
           style={[styles.newChatBtn, { backgroundColor: colors.foreground }]}
           onPress={handleNewChat}
-          activeOpacity={0.8}
+          activeOpacity={0.82}
         >
-          <Feather name="plus" size={15} color={colors.primaryForeground} />
-          <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>
-            Yeni Sohbet
-          </Text>
+          <Feather name="plus" size={14} color={colors.primaryForeground} />
+          <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>Yeni Sohbet</Text>
         </TouchableOpacity>
 
         {/* Model selector */}
@@ -132,33 +116,23 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               key={model.id}
               style={[
                 styles.modelRow,
-                {
-                  backgroundColor:
-                    selectedModel === model.id ? colors.card : "transparent",
-                },
+                { backgroundColor: selectedModel === model.id ? colors.card : "transparent" },
               ]}
-              onPress={() => {
-                setSelectedModel(model.id);
-                Haptics.selectionAsync();
-              }}
+              onPress={() => { setSelectedModel(model.id); Haptics.selectionAsync(); }}
               activeOpacity={0.7}
             >
               <View style={styles.modelInfo}>
-                <Text style={[styles.modelName, { color: colors.foreground }]}>
-                  {model.name}
-                </Text>
-                <Text style={[styles.modelBadge, { color: colors.mutedForeground }]}>
-                  {model.badge}
-                </Text>
+                <Text style={[styles.modelName, { color: colors.foreground }]}>{model.name}</Text>
+                <Text style={[styles.modelBadge, { color: colors.mutedForeground }]}>{model.badge}</Text>
               </View>
               {selectedModel === model.id && (
-                <Feather name="check" size={13} color={colors.foreground} />
+                <Feather name="check" size={12} color={colors.foreground} />
               )}
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* History */}
+        {/* Conversation history */}
         <View style={styles.historySection}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>GEÇMİŞ</Text>
           <ScrollView showsVerticalScrollIndicator={false} style={styles.historyList}>
@@ -172,29 +146,16 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                   key={conv.id}
                   style={[
                     styles.historyRow,
-                    currentConversation?.id === conv.id && {
-                      backgroundColor: colors.card,
-                    },
+                    currentConversation?.id === conv.id && { backgroundColor: colors.card },
                   ]}
                   onPress={() => handleConversation(conv.id)}
                   activeOpacity={0.7}
                 >
-                  <Feather
-                    name="message-square"
-                    size={13}
-                    color={colors.mutedForeground}
-                    style={styles.historyIcon}
-                  />
-                  <Text
-                    style={[styles.historyTitle, { color: colors.foreground }]}
-                    numberOfLines={1}
-                  >
+                  <Feather name="message-square" size={13} color={colors.mutedForeground} style={styles.historyIcon} />
+                  <Text style={[styles.historyTitle, { color: colors.foreground }]} numberOfLines={1}>
                     {conv.title}
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(conv.id)}
-                    hitSlop={8}
-                  >
+                  <TouchableOpacity onPress={() => { deleteConversation(conv.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} hitSlop={8}>
                     <Feather name="trash-2" size={12} color={colors.zinc400} />
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -226,7 +187,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "rgba(0,0,0,0.15)",
     zIndex: 100,
   },
   sidebar: {
@@ -240,34 +201,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "web" ? 34 : 0,
     shadowOffset: { width: 8, height: 0 },
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.09,
     shadowRadius: 24,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 22,
+    marginBottom: 20,
   },
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  logoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  logoText: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: -0.3,
+  sidebarLogo: {
+    width: 110,
+    height: 44,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -288,9 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_500Medium",
   },
-  section: {
-    marginBottom: 22,
-  },
+  section: { marginBottom: 22 },
   sectionLabel: {
     fontSize: 10,
     fontFamily: "Inter_600SemiBold",
@@ -306,28 +254,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 2,
   },
-  modelInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  modelName: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
-  modelBadge: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  historySection: {
-    flex: 1,
-  },
+  modelInfo: { flexDirection: "row", alignItems: "center", gap: 8 },
+  modelName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  modelBadge: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  historySection: { flex: 1 },
   historyList: { flex: 1 },
-  emptyHistory: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 6,
-  },
+  emptyHistory: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 6 },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -337,41 +269,22 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   historyIcon: { marginRight: 8 },
-  historyTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
+  historyTitle: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   footer: {
     paddingTop: 16,
     paddingBottom: 20,
     borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: 8,
   },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: {
     width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
   },
   userInfo: { flex: 1 },
-  userName: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
-  userPlan: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
+  userName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  userPlan: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
 });
