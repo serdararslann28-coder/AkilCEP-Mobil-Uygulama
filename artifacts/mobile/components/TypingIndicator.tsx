@@ -15,9 +15,9 @@ import { useColors } from "@/hooks/useColors";
 export default function TypingIndicator() {
   const colors = useColors();
 
-  const dot1 = useSharedValue(0.3);
-  const dot2 = useSharedValue(0.3);
-  const dot3 = useSharedValue(0.3);
+  const dot1 = useSharedValue(0.25);
+  const dot2 = useSharedValue(0.25);
+  const dot3 = useSharedValue(0.25);
 
   useEffect(() => {
     const anim = (sv: SharedValue<number>, delayMs: number) => {
@@ -25,8 +25,8 @@ export default function TypingIndicator() {
         delayMs,
         withRepeat(
           withSequence(
-            withTiming(1, { duration: 400 }),
-            withTiming(0.3, { duration: 400 })
+            withTiming(1, { duration: 380 }),
+            withTiming(0.25, { duration: 380 })
           ),
           -1,
           false
@@ -45,10 +45,18 @@ export default function TypingIndicator() {
   return (
     <View style={styles.wrapper}>
       <View style={styles.aiRow}>
-        <View style={[styles.avatar, { borderColor: colors.border }]}>
-          <View style={[styles.avatarDot, { backgroundColor: colors.primary }]} />
+        <View style={[styles.avatar, { backgroundColor: colors.foreground }]}>
+          <View style={[styles.avatarDot, { backgroundColor: colors.background }]} />
         </View>
-        <View style={[styles.bubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.bubble,
+            {
+              backgroundColor: colors.card,
+              shadowColor: "#000",
+            },
+          ]}
+        >
           <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle1]} />
           <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle2]} />
           <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle3]} />
@@ -72,9 +80,12 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
   },
   avatarDot: {
     width: 8,
@@ -89,7 +100,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 22,
     borderBottomLeftRadius: 6,
-    borderWidth: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
   dot: {
     width: 7,

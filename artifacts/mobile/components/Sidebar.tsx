@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useEffect } from "react";
@@ -31,17 +31,25 @@ interface SidebarProps {
 
 export default function Sidebar({ visible, onClose }: SidebarProps) {
   const colors = useColors();
-  const { conversations, currentConversation, loadConversation, deleteConversation, startNewConversation, selectedModel, setSelectedModel } = useChat();
+  const {
+    conversations,
+    currentConversation,
+    loadConversation,
+    deleteConversation,
+    startNewConversation,
+    selectedModel,
+    setSelectedModel,
+  } = useChat();
 
-  const translateX = useSharedValue(-SIDEBAR_WIDTH);
+  const translateX    = useSharedValue(-SIDEBAR_WIDTH);
   const overlayOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      translateX.value = withTiming(0, { duration: 300 });
+      translateX.value    = withTiming(0, { duration: 300 });
       overlayOpacity.value = withTiming(1, { duration: 300 });
     } else {
-      translateX.value = withTiming(-SIDEBAR_WIDTH, { duration: 280 });
+      translateX.value    = withTiming(-SIDEBAR_WIDTH, { duration: 280 });
       overlayOpacity.value = withTiming(0, { duration: 280 });
     }
   }, [visible]);
@@ -49,7 +57,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const sidebarStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
-
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
     pointerEvents: overlayOpacity.value > 0 ? "auto" : "none",
@@ -62,7 +69,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     router.push("/chat");
   };
 
-  const handleConversationPress = (id: string) => {
+  const handleConversation = (id: string) => {
     Haptics.selectionAsync();
     loadConversation(id);
     onClose();
@@ -83,37 +90,52 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
       <Animated.View
         style={[
           styles.sidebar,
-          { backgroundColor: colors.card, borderRightColor: colors.border },
+          {
+            backgroundColor: colors.surface,
+            shadowColor: "#000",
+          },
           sidebarStyle,
         ]}
       >
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
-            <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.logoText, { color: colors.primary }]}>AkılCEP AI</Text>
+            <View style={[styles.logoDot, { backgroundColor: colors.foreground }]} />
+            <Text style={[styles.logoText, { color: colors.foreground }]}>AkılCEP AI</Text>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={10}>
-            <Feather name="x" size={20} color={colors.mutedForeground} />
+          <TouchableOpacity
+            onPress={onClose}
+            style={[styles.closeBtn, { backgroundColor: colors.card }]}
+            hitSlop={10}
+          >
+            <Feather name="x" size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
         </View>
 
+        {/* New chat */}
         <TouchableOpacity
-          style={[styles.newChatBtn, { borderColor: colors.border }]}
+          style={[styles.newChatBtn, { backgroundColor: colors.foreground }]}
           onPress={handleNewChat}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          <Feather name="plus" size={16} color={colors.primary} />
-          <Text style={[styles.newChatText, { color: colors.primary }]}>Yeni Sohbet</Text>
+          <Feather name="plus" size={15} color={colors.primaryForeground} />
+          <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>
+            Yeni Sohbet
+          </Text>
         </TouchableOpacity>
 
-        <View style={styles.modelSection}>
+        {/* Model selector */}
+        <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>MODEL</Text>
           {AI_MODELS.map((model) => (
             <TouchableOpacity
               key={model.id}
               style={[
                 styles.modelRow,
-                selectedModel === model.id && { backgroundColor: colors.accent },
+                {
+                  backgroundColor:
+                    selectedModel === model.id ? colors.card : "transparent",
+                },
               ]}
               onPress={() => {
                 setSelectedModel(model.id);
@@ -122,21 +144,28 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               activeOpacity={0.7}
             >
               <View style={styles.modelInfo}>
-                <Text style={[styles.modelName, { color: colors.foreground }]}>{model.name}</Text>
-                <Text style={[styles.modelBadge, { color: colors.mutedForeground }]}>{model.badge}</Text>
+                <Text style={[styles.modelName, { color: colors.foreground }]}>
+                  {model.name}
+                </Text>
+                <Text style={[styles.modelBadge, { color: colors.mutedForeground }]}>
+                  {model.badge}
+                </Text>
               </View>
               {selectedModel === model.id && (
-                <Feather name="check" size={14} color={colors.primary} />
+                <Feather name="check" size={13} color={colors.foreground} />
               )}
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* History */}
         <View style={styles.historySection}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>GEÇMİŞ</Text>
           <ScrollView showsVerticalScrollIndicator={false} style={styles.historyList}>
             {conversations.length === 0 ? (
-              <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>Henüz sohbet yok</Text>
+              <Text style={[styles.emptyHistory, { color: colors.mutedForeground }]}>
+                Henüz sohbet yok
+              </Text>
             ) : (
               conversations.map((conv) => (
                 <TouchableOpacity
@@ -144,13 +173,18 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                   style={[
                     styles.historyRow,
                     currentConversation?.id === conv.id && {
-                      backgroundColor: colors.accent,
+                      backgroundColor: colors.card,
                     },
                   ]}
-                  onPress={() => handleConversationPress(conv.id)}
+                  onPress={() => handleConversation(conv.id)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="message-square" size={14} color={colors.mutedForeground} style={styles.historyIcon} />
+                  <Feather
+                    name="message-square"
+                    size={13}
+                    color={colors.mutedForeground}
+                    style={styles.historyIcon}
+                  />
                   <Text
                     style={[styles.historyTitle, { color: colors.foreground }]}
                     numberOfLines={1}
@@ -160,9 +194,8 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                   <TouchableOpacity
                     onPress={() => handleDelete(conv.id)}
                     hitSlop={8}
-                    style={styles.deleteBtn}
                   >
-                    <Feather name="trash-2" size={12} color={colors.zinc600} />
+                    <Feather name="trash-2" size={12} color={colors.zinc400} />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))
@@ -170,17 +203,18 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
           </ScrollView>
         </View>
 
+        {/* Footer */}
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           <View style={styles.userRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Feather name="user" size={16} color={colors.primary} />
+            <View style={[styles.avatar, { backgroundColor: colors.card }]}>
+              <Feather name="user" size={15} color={colors.foreground} />
             </View>
             <View style={styles.userInfo}>
               <Text style={[styles.userName, { color: colors.foreground }]}>Kullanıcı</Text>
               <Text style={[styles.userPlan, { color: colors.mutedForeground }]}>Ücretsiz Plan</Text>
             </View>
             <TouchableOpacity hitSlop={10}>
-              <Feather name="settings" size={16} color={colors.mutedForeground} />
+              <Feather name="settings" size={15} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
         </View>
@@ -192,7 +226,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.18)",
     zIndex: 100,
   },
   sidebar: {
@@ -202,16 +236,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: SIDEBAR_WIDTH,
     zIndex: 101,
-    borderRightWidth: 1,
     paddingTop: Platform.OS === "web" ? 67 : 60,
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "web" ? 34 : 0,
+    shadowOffset: { width: 8, height: 0 },
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 22,
   },
   logoRow: {
     flexDirection: "row",
@@ -229,24 +265,31 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   closeBtn: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   newChatBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
     marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
   newChatText: {
     fontSize: 14,
     fontFamily: "Inter_500Medium",
   },
-  modelSection: {
-    marginBottom: 24,
+  section: {
+    marginBottom: 22,
   },
   sectionLabel: {
     fontSize: 10,
@@ -260,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 2,
   },
   modelInfo: {
@@ -279,37 +322,30 @@ const styles = StyleSheet.create({
   historySection: {
     flex: 1,
   },
-  historyList: {
-    flex: 1,
-  },
+  historyList: { flex: 1 },
   emptyHistory: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
-    marginTop: 8,
+    marginTop: 6,
   },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 2,
   },
-  historyIcon: {
-    marginRight: 8,
-  },
+  historyIcon: { marginRight: 8 },
   historyTitle: {
     flex: 1,
     fontSize: 13,
     fontFamily: "Inter_400Regular",
   },
-  deleteBtn: {
-    padding: 4,
-  },
   footer: {
     paddingTop: 16,
     paddingBottom: 20,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: 8,
   },
   userRow: {
@@ -323,10 +359,12 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
-  userInfo: {
-    flex: 1,
-  },
+  userInfo: { flex: 1 },
   userName: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",

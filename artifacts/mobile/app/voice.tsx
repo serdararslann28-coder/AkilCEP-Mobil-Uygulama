@@ -19,8 +19,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
-
 type VoiceState = "idle" | "listening" | "speaking";
 
 const BAR_COUNT = 24;
@@ -32,9 +30,9 @@ interface WaveBarProps {
 }
 
 function WaveBar({ index, total, active }: WaveBarProps) {
-  const height = useSharedValue(4);
-  const maxH = 8 + Math.sin((index / total) * Math.PI) * 28;
-  const delay = (index / total) * 280;
+  const height = useSharedValue(3);
+  const maxH = 6 + Math.sin((index / total) * Math.PI) * 26;
+  const delay = (index / total) * 260;
   const dur = 180 + ((index * 37) % 200);
 
   useEffect(() => {
@@ -44,30 +42,22 @@ function WaveBar({ index, total, active }: WaveBarProps) {
         withRepeat(
           withSequence(
             withTiming(maxH * (0.5 + ((index * 13) % 50) / 100), { duration: dur }),
-            withTiming(4 + ((index * 7) % 10), { duration: dur })
+            withTiming(3 + ((index * 7) % 8), { duration: dur })
           ),
           -1,
           true
         )
       );
     } else {
-      height.value = withTiming(4);
+      height.value = withTiming(3);
     }
   }, [active]);
 
   const barStyle = useAnimatedStyle(() => ({ height: height.value }));
-
-  const color =
-    index % 3 === 0 ? "#ffffff" : index % 3 === 1 ? "#a1a1aa" : "#3f3f46";
+  const color = index % 3 === 0 ? "#111111" : index % 3 === 1 ? "#A1A1AA" : "#D4D4D8";
 
   return (
-    <Animated.View
-      style={[
-        styles.waveBar,
-        { backgroundColor: color },
-        barStyle,
-      ]}
-    />
+    <Animated.View style={[styles.waveBar, { backgroundColor: color }, barStyle]} />
   );
 }
 
@@ -78,9 +68,9 @@ export default function VoiceScreen() {
   const ring1Scale = useSharedValue(1);
   const ring2Scale = useSharedValue(1);
   const ring3Scale = useSharedValue(1);
-  const ring1Opacity = useSharedValue(0.35);
-  const ring2Opacity = useSharedValue(0.2);
-  const ring3Opacity = useSharedValue(0.1);
+  const ring1Opacity = useSharedValue(0.12);
+  const ring2Opacity = useSharedValue(0.07);
+  const ring3Opacity = useSharedValue(0.04);
   const orbScale = useSharedValue(1);
 
   useEffect(() => {
@@ -93,19 +83,31 @@ export default function VoiceScreen() {
     }
     const speed = state === "speaking" ? 0.7 : 1;
     ring1Scale.value = withRepeat(
-      withSequence(withTiming(1.18, { duration: 1000 * speed }), withTiming(1, { duration: 1000 * speed })),
+      withSequence(
+        withTiming(1.16, { duration: 1000 * speed }),
+        withTiming(1, { duration: 1000 * speed })
+      ),
       -1, true
     );
     ring2Scale.value = withDelay(180, withRepeat(
-      withSequence(withTiming(1.3, { duration: 1200 * speed }), withTiming(1, { duration: 1200 * speed })),
+      withSequence(
+        withTiming(1.28, { duration: 1200 * speed }),
+        withTiming(1, { duration: 1200 * speed })
+      ),
       -1, true
     ));
     ring3Scale.value = withDelay(360, withRepeat(
-      withSequence(withTiming(1.46, { duration: 1400 * speed }), withTiming(1, { duration: 1400 * speed })),
+      withSequence(
+        withTiming(1.44, { duration: 1400 * speed }),
+        withTiming(1, { duration: 1400 * speed })
+      ),
       -1, true
     ));
     orbScale.value = withRepeat(
-      withSequence(withTiming(1.07, { duration: 800 * speed }), withTiming(0.95, { duration: 800 * speed })),
+      withSequence(
+        withTiming(1.06, { duration: 800 * speed }),
+        withTiming(0.95, { duration: 800 * speed })
+      ),
       -1, true
     );
   }, [state]);
@@ -126,10 +128,7 @@ export default function VoiceScreen() {
     transform: [{ scale: orbScale.value }],
   }));
 
-  const bars = useMemo(
-    () => Array.from({ length: BAR_COUNT }, (_, i) => i),
-    []
-  );
+  const bars = useMemo(() => Array.from({ length: BAR_COUNT }, (_, i) => i), []);
 
   const handleToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -145,17 +144,15 @@ export default function VoiceScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const stateLabel =
-    state === "listening"
-      ? "Dinliyorum..."
-      : state === "speaking"
-      ? "Yanıtlıyorum..."
-      : "Hazır";
+    state === "listening" ? "Dinliyorum..." : state === "speaking" ? "Yanıtlıyorum..." : "Hazır";
 
   return (
-    <View style={[styles.container, { backgroundColor: "#000000" }]}>
+    <View style={[styles.container, { backgroundColor: "#F7F7F7" }]}>
       <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
         <TouchableOpacity style={styles.closeBtn} onPress={handleClose} hitSlop={10}>
-          <Feather name="x" size={22} color="#ffffff" />
+          <View style={styles.closePill}>
+            <Feather name="x" size={18} color="#111111" />
+          </View>
         </TouchableOpacity>
         <Text style={styles.title}>Sesli Mod</Text>
         <View style={styles.placeholder} />
@@ -165,61 +162,59 @@ export default function VoiceScreen() {
         <Animated.View style={[styles.ring3, ring3Style]} />
         <Animated.View style={[styles.ring2, ring2Style]} />
         <Animated.View style={[styles.ring1, ring1Style]} />
-        <Animated.View style={[styles.orb, orbStyle]}>
-          <Feather name="mic" size={32} color="#000000" />
+        <Animated.View style={[styles.orbShadow, orbStyle]}>
+          <View style={styles.orb}>
+            <View style={styles.orbInner}>
+              <Feather name="mic" size={28} color="#F7F7F7" />
+            </View>
+          </View>
         </Animated.View>
       </View>
 
       <Text style={styles.stateLabel}>{stateLabel}</Text>
       <Text style={styles.hint}>
-        {state === "listening"
-          ? "Konuşun, sizi dinliyorum"
-          : "AkılCEP yanıtlıyor..."}
+        {state === "listening" ? "Konuşun, sizi dinliyorum" : "AkılCEP yanıtlıyor..."}
       </Text>
 
       <View style={styles.waveContainer}>
         {bars.map((i) => (
-          <WaveBar
-            key={i}
-            index={i}
-            total={BAR_COUNT}
-            active={state !== "idle"}
-          />
+          <WaveBar key={i} index={i} total={BAR_COUNT} active={state !== "idle"} />
         ))}
       </View>
 
       <View style={[styles.controls, { paddingBottom: bottomPad + 24 }]}>
         <TouchableOpacity
-          style={[styles.controlBtn, { backgroundColor: "#18181b" }]}
+          style={styles.controlBtn}
           hitSlop={8}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setState("idle");
           }}
         >
-          <Feather name="pause" size={20} color="#71717a" />
+          <Feather name="pause" size={19} color="#9E9E9E" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.mainBtn,
-            { backgroundColor: state === "listening" ? "#ffffff" : "#1c1c1e" },
+            {
+              backgroundColor: state === "listening" ? "#111111" : "#E0E0E0",
+              shadowColor: state === "listening" ? "#111111" : "#000",
+              shadowOpacity: state === "listening" ? 0.22 : 0.08,
+            },
           ]}
           onPress={handleToggle}
-          activeOpacity={0.8}
+          activeOpacity={0.82}
         >
           <Feather
             name={state === "listening" ? "mic" : "mic-off"}
             size={26}
-            color={state === "listening" ? "#000000" : "#ffffff"}
+            color={state === "listening" ? "#FFFFFF" : "#9E9E9E"}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.controlBtn, { backgroundColor: "#18181b" }]}
-          hitSlop={8}
-        >
-          <Feather name="volume-2" size={20} color="#71717a" />
+        <TouchableOpacity style={styles.controlBtn} hitSlop={8}>
+          <Feather name="volume-2" size={19} color="#9E9E9E" />
         </TouchableOpacity>
       </View>
     </View>
@@ -245,10 +240,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  closePill: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EBEBEB",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
   title: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
-    color: "#ffffff",
+    color: "#111111",
     letterSpacing: -0.3,
   },
   placeholder: {
@@ -262,44 +269,54 @@ const styles = StyleSheet.create({
   },
   ring3: {
     position: "absolute",
-    width: 244,
-    height: 244,
-    borderRadius: 122,
-    backgroundColor: "#ffffff",
+    width: 248,
+    height: 248,
+    borderRadius: 124,
+    backgroundColor: "#111111",
   },
   ring2: {
     position: "absolute",
-    width: 188,
-    height: 188,
-    borderRadius: 94,
-    backgroundColor: "#ffffff",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: "#111111",
   },
   ring1: {
     position: "absolute",
-    width: 148,
-    height: 148,
-    borderRadius: 74,
-    backgroundColor: "#ffffff",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "#111111",
+  },
+  orbShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
   },
   orb: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    backgroundColor: "#ffffff",
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#1a1a1a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orbInner: {
     alignItems: "center",
     justifyContent: "center",
   },
   stateLabel: {
     fontSize: 22,
     fontFamily: "Inter_600SemiBold",
-    color: "#ffffff",
+    color: "#111111",
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   hint: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    color: "#52525b",
+    color: "#9E9E9E",
     marginBottom: 32,
   },
   waveContainer: {
@@ -314,7 +331,7 @@ const styles = StyleSheet.create({
   waveBar: {
     width: 3,
     borderRadius: 2,
-    minHeight: 4,
+    minHeight: 3,
   },
   controls: {
     flexDirection: "row",
@@ -327,8 +344,13 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
+    backgroundColor: "#EBEBEB",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   mainBtn: {
     width: 76,
@@ -336,5 +358,7 @@ const styles = StyleSheet.create({
     borderRadius: 38,
     alignItems: "center",
     justifyContent: "center",
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 18,
   },
 });

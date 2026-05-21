@@ -43,7 +43,6 @@ export default function MessageBubble({ message, isLatest }: MessageBubbleProps)
       }
     };
     timerRef.current = setTimeout(tick, 80);
-
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -52,10 +51,18 @@ export default function MessageBubble({ message, isLatest }: MessageBubbleProps)
   if (isUser) {
     return (
       <Animated.View
-        entering={FadeInDown.duration(300).springify()}
+        entering={FadeInDown.duration(280).springify()}
         style={styles.userWrapper}
       >
-        <View style={[styles.userBubble, { backgroundColor: colors.primary }]}>
+        <View
+          style={[
+            styles.userBubble,
+            {
+              backgroundColor: colors.primary,
+              shadowColor: "#000",
+            },
+          ]}
+        >
           <Text style={[styles.userText, { color: colors.primaryForeground }]}>
             {message.content}
           </Text>
@@ -69,14 +76,27 @@ export default function MessageBubble({ message, isLatest }: MessageBubbleProps)
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(300).springify()}
+      entering={FadeInDown.duration(280).springify()}
       style={styles.aiWrapper}
     >
       <View style={styles.aiRow}>
-        <View style={[styles.aiAvatar, { borderColor: colors.border }]}>
-          <View style={[styles.aiAvatarDot, { backgroundColor: colors.primary }]} />
+        <View
+          style={[
+            styles.aiAvatar,
+            { backgroundColor: colors.foreground },
+          ]}
+        >
+          <View style={[styles.aiAvatarDot, { backgroundColor: colors.background }]} />
         </View>
-        <View style={[styles.aiBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.aiBubble,
+            {
+              backgroundColor: colors.card,
+              shadowColor: "#000",
+            },
+          ]}
+        >
           <Text style={[styles.aiText, { color: colors.foreground }]}>
             {displayedContent}
           </Text>
@@ -101,6 +121,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
   },
   userText: {
     fontSize: 15,
@@ -110,9 +133,10 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 10,
     fontFamily: "Inter_400Regular",
-    marginTop: 4,
+    marginTop: 5,
     marginRight: 4,
   },
+
   aiWrapper: {
     marginBottom: 18,
     paddingHorizontal: 16,
@@ -126,11 +150,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
     marginBottom: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
   },
   aiAvatarDot: {
     width: 8,
@@ -144,7 +171,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderWidth: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
   aiText: {
     fontSize: 15,
@@ -154,7 +183,7 @@ const styles = StyleSheet.create({
   aiTimestamp: {
     fontSize: 10,
     fontFamily: "Inter_400Regular",
-    marginTop: 4,
+    marginTop: 5,
     marginLeft: 38,
   },
 });
