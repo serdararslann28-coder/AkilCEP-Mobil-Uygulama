@@ -88,9 +88,14 @@ function onThreeReady() {
   var H = window.innerHeight || 812;
 
   // Scene / camera
+  // D=7.0 → globe pixel diameter = H / (D × tan(fovY/2)) = 812/(7.0×0.344) ≈ 337px
+  // Fits naturally on screen (~41% of height) with room for header + bottom controls.
+  // lookAt(0,-0.15,0) tilts camera down slightly → globe centre appears ~8% above
+  // screen centre, giving natural breathing space below for the bottom UI.
   var scene  = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
-  camera.position.z = 2.45;
+  camera.position.z = 7.0;
+  camera.lookAt(0, -0.15, 0);
 
   // WebGL renderer
   var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -263,6 +268,7 @@ function onThreeReady() {
     H = window.innerHeight;
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
+    camera.lookAt(0, -0.15, 0);
     renderer.setSize(W, H);
   });
 }

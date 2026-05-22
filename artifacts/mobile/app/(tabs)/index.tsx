@@ -39,11 +39,11 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 36 : insets.bottom;
 
-  // ── Live indicator (header right) ──────────────────────────────────────────
+  // ── Live indicator dot ──────────────────────────────────────────────────────
   const dotScale   = useSharedValue(1);
   const dotOpacity = useSharedValue(0.30);
 
-  // ── 7 waveform bar heights (0‥1) — must be declared at top level ───────────
+  // ── 7 waveform bar heights ──────────────────────────────────────────────────
   const b0 = useSharedValue(0.10);
   const b1 = useSharedValue(0.10);
   const b2 = useSharedValue(0.10);
@@ -52,7 +52,6 @@ export default function HomeScreen() {
   const b5 = useSharedValue(0.10);
   const b6 = useSharedValue(0.10);
 
-  // Animated styles for bars — all declared unconditionally at top level
   const s0 = useAnimatedStyle(() => ({ height: Math.max(2, b0.value * 12) }));
   const s1 = useAnimatedStyle(() => ({ height: Math.max(2, b1.value * 17) }));
   const s2 = useAnimatedStyle(() => ({ height: Math.max(2, b2.value * 22) }));
@@ -68,7 +67,6 @@ export default function HomeScreen() {
 
   // ── Drive all animations from voice state ───────────────────────────────────
   useEffect(() => {
-    // Indicator dot
     if (voice === "listening") {
       dotScale.value   = withRepeat(withSequence(withTiming(1.65,{duration:760}), withTiming(1,{duration:760})), -1, true);
       dotOpacity.value = withRepeat(withSequence(withTiming(0.95,{duration:760}), withTiming(0.25,{duration:760})), -1, true);
@@ -80,7 +78,6 @@ export default function HomeScreen() {
       dotOpacity.value = withTiming(0.30, { duration: 500 });
     }
 
-    // Waveform bars
     const vals = [b0, b1, b2, b3, b4, b5, b6];
     const dur  = voice === "speaking"  ? [265, 215, 175, 150, 175, 215, 265]
                : voice === "listening" ? [500, 420, 365, 325, 365, 420, 500]
@@ -103,8 +100,7 @@ export default function HomeScreen() {
 
   const statusText =
     voice === "listening" ? "SENİ DİNLİYORUM" :
-    voice === "speaking"  ? "YANIT VERİYORUM"  :
-    "KONUŞMAK İÇİN DOKUN";
+    voice === "speaking"  ? "YANIT VERİYORUM"  : "";
 
   const dotColor =
     voice === "listening" ? "#4DB6FF" :
@@ -124,7 +120,7 @@ export default function HomeScreen() {
         <CinematicEarth voiceState={voice} />
       </Pressable>
 
-      {/* ── Top header (glassmorphic overlay) ──────────────────────────────── */}
+      {/* ── Top header ─────────────────────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: topPad + 4 }]} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.glassBtn}
@@ -149,18 +145,15 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Bottom panel ───────────────────────────────────────────────────── */}
-      <View style={[styles.bottomPanel, { paddingBottom: btmPad + 10 }]} pointerEvents="box-none">
+      <View style={[styles.bottomPanel, { paddingBottom: btmPad + 20 }]} pointerEvents="box-none">
 
-        {/* Status label */}
-        <Text style={[styles.statusLabel, voice !== "idle" && styles.statusActive]}>
-          {statusText}
-        </Text>
+        {/* Status label — only visible when active */}
+        {voice !== "idle" && (
+          <Text style={styles.statusLabel}>{statusText}</Text>
+        )}
 
-        {/* Waveform visualiser */}
+        {/* Waveform — 7 bars only, no side dots */}
         <View style={styles.waveRow}>
-          {/* Left side dots */}
-          {Array.from({ length: 14 }, (_, i) => <View key={`ld${i}`} style={styles.waveDot} />)}
-          {/* Center animated bars */}
           <Animated.View style={[styles.waveBar, s0]} />
           <Animated.View style={[styles.waveBar, s1]} />
           <Animated.View style={[styles.waveBar, s2]} />
@@ -168,8 +161,6 @@ export default function HomeScreen() {
           <Animated.View style={[styles.waveBar, s4]} />
           <Animated.View style={[styles.waveBar, s5]} />
           <Animated.View style={[styles.waveBar, s6]} />
-          {/* Right side dots */}
-          {Array.from({ length: 14 }, (_, i) => <View key={`rd${i}`} style={styles.waveDot} />)}
         </View>
 
         {/* Navigation row */}
@@ -224,16 +215,16 @@ const styles = StyleSheet.create({
 
   // ── Header
   header: {
-    position:        "absolute",
-    top:             0,
-    left:            0,
-    right:           0,
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "space-between",
-    paddingHorizontal: 18,
-    paddingBottom:   10,
-    zIndex:          20,
+    position:          "absolute",
+    top:               0,
+    left:              0,
+    right:             0,
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    paddingHorizontal: 20,
+    paddingBottom:     12,
+    zIndex:            20,
   },
   glassBtn: {
     width:           38,
@@ -251,15 +242,15 @@ const styles = StyleSheet.create({
     gap:        3,
   },
   wordmark: {
-    fontSize:    12.5,
-    fontFamily:  "Inter_700Bold",
-    color:       "rgba(255,255,255,0.86)",
+    fontSize:      12.5,
+    fontFamily:    "Inter_700Bold",
+    color:         "rgba(255,255,255,0.86)",
     letterSpacing: 4.8,
   },
   tagline: {
-    fontSize:    7,
-    fontFamily:  "Inter_400Regular",
-    color:       "rgba(255,255,255,0.30)",
+    fontSize:      7,
+    fontFamily:    "Inter_400Regular",
+    color:         "rgba(255,255,255,0.28)",
     letterSpacing: 2.0,
   },
   liveDot: {
@@ -270,70 +261,61 @@ const styles = StyleSheet.create({
 
   // ── Bottom
   bottomPanel: {
-    position:         "absolute",
-    bottom:           0,
-    left:             0,
-    right:            0,
-    alignItems:       "center",
+    position:          "absolute",
+    bottom:            0,
+    left:              0,
+    right:             0,
+    alignItems:        "center",
     paddingHorizontal: 24,
-    zIndex:           20,
+    gap:               16,
+    zIndex:            20,
   },
   statusLabel: {
-    fontSize:      9.5,
+    fontSize:      9,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.24)",
+    color:         "rgba(90,178,255,0.72)",
     letterSpacing: 3.8,
     textTransform: "uppercase",
-    marginBottom:  12,
-  },
-  statusActive: {
-    color: "rgba(90,178,255,0.70)",
   },
 
-  // Waveform
+  // Waveform — 7 bars, no decorative dots
   waveRow: {
     flexDirection: "row",
-    alignItems:    "center",
-    gap:           3,
-    marginBottom:  22,
+    alignItems:    "flex-end",
+    justifyContent: "center",
+    gap:           4,
     height:        28,
   },
-  waveDot: {
-    width:           1.5,
-    height:          1.5,
-    borderRadius:    1,
-    backgroundColor: "rgba(255,255,255,0.16)",
-  },
   waveBar: {
-    width:           2.5,
+    width:           3,
     borderRadius:    1.5,
-    backgroundColor: "rgba(155,208,255,0.64)",
+    backgroundColor: "rgba(148,208,255,0.55)",
   },
 
   // Tabs
   tabRow: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "space-between",
-    width:           "100%",
-    paddingHorizontal: 12,
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    width:             "100%",
+    paddingHorizontal: 16,
   },
   tabItem: {
     alignItems: "center",
     gap:        5,
-    minWidth:   68,
+    minWidth:   72,
   },
   tabLabel: {
-    fontSize:    9,
-    fontFamily:  "Inter_400Regular",
-    color:       "rgba(255,255,255,0.34)",
+    fontSize:      9,
+    fontFamily:    "Inter_400Regular",
+    color:         "rgba(255,255,255,0.34)",
     letterSpacing: 0.5,
   },
   micBtn: {
-    width:        56,
-    height:       56,
-    borderRadius: 28,
-    alignItems:   "center",
+    width:          56,
+    height:         56,
+    borderRadius:   28,
+    alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#1a50cc",
     shadowOffset:   { width: 0, height: 6 },
