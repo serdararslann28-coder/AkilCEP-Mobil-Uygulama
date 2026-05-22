@@ -190,7 +190,8 @@ var STARS=[];
   for(var i=0;i<320;i++){
     var t=rn();
     var r=t<0.62?0.10+rn()*0.14:t<0.88?0.22+rn()*0.18:t<0.97?0.40+rn()*0.18:0.58+rn()*0.20;
-    STARS.push({x:rn()*W,y:rn()*H,r:r,o:0.10+rn()*0.54,tw:0.30+rn()*1.0,tp:rn()*6.28});
+    STARS.push({x:rn()*W,y:rn()*H,r:r,o:0.10+rn()*0.54,tw:0.30+rn()*1.0,tp:rn()*6.28,
+                 dx:(rn()-0.5)*0.22,dy:(rn()-0.5)*0.14});
   }
 })();
 
@@ -243,9 +244,12 @@ function draw(){
   bgG.addColorStop(1,'rgba(0,0,6,0)');
   ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
 
-  // ── 02. Stars ──────────────────────────────────────────────────────────────
+  // ── 02. Stars — drift + twinkle ───────────────────────────────────────────
   for(var si=0;si<STARS.length;si++){
     var st=STARS[si];
+    // Slow positional drift: max ±0.22 px/s — imperceptible per frame, living over time
+    if(dt>0){ st.x+=st.dx*dt; if(st.x<0)st.x+=W; if(st.x>W)st.x-=W;
+               st.y+=st.dy*dt; if(st.y<0)st.y+=H; if(st.y>H)st.y-=H; }
     var ot=st.o*(0.86+0.14*Math.sin(vPhase*st.tw+st.tp));
     ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,TAU);
     ctx.fillStyle='rgba(255,255,255,'+ot+')'; ctx.fill();
@@ -323,7 +327,9 @@ function draw(){
     if(cp2.z<0) continue;
     if(cp2.sun>0.18) continue;
     var fade=Math.max(0,Math.min(1,(0.18-cp2.sun)/0.24));
-    var br=city[2]*fade*cityBoost;
+    // Golden-angle phase offset per city so each light flickers independently
+    var cityFlk=1.0+0.038*Math.sin(vPhase*2.62+ci*2.3999);
+    var br=city[2]*fade*cityBoost*cityFlk;
     if(br<0.05) continue;
     var cr=1.5*br+0.36;
     var cg0=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*4.2);
@@ -392,7 +398,10 @@ function draw(){
   ld.addColorStop(1.0,'rgba(0,0,0,0.48)');
   ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
-  // ── 12. Outer atmosphere — layered Rayleigh ring ──────────────────────────
+  // ── 12. Outer atmosphere — layered Rayleigh ring (breathing) ────────────────
+  // Multi-frequency opacity oscillation gives a gentle inhale/exhale feel.
+  var atmBreath=0.88+0.10*Math.sin(vPhase*1.10)+0.05*Math.sin(vPhase*0.44+1.2);
+  ctx.save(); ctx.globalAlpha=atmBreath;
   var ag1=ctx.createRadialGradient(cx,cy,R*0.972,cx,cy,R*1.108);
   ag1.addColorStop(0.00,'rgba(58,132,244,0)');
   ag1.addColorStop(0.12,'rgba(98,172,255,0.50)');
@@ -414,6 +423,7 @@ function draw(){
   ag3.addColorStop(0.75,'rgba(44,112,230,0.055)');
   ag3.addColorStop(1.0,'rgba(62,138,250,0.18)');
   ctx.fillStyle=ag3; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
+  ctx.restore(); // end atmBreath globalAlpha
 
   // ── 13. Sun-side limb scatter ─────────────────────────────────────────────
   var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.18);
@@ -438,6 +448,24 @@ function draw(){
   // ── 15. Globe edge ────────────────────────────────────────────────────────
   ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU);
   ctx.strokeStyle='rgba(70,140,244,0.13)'; ctx.lineWidth=0.6; ctx.stroke();
+
+  // ── 15b. Ambient energy pulse — always-on living-world ring ──────────────
+  // Cycles every 7 s; near-invisible but gives the globe a heartbeat.
+  var ambP=(vPhase*0.143)%1;
+  var ambA=Math.max(0,Math.pow(1-ambP,2.8)*0.028);
+  ctx.beginPath(); ctx.arc(cx,cy,R*(1.008+ambP*0.38),0,TAU);
+  ctx.strokeStyle='rgba(72,124,218,'+ambA+')';
+  ctx.lineWidth=0.4+(1-ambP)*0.7; ctx.stroke();
+
+  // ── 15c. Surface shimmer sweep — warm light crossing every 22 s ──────────
+  var shimT=(vPhase*0.0454)%1;
+  var shimX=cx-R+shimT*R*2;
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var shimG=ctx.createLinearGradient(shimX-R*0.25,cy,shimX+R*0.25,cy);
+  shimG.addColorStop(0,'rgba(255,255,240,0)');
+  shimG.addColorStop(0.5,'rgba(255,255,240,0.011)');
+  shimG.addColorStop(1,'rgba(255,255,240,0)');
+  ctx.fillStyle=shimG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
   // ── 16. Living Earth — organic emotional states ───────────────────────────
   var b1=0.5+0.5*Math.sin(vPhase*1.38);
