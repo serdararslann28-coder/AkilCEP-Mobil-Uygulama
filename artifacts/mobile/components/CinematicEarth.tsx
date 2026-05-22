@@ -23,51 +23,51 @@ interface Props { voiceState: VoiceState; }
 // ─── Land polygons — 34 biome regions ────────────────────────────────────────
 // Chaikin 2× runs at startup; these are coarse control-point skeletons.
 const LAND = [
-  // ── Africa ─────────────────────────────────────────────────────────────────
-  {c:"#b09a30",p:[[-6,36],[8,37],[24,33],[34,30],[42,28],[50,22],[44,18],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,30],[-6,36]]},
-  {c:"#8a7e2c",p:[[-18,14],[-10,16],[0,16],[8,16],[18,14],[28,14],[36,14],[42,10],[44,14],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,14]]},
-  {c:"#22681c",p:[[-18,4],[-18,14],[0,14],[8,14],[18,14],[28,14],[20,8],[12,4],[4,2],[-2,4],[-10,4],[-18,4]]},
-  {c:"#567030",p:[[36,14],[42,10],[46,6],[48,0],[44,-4],[40,-10],[36,-18],[32,-26],[28,-34],[18,-34],[14,-28],[12,-18],[14,-10],[18,-4],[24,0],[28,4],[32,8],[36,14]]},
-  {c:"#38662a",p:[[44,-12],[48,-14],[50,-18],[50,-24],[46,-26],[44,-22],[42,-18],[44,-12]]},
-  // ── Europe ─────────────────────────────────────────────────────────────────
-  {c:"#346a2c",p:[[-6,44],[-2,44],[2,44],[8,48],[12,48],[14,44],[18,44],[22,44],[24,48],[22,52],[14,56],[8,54],[4,52],[-4,52],[-6,48],[-6,44]]},
-  {c:"#3c5e2e",p:[[4,56],[8,54],[14,56],[18,58],[22,58],[22,66],[18,70],[12,70],[6,62],[4,58],[4,56]]},
-  {c:"#5e7632",p:[[-10,36],[-6,36],[-4,38],[-2,40],[2,40],[4,40],[4,44],[-4,44],[-6,44],[-10,44],[-10,40],[-10,36]]},
-  {c:"#547232",p:[[12,44],[14,44],[18,44],[22,44],[24,44],[28,44],[36,42],[40,40],[36,44],[28,46],[22,48],[16,46],[12,44]]},
-  // ── Turkey ─────────────────────────────────────────────────────────────────
-  {c:"#70703c",p:[[26,37],[27,36.8],[29,36.2],[31,36],[33,36.2],[36,36],[38,36.2],[40,36.4],[42,36.8],[44,37.2],[44,38.2],[43,39.2],[42,40.2],[41,41],[40,41.5],[38,41.8],[36,42],[32,42],[29.5,42],[27.5,41.2],[26.5,40],[26.2,38.5],[26,37]]},
-  // ── Middle East ────────────────────────────────────────────────────────────
-  {c:"#8c7840",p:[[36,32],[40,34],[44,38],[44,34],[48,30],[48,24],[44,22],[40,26],[36,28],[34,30],[36,32]]},
-  {c:"#b09028",p:[[36,28],[40,26],[44,22],[48,24],[56,18],[60,14],[56,12],[52,14],[46,12],[44,14],[40,14],[36,18],[36,22],[36,28]]},
-  {c:"#907038",p:[[44,38],[48,40],[52,40],[60,36],[66,32],[66,26],[62,22],[58,20],[56,18],[52,22],[48,24],[48,30],[44,34],[44,38]]},
-  // ── Russia ─────────────────────────────────────────────────────────────────
-  {c:"#406034",p:[[24,48],[28,52],[32,56],[36,58],[40,62],[44,68],[50,66],[56,68],[60,64],[62,58],[58,52],[50,48],[44,44],[36,42],[28,44],[24,48]]},
-  {c:"#3a5c2c",p:[[60,52],[68,56],[70,64],[70,72],[80,72],[100,72],[120,72],[140,70],[150,68],[155,60],[150,52],[140,52],[130,48],[120,52],[110,50],[100,54],[90,52],[80,54],[70,52],[60,52]]},
+  // ── Africa — Sahara warm gold, tropical deep emerald ────────────────────────
+  {c:"#c49428",p:[[-6,36],[8,37],[24,33],[34,30],[42,28],[50,22],[44,18],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,30],[-6,36]]},
+  {c:"#a88c24",p:[[-18,14],[-10,16],[0,16],[8,16],[18,14],[28,14],[36,14],[42,10],[44,14],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,14]]},
+  {c:"#147218",p:[[-18,4],[-18,14],[0,14],[8,14],[18,14],[28,14],[20,8],[12,4],[4,2],[-2,4],[-10,4],[-18,4]]},
+  {c:"#4a6e26",p:[[36,14],[42,10],[46,6],[48,0],[44,-4],[40,-10],[36,-18],[32,-26],[28,-34],[18,-34],[14,-28],[12,-18],[14,-10],[18,-4],[24,0],[28,4],[32,8],[36,14]]},
+  {c:"#2e6e22",p:[[44,-12],[48,-14],[50,-18],[50,-24],[46,-26],[44,-22],[42,-18],[44,-12]]},
+  // ── Europe — richer forest greens ──────────────────────────────────────────
+  {c:"#2e7228",p:[[-6,44],[-2,44],[2,44],[8,48],[12,48],[14,44],[18,44],[22,44],[24,48],[22,52],[14,56],[8,54],[4,52],[-4,52],[-6,48],[-6,44]]},
+  {c:"#326426",p:[[4,56],[8,54],[14,56],[18,58],[22,58],[22,66],[18,70],[12,70],[6,62],[4,58],[4,56]]},
+  {c:"#5e7228",p:[[-10,36],[-6,36],[-4,38],[-2,40],[2,40],[4,40],[4,44],[-4,44],[-6,44],[-10,44],[-10,40],[-10,36]]},
+  {c:"#4e7028",p:[[12,44],[14,44],[18,44],[22,44],[24,44],[28,44],[36,42],[40,40],[36,44],[28,46],[22,48],[16,46],[12,44]]},
+  // ── Turkey — warm olive ─────────────────────────────────────────────────────
+  {c:"#7a7030",p:[[26,37],[27,36.8],[29,36.2],[31,36],[33,36.2],[36,36],[38,36.2],[40,36.4],[42,36.8],[44,37.2],[44,38.2],[43,39.2],[42,40.2],[41,41],[40,41.5],[38,41.8],[36,42],[32,42],[29.5,42],[27.5,41.2],[26.5,40],[26.2,38.5],[26,37]]},
+  // ── Middle East — deeper amber & ochre ─────────────────────────────────────
+  {c:"#9a7c38",p:[[36,32],[40,34],[44,38],[44,34],[48,30],[48,24],[44,22],[40,26],[36,28],[34,30],[36,32]]},
+  {c:"#c49420",p:[[36,28],[40,26],[44,22],[48,24],[56,18],[60,14],[56,12],[52,14],[46,12],[44,14],[40,14],[36,18],[36,22],[36,28]]},
+  {c:"#9a7230",p:[[44,38],[48,40],[52,40],[60,36],[66,32],[66,26],[62,22],[58,20],[56,18],[52,22],[48,24],[48,30],[44,34],[44,38]]},
+  // ── Russia — deep taiga green ──────────────────────────────────────────────
+  {c:"#386632",p:[[24,48],[28,52],[32,56],[36,58],[40,62],[44,68],[50,66],[56,68],[60,64],[62,58],[58,52],[50,48],[44,44],[36,42],[28,44],[24,48]]},
+  {c:"#326028",p:[[60,52],[68,56],[70,64],[70,72],[80,72],[100,72],[120,72],[140,70],[150,68],[155,60],[150,52],[140,52],[130,48],[120,52],[110,50],[100,54],[90,52],[80,54],[70,52],[60,52]]},
   // ── Central + South Asia ───────────────────────────────────────────────────
-  {c:"#8c7c36",p:[[50,48],[60,52],[68,56],[70,48],[66,40],[60,36],[52,40],[48,40],[44,44],[48,50],[50,48]]},
-  {c:"#687232",p:[[60,36],[66,26],[66,22],[70,18],[76,8],[80,10],[84,14],[88,22],[80,28],[76,30],[70,28],[66,28],[62,26],[60,30],[60,36]]},
-  {c:"#286a1e",p:[[98,20],[100,14],[102,8],[104,0],[100,-4],[96,0],[94,8],[92,18],[96,22],[98,20]]},
-  {c:"#226818",p:[[100,-4],[102,-2],[104,0],[106,-2],[106,-6],[102,-6],[100,-4]]},
-  {c:"#1e6616",p:[[108,4],[110,2],[112,0],[116,2],[116,4],[114,6],[110,6],[108,4]]},
+  {c:"#a08030",p:[[50,48],[60,52],[68,56],[70,48],[66,40],[60,36],[52,40],[48,40],[44,44],[48,50],[50,48]]},
+  {c:"#5c7428",p:[[60,36],[66,26],[66,22],[70,18],[76,8],[80,10],[84,14],[88,22],[80,28],[76,30],[70,28],[66,28],[62,26],[60,30],[60,36]]},
+  {c:"#1e7018",p:[[98,20],[100,14],[102,8],[104,0],[100,-4],[96,0],[94,8],[92,18],[96,22],[98,20]]},
+  {c:"#187014",p:[[100,-4],[102,-2],[104,0],[106,-2],[106,-6],[102,-6],[100,-4]]},
+  {c:"#147212",p:[[108,4],[110,2],[112,0],[116,2],[116,4],[114,6],[110,6],[108,4]]},
   // ── East Asia ──────────────────────────────────────────────────────────────
-  {c:"#7a7a36",p:[[74,38],[80,50],[90,52],[100,52],[110,50],[120,52],[130,48],[128,40],[126,32],[120,24],[114,18],[108,18],[104,22],[100,18],[96,22],[92,20],[94,24],[88,22],[80,28],[76,30],[70,28],[70,36],[74,38]]},
-  {c:"#3a6630",p:[[130,31],[132,33],[136,35],[137,40],[134,42],[132,42],[130,38],[128,33],[130,31]]},
-  {c:"#426632",p:[[126,34],[128,36],[130,38],[128,38],[126,36],[124,36],[126,34]]},
+  {c:"#727830",p:[[74,38],[80,50],[90,52],[100,52],[110,50],[120,52],[130,48],[128,40],[126,32],[120,24],[114,18],[108,18],[104,22],[100,18],[96,22],[92,20],[94,24],[88,22],[80,28],[76,30],[70,28],[70,36],[74,38]]},
+  {c:"#306a2c",p:[[130,31],[132,33],[136,35],[137,40],[134,42],[132,42],[130,38],[128,33],[130,31]]},
+  {c:"#386c2e",p:[[126,34],[128,36],[130,38],[128,38],[126,36],[124,36],[126,34]]},
   // ── North America ──────────────────────────────────────────────────────────
-  {c:"#3a5a2a",p:[[-168,60],[-156,58],[-148,58],[-136,58],[-130,54],[-132,56],[-140,58],[-152,58],[-164,58],[-168,58],[-168,60]]},
-  {c:"#3e642c",p:[[-136,58],[-130,54],[-124,50],[-80,44],[-72,42],[-64,44],[-60,44],[-60,50],[-66,52],[-76,58],[-84,64],[-96,68],[-100,70],[-80,72],[-60,72],[-50,70],[-36,62],[-42,58],[-52,54],[-56,50],[-66,46],[-76,46],[-90,60],[-100,58],[-120,58],[-130,54],[-136,58]]},
-  {c:"#4a6e30",p:[[-124,48],[-120,44],[-110,44],[-100,44],[-80,44],[-72,42],[-70,40],[-76,34],[-80,30],[-88,30],[-96,24],[-100,24],[-106,24],[-110,30],[-114,32],[-118,34],[-122,36],[-124,38],[-124,48]]},
-  {c:"#66742e",p:[[-116,28],[-100,24],[-96,22],[-88,22],[-84,18],[-80,12],[-78,10],[-84,10],[-88,16],[-92,18],[-100,22],[-106,22],[-112,28],[-116,30],[-116,28]]},
-  // ── South America ──────────────────────────────────────────────────────────
-  {c:"#1e5e18",p:[[-78,10],[-70,12],[-60,8],[-52,4],[-50,0],[-44,-2],[-40,-4],[-44,-8],[-50,-8],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
-  {c:"#3a6222",p:[[-40,-4],[-36,-8],[-36,-16],[-38,-22],[-44,-24],[-48,-16],[-50,-8],[-44,-8],[-40,-4]]},
-  {c:"#78682e",p:[[-78,10],[-80,4],[-80,0],[-76,0],[-68,-6],[-68,-18],[-70,-30],[-72,-44],[-70,-50],[-66,-54],[-60,-52],[-56,-38],[-54,-20],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
-  // ── Australia ──────────────────────────────────────────────────────────────
-  {c:"#ac8e28",p:[[114,-22],[122,-20],[128,-18],[134,-14],[136,-18],[138,-22],[136,-26],[130,-26],[126,-30],[120,-34],[116,-32],[112,-28],[114,-22]]},
-  {c:"#5c6c2e",p:[[138,-18],[140,-18],[144,-18],[148,-20],[152,-24],[152,-30],[148,-36],[142,-38],[136,-38],[132,-32],[128,-30],[126,-30],[130,-26],[136,-26],[138,-22],[136,-18],[138,-18]]},
-  // ── Polar ──────────────────────────────────────────────────────────────────
-  {c:"#aac2d4",p:[[-44,60],[-36,62],[-24,68],[-18,72],[-22,76],[-30,78],[-42,82],[-52,80],[-58,74],[-54,66],[-44,60]]},
-  {c:"#bccede",p:[[-180,-72],[0,-72],[180,-72],[180,-90],[-180,-90],[-180,-72]]},
+  {c:"#325e26",p:[[-168,60],[-156,58],[-148,58],[-136,58],[-130,54],[-132,56],[-140,58],[-152,58],[-164,58],[-168,58],[-168,60]]},
+  {c:"#346a28",p:[[-136,58],[-130,54],[-124,50],[-80,44],[-72,42],[-64,44],[-60,44],[-60,50],[-66,52],[-76,58],[-84,64],[-96,68],[-100,70],[-80,72],[-60,72],[-50,70],[-36,62],[-42,58],[-52,54],[-56,50],[-66,46],[-76,46],[-90,60],[-100,58],[-120,58],[-130,54],[-136,58]]},
+  {c:"#3e7028",p:[[-124,48],[-120,44],[-110,44],[-100,44],[-80,44],[-72,42],[-70,40],[-76,34],[-80,30],[-88,30],[-96,24],[-100,24],[-106,24],[-110,30],[-114,32],[-118,34],[-122,36],[-124,38],[-124,48]]},
+  {c:"#6a7024",p:[[-116,28],[-100,24],[-96,22],[-88,22],[-84,18],[-80,12],[-78,10],[-84,10],[-88,16],[-92,18],[-100,22],[-106,22],[-112,28],[-116,30],[-116,28]]},
+  // ── South America — Amazon deep emerald ────────────────────────────────────
+  {c:"#0e7216",p:[[-78,10],[-70,12],[-60,8],[-52,4],[-50,0],[-44,-2],[-40,-4],[-44,-8],[-50,-8],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
+  {c:"#286e1c",p:[[-40,-4],[-36,-8],[-36,-16],[-38,-22],[-44,-24],[-48,-16],[-50,-8],[-44,-8],[-40,-4]]},
+  {c:"#7a6424",p:[[-78,10],[-80,4],[-80,0],[-76,0],[-68,-6],[-68,-18],[-70,-30],[-72,-44],[-70,-50],[-66,-54],[-60,-52],[-56,-38],[-54,-20],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
+  // ── Australia — rich outback ochre + eastern green ─────────────────────────
+  {c:"#c09428",p:[[114,-22],[122,-20],[128,-18],[134,-14],[136,-18],[138,-22],[136,-26],[130,-26],[126,-30],[120,-34],[116,-32],[112,-28],[114,-22]]},
+  {c:"#506c26",p:[[138,-18],[140,-18],[144,-18],[148,-20],[152,-24],[152,-30],[148,-36],[142,-38],[136,-38],[132,-32],[128,-30],[126,-30],[130,-26],[136,-26],[138,-22],[136,-18],[138,-18]]},
+  // ── Polar ice — crisp arctic white-blue ────────────────────────────────────
+  {c:"#b4d0e4",p:[[-44,60],[-36,62],[-24,68],[-18,72],[-22,76],[-30,78],[-42,82],[-52,80],[-58,74],[-54,66],[-44,60]]},
+  {c:"#cce0ee",p:[[-180,-72],[0,-72],[180,-72],[180,-90],[-180,-90],[-180,-72]]},
 ];
 
 // ─── City lights [lon, lat, brightness] ──────────────────────────────────────
@@ -230,8 +230,13 @@ function draw(){
   if(adlon>180) adlon-=360;
   var nCX=cx+R*0.52*Math.sin(adlon*Math.PI/180);
 
-  // ── 01. Space background ───────────────────────────────────────────────────
-  ctx.fillStyle='#00000c'; ctx.fillRect(0,0,W,H);
+  // ── 01. Space background — deep cinematic void ────────────────────────────
+  ctx.fillStyle='#000008'; ctx.fillRect(0,0,W,H);
+  // Subtle deep-space ambient gradient — slightly lighter toward the globe
+  var bgG=ctx.createRadialGradient(cx,cy,R*1.4,cx,cy,Math.max(W,H));
+  bgG.addColorStop(0,'rgba(10,18,52,0.28)');
+  bgG.addColorStop(1,'rgba(0,0,6,0)');
+  ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
 
   // ── 02. Stars — calmer, smaller ───────────────────────────────────────────
   for(var si=0;si<STARS.length;si++){
@@ -241,25 +246,27 @@ function draw(){
     ctx.fillStyle='rgba(255,255,255,'+ot+')'; ctx.fill();
   }
 
-  // ── 03. Ocean — 6-stop deep gradient with latitude depth ──────────────────
-  var oCX=cx+R*0.28*sdx, oCY=cy+R*0.20*sdy;
-  var oG=ctx.createRadialGradient(oCX,oCY,R*0.04,cx,cy,R);
-  oG.addColorStop(0.00,'#1a6292');
-  oG.addColorStop(0.16,'#124e7a');
-  oG.addColorStop(0.38,'#0c3662');
-  oG.addColorStop(0.58,'#071c3a');
-  oG.addColorStop(0.80,'#040e20');
-  oG.addColorStop(1.00,'#020810');
+  // ── 03. Ocean — rich deep cinematic blue ──────────────────────────────────
+  // Sun-highlight offset makes the lit ocean gleam vs dark far-side
+  var oCX=cx+R*0.32*sdx, oCY=cy+R*0.22*sdy;
+  var oG=ctx.createRadialGradient(oCX,oCY,R*0.03,cx,cy,R);
+  oG.addColorStop(0.00,'#2274aa');  // sun-lit highlight — vivid mid-blue
+  oG.addColorStop(0.13,'#185e90');  // bright deep water
+  oG.addColorStop(0.32,'#0e4472');  // mid-depth
+  oG.addColorStop(0.52,'#082850');  // abyssal
+  oG.addColorStop(0.74,'#040e26');  // deep void
+  oG.addColorStop(1.00,'#020810');  // terminator/limb black
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=oG; ctx.fill(); ctx.restore();
 
-  // Latitude depth layer — poles darker, tropics slightly vibrant
+  // Latitude depth layer — polar darkening, tropical saturation
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
   var odG=ctx.createLinearGradient(cx,cy-R,cx,cy+R);
-  odG.addColorStop(0.00,'rgba(6,16,50,0.14)');
-  odG.addColorStop(0.28,'rgba(6,16,50,0.05)');
-  odG.addColorStop(0.50,'rgba(0,28,58,0)');
-  odG.addColorStop(0.72,'rgba(6,16,50,0.05)');
-  odG.addColorStop(1.00,'rgba(6,16,50,0.14)');
+  odG.addColorStop(0.00,'rgba(4,12,44,0.18)');
+  odG.addColorStop(0.24,'rgba(4,14,46,0.06)');
+  odG.addColorStop(0.46,'rgba(0,24,54,0.0)');
+  odG.addColorStop(0.54,'rgba(0,24,54,0.0)');
+  odG.addColorStop(0.76,'rgba(4,14,46,0.06)');
+  odG.addColorStop(1.00,'rgba(4,12,44,0.18)');
   ctx.fillStyle=odG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
   // ── 04. Land polygons — two-layer technique ───────────────────────────────
@@ -284,10 +291,11 @@ function draw(){
     if(first) continue;
     ctx.closePath();
 
-    var raw=cp.sun*1.52+0.20;
-    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.78);
-    t*=(0.93+0.07*phash(i));
-    t=Math.max(0.06,t);
+    // Boost land brightness: stronger diffuse + wider gamma curve = richer saturation
+    var raw=cp.sun*1.65+0.22;
+    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.72);
+    t*=(0.92+0.08*phash(i));
+    t=Math.max(0.07,t);
 
     var hex=poly.c;
     var r2=parseInt(hex.slice(1,3),16);
@@ -356,29 +364,35 @@ function draw(){
   tg.addColorStop(0.72,'rgba(0,0,0,0)');
   ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
-  // ── 09. City lights — soft warm glow ──────────────────────────────────────
-  var cityBoost=1.0+vSpeak*0.22*(0.5+0.5*Math.sin(vPhase*2.2));
+  // ── 09. City lights — three-layer warm golden glow ────────────────────────
+  var cityBoost=1.0+vSpeak*0.28*(0.5+0.5*Math.sin(vPhase*2.2));
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
   for(var ci=0;ci<CITIES.length;ci++){
     var city=CITIES[ci], cp2=proj(city[0],city[1]);
     if(cp2.z<0) continue;
-    if(cp2.sun>0.15) continue;
-    var fade=Math.max(0,Math.min(1,(0.15-cp2.sun)/0.22));
+    if(cp2.sun>0.18) continue;
+    var fade=Math.max(0,Math.min(1,(0.18-cp2.sun)/0.24));
     var br=city[2]*fade*cityBoost;
-    if(br<0.06) continue;
-    var cr=1.6*br+0.38;
-    // Outer bloom — softer and warmer
-    var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*2.8);
-    cg1.addColorStop(0.0,'rgba(255,222,135,'+(br*0.24)+')');
-    cg1.addColorStop(0.5,'rgba(255,185,68,'+(br*0.10)+')');
-    cg1.addColorStop(1.0,'rgba(255,148,40,0)');
-    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*2.8,0,TAU); ctx.fillStyle=cg1; ctx.fill();
-    // Inner core — bright but not overexposed
-    var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*1.05);
-    cg2.addColorStop(0.0,'rgba(255,248,208,'+(br*0.82)+')');
-    cg2.addColorStop(0.5,'rgba(255,215,120,'+(br*0.35)+')');
-    cg2.addColorStop(1.0,'rgba(255,185,62,0)');
-    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*1.05,0,TAU); ctx.fillStyle=cg2; ctx.fill();
+    if(br<0.05) continue;
+    var cr=1.5*br+0.36;
+    // Far bloom — very wide, very faint warm amber cloud
+    var cg0=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*4.2);
+    cg0.addColorStop(0.0,'rgba(255,195,80,'+(br*0.11)+')');
+    cg0.addColorStop(0.55,'rgba(255,158,50,'+(br*0.042)+')');
+    cg0.addColorStop(1.0,'rgba(255,120,28,0)');
+    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*4.2,0,TAU); ctx.fillStyle=cg0; ctx.fill();
+    // Mid bloom — warm gold
+    var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*2.4);
+    cg1.addColorStop(0.0,'rgba(255,228,148,'+(br*0.28)+')');
+    cg1.addColorStop(0.5,'rgba(255,198,90,'+(br*0.12)+')');
+    cg1.addColorStop(1.0,'rgba(255,165,52,0)');
+    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*2.4,0,TAU); ctx.fillStyle=cg1; ctx.fill();
+    // Inner core — warm white–gold pinpoint
+    var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*0.90);
+    cg2.addColorStop(0.0,'rgba(255,252,215,'+(br*0.88)+')');
+    cg2.addColorStop(0.45,'rgba(255,228,148,'+(br*0.42)+')');
+    cg2.addColorStop(1.0,'rgba(255,195,80,0)');
+    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*0.90,0,TAU); ctx.fillStyle=cg2; ctx.fill();
   }
   ctx.restore();
 
@@ -387,14 +401,40 @@ function draw(){
   for(var ip=0;ip<poles.length;ip++){
     var pp=proj(poles[ip][0],poles[ip][1]);
     if(pp.z<0) continue;
-    var pa=0.25+0.14*Math.max(0,pp.sun);
+    var pa=0.28+0.16*Math.max(0,pp.sun);
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-    var pg2=ctx.createRadialGradient(pp.x,pp.y,0,pp.x,pp.y,R*0.25*pp.z);
-    pg2.addColorStop(0.0,'rgba(200,228,252,'+(pa*0.78)+')');
-    pg2.addColorStop(0.45,'rgba(175,212,245,'+(pa*0.34)+')');
-    pg2.addColorStop(1.0,'rgba(148,195,238,0)');
-    ctx.beginPath(); ctx.arc(pp.x,pp.y,R*0.25*pp.z,0,TAU);
+    var pg2=ctx.createRadialGradient(pp.x,pp.y,0,pp.x,pp.y,R*0.28*pp.z);
+    pg2.addColorStop(0.0,'rgba(215,238,255,'+(pa*0.85)+')');
+    pg2.addColorStop(0.40,'rgba(185,220,250,'+(pa*0.38)+')');
+    pg2.addColorStop(1.0,'rgba(155,200,242,0)');
+    ctx.beginPath(); ctx.arc(pp.x,pp.y,R*0.28*pp.z,0,TAU);
     ctx.fillStyle=pg2; ctx.fill(); ctx.restore();
+  }
+
+  // ── 10b. Aurora borealis — extremely subtle animated shimmer ──────────────
+  // Three overlapping patches near the north polar ring, only on the dark side.
+  var auroraData=[
+    {lon:0,   lat:72, col:[68,225,128]},   // emerald green
+    {lon:55,  lat:68, col:[52,185,218]},   // cyan-teal
+    {lon:-55, lat:70, col:[148,105,228]},  // soft violet
+  ];
+  for(var ai=0;ai<auroraData.length;ai++){
+    var ad=auroraData[ai];
+    var ap=proj(ad.lon,ad.lat);
+    if(ap.z<0.04) continue;
+    // Fade: only on night side (low/negative sun), and only when facing viewer
+    var aFade=ap.z*Math.max(0,0.92-ap.sun*9.0);
+    if(aFade<0.01) continue;
+    var aAnim=0.5+0.5*Math.sin(vPhase*(0.55+ai*0.22)+ai*2.3);
+    var aAlpha=aFade*aAnim*0.048;
+    var ac=ad.col;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+    var aG=ctx.createRadialGradient(ap.x,ap.y,0,ap.x,ap.y,R*0.30);
+    aG.addColorStop(0.0,'rgba('+ac[0]+','+ac[1]+','+ac[2]+','+(aAlpha*1.0)+')');
+    aG.addColorStop(0.38,'rgba('+ac[0]+','+ac[1]+','+ac[2]+','+(aAlpha*0.42)+')');
+    aG.addColorStop(1.0,'rgba('+ac[0]+','+ac[1]+','+ac[2]+',0)');
+    ctx.beginPath(); ctx.arc(ap.x,ap.y,R*0.30,0,TAU);
+    ctx.fillStyle=aG; ctx.fill(); ctx.restore();
   }
 
   // ── 11. Limb darkening ────────────────────────────────────────────────────
@@ -406,28 +446,40 @@ function draw(){
   ld.addColorStop(1.0,'rgba(0,0,0,0.60)');
   ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
-  // ── 12. Outer atmosphere — Rayleigh ring ──────────────────────────────────
-  var ag1=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.105);
-  ag1.addColorStop(0.00,'rgba(62,140,245,0)');
-  ag1.addColorStop(0.14,'rgba(84,156,250,0.38)');
-  ag1.addColorStop(0.44,'rgba(56,128,236,0.18)');
-  ag1.addColorStop(0.75,'rgba(40,106,220,0.06)');
-  ag1.addColorStop(1.00,'rgba(26,80,196,0)');
-  fillArc(ag1,R*1.105);
+  // ── 12. Outer atmosphere — layered Rayleigh ring ──────────────────────────
+  // Layer A: dense bright ring right at the limb
+  var ag1=ctx.createRadialGradient(cx,cy,R*0.972,cx,cy,R*1.108);
+  ag1.addColorStop(0.00,'rgba(58,132,244,0)');
+  ag1.addColorStop(0.12,'rgba(92,166,254,0.46)');  // bright peak
+  ag1.addColorStop(0.38,'rgba(62,138,242,0.22)');
+  ag1.addColorStop(0.72,'rgba(42,110,224,0.07)');
+  ag1.addColorStop(1.00,'rgba(28,84,200,0)');
+  fillArc(ag1,R*1.108);
 
-  var ag2=ctx.createRadialGradient(cx,cy,R*1.02,cx,cy,R*1.20);
-  ag2.addColorStop(0.0,'rgba(38,104,242,0)');
-  ag2.addColorStop(0.3,'rgba(32,94,228,0.036)');
-  ag2.addColorStop(1.0,'rgba(16,60,178,0)');
-  fillArc(ag2,R*1.20);
+  // Layer B: wider diffuse outer halo
+  var ag2=ctx.createRadialGradient(cx,cy,R*1.01,cx,cy,R*1.22);
+  ag2.addColorStop(0.00,'rgba(44,112,246,0)');
+  ag2.addColorStop(0.28,'rgba(36,98,232,0.052)');
+  ag2.addColorStop(0.70,'rgba(24,74,210,0.018)');
+  ag2.addColorStop(1.00,'rgba(14,56,184,0)');
+  fillArc(ag2,R*1.22);
 
-  // ── 13. Sun-side limb scatter ─────────────────────────────────────────────
-  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.70,sunSX,sunSY,R*1.16);
+  // Layer C: innermost thin glow band — adds blue edge depth to the globe rim
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+1,0,TAU); ctx.clip();
+  var ag3=ctx.createRadialGradient(cx,cy,R*0.88,cx,cy,R*1.002);
+  ag3.addColorStop(0.0,'rgba(30,88,200,0)');
+  ag3.addColorStop(0.75,'rgba(44,112,230,0.055)');
+  ag3.addColorStop(1.0,'rgba(62,138,250,0.18)');
+  ctx.fillStyle=ag3; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
+
+  // ── 13. Sun-side limb scatter — brightened ────────────────────────────────
+  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.18);
   slg.addColorStop(0.0,'rgba(255,255,255,0)');
-  slg.addColorStop(0.76,'rgba(222,238,255,0)');
-  slg.addColorStop(0.88,'rgba(222,238,255,0.085)');
+  slg.addColorStop(0.72,'rgba(220,236,255,0)');
+  slg.addColorStop(0.86,'rgba(220,236,255,0.10)');
+  slg.addColorStop(0.96,'rgba(255,248,230,0.04)');
   slg.addColorStop(1.0,'rgba(255,255,255,0)');
-  fillArc(slg,R*1.14);
+  fillArc(slg,R*1.16);
 
   // ── 14. Specular ocean highlight (ambient drift) ──────────────────────────
   var driftX=Math.sin(vPhase*0.10)*R*0.012;
@@ -461,43 +513,57 @@ function draw(){
     fillArc(ba,R*1.135);
   }
 
-  // LISTENING — cool blue atmosphere shift + single organic wave
+  // LISTENING — cool blue atmosphere shift + two staggered organic rings
   if(vListen>0.008){
     var lisA=vListen*(0.60+0.25*b1+0.15*b3);
-    var la=ctx.createRadialGradient(cx,cy,R*0.93,cx,cy,R*1.19);
-    la.addColorStop(0.00,'rgba(65,146,254,0)');
-    la.addColorStop(0.18,'rgba(86,162,254,'+(lisA*0.165)+')');
-    la.addColorStop(0.55,'rgba(55,130,242,'+(lisA*0.065)+')');
-    la.addColorStop(1.00,'rgba(36,106,228,0)');
-    fillArc(la,R*1.19);
-    // Single heartbeat wave — one per ~2.6s, expands and fades
-    var wp=(vPhase*0.38)%1;
-    var wAlpha=Math.max(0,(1-wp)*(1-wp)*vListen*0.20);
-    ctx.beginPath(); ctx.arc(cx,cy,R*(1.04+wp*0.52),0,TAU);
-    ctx.strokeStyle='rgba(95,174,254,'+wAlpha+')';
-    ctx.lineWidth=0.35+(1-wp)*0.85; ctx.stroke();
+    // Atmosphere colour shift — cooler, more blue during listening
+    var la=ctx.createRadialGradient(cx,cy,R*0.92,cx,cy,R*1.22);
+    la.addColorStop(0.00,'rgba(65,148,255,0)');
+    la.addColorStop(0.15,'rgba(90,168,255,'+(lisA*0.18)+')');
+    la.addColorStop(0.50,'rgba(58,134,244,'+(lisA*0.072)+')');
+    la.addColorStop(0.82,'rgba(38,108,230,'+(lisA*0.022)+')');
+    la.addColorStop(1.00,'rgba(30,88,210,0)');
+    fillArc(la,R*1.22);
+    // Ring 1 — primary heartbeat, 2.6s period
+    var wp1=(vPhase*0.385)%1;
+    var wA1=Math.max(0,Math.pow(1-wp1,1.8)*vListen*0.22);
+    ctx.beginPath(); ctx.arc(cx,cy,R*(1.035+wp1*0.55),0,TAU);
+    ctx.strokeStyle='rgba(100,178,255,'+wA1+')';
+    ctx.lineWidth=0.30+(1-wp1)*1.0; ctx.stroke();
+    // Ring 2 — offset 0.5 phase, slightly different period (4.1s) — avoids mechanical feel
+    var wp2=((vPhase*0.385)+0.5)%1;
+    var wA2=Math.max(0,Math.pow(1-wp2,1.8)*vListen*0.14);
+    ctx.beginPath(); ctx.arc(cx,cy,R*(1.035+wp2*0.55),0,TAU);
+    ctx.strokeStyle='rgba(80,158,248,'+wA2+')';
+    ctx.lineWidth=0.22+(1-wp2)*0.65; ctx.stroke();
   }
 
-  // SPEAKING — warm atmosphere brightens + dual-freq organic pulse
+  // SPEAKING — warm atmosphere brightens + elegant dual-ring pulse
   if(vSpeak>0.008){
     var sp1=0.5+0.5*Math.sin(vPhase*2.55);
     var sp2=0.5+0.5*Math.sin(vPhase*1.65+0.95);
     var spA=vSpeak*(0.46+0.33*sp1+0.21*sp2);
-    // Warm corona
-    var co=ctx.createRadialGradient(cx,cy,R*0.91,cx,cy,R*1.32);
-    co.addColorStop(0.00,'rgba(255,148,34,0)');
-    co.addColorStop(0.17,'rgba(255,142,32,'+(0.148*spA)+')');
-    co.addColorStop(0.44,'rgba(255,108,18,'+(0.058*spA)+')');
-    co.addColorStop(0.78,'rgba(255,66,10,'+(0.016*spA)+')');
-    co.addColorStop(1.00,'rgba(255,48,8,0)');
-    fillArc(co,R*1.32);
-    // Globe interior warms — day side brightens with AI voice
+    // Warm corona — two-layer: inner amber + outer deep orange
+    var co=ctx.createRadialGradient(cx,cy,R*0.90,cx,cy,R*1.35);
+    co.addColorStop(0.00,'rgba(255,158,42,0)');
+    co.addColorStop(0.14,'rgba(255,148,36,'+(0.16*spA)+')');
+    co.addColorStop(0.38,'rgba(255,118,22,'+(0.064*spA)+')');
+    co.addColorStop(0.70,'rgba(255,76,12,'+(0.020*spA)+')');
+    co.addColorStop(1.00,'rgba(255,52,8,0)');
+    fillArc(co,R*1.35);
+    // Inner globe brightens with voice — warm tidal fill
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-    var gw=ctx.createRadialGradient(cx,cy,R*0.68,cx,cy,R);
-    gw.addColorStop(0,'rgba(255,138,30,0)');
-    gw.addColorStop(0.82,'rgba(255,124,24,'+(0.046*spA)+')');
-    gw.addColorStop(1.0,'rgba(255,104,18,'+(0.105*spA)+')');
+    var gw=ctx.createRadialGradient(cx,cy,R*0.60,cx,cy,R);
+    gw.addColorStop(0,'rgba(255,148,36,0)');
+    gw.addColorStop(0.78,'rgba(255,130,28,'+(0.052*spA)+')');
+    gw.addColorStop(1.0,'rgba(255,108,18,'+(0.115*spA)+')');
     ctx.fillStyle=gw; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
+    // Slow expanding pulse ring — cinematic breath of the AI
+    var pp1=(vPhase*0.22)%1;
+    var pA1=Math.max(0,Math.pow(1-pp1,2.2)*vSpeak*0.18);
+    ctx.beginPath(); ctx.arc(cx,cy,R*(1.02+pp1*0.68),0,TAU);
+    ctx.strokeStyle='rgba(255,168,68,'+pA1+')';
+    ctx.lineWidth=0.28+(1-pp1)*1.10; ctx.stroke();
   }
 
   // ── 17. Labels ────────────────────────────────────────────────────────────
