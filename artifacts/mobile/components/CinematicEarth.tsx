@@ -108,7 +108,7 @@ var cv = document.getElementById('c');
 cv.width = W; cv.height = H;
 var ctx = cv.getContext('2d');
 if(!ctx) return;
-var cx = W*0.5, cy = H*0.46, R = Math.min(W,H)*0.44;
+var cx = W*0.5, cy = H*0.52, R = Math.min(W,H)*0.46; // lower + slightly larger → cinematic crop
 
 // ── Earth texture — NASA Blue Marble equirectangular 2048×1024 ────────────────
 // Loads async; a deep-blue placeholder renders until ready.
@@ -138,7 +138,8 @@ function drawTextureSphere(img){
 
   // Subtle brightness / saturation lift so the NASA photo reads well over the
   // cinematic dark background.
-  try { ctx.filter = 'brightness(1.06) saturate(1.12) contrast(1.04)'; } catch(e){}
+  // Higher contrast → night side goes very dark, day side punchy
+  try { ctx.filter = 'brightness(1.04) saturate(1.08) contrast(1.22)'; } catch(e){}
 
   for(var ib = 0; ib < NBANDS; ib++){
     var t0  = ib * invBands;
@@ -200,7 +201,8 @@ var rot=28, SPEED=3.6, vState='idle', vPhase=0, dt=0, lastT=-1;
 var vListen=0, vSpeak=0, vIdle=1;
 
 // ── Spherical projection ──────────────────────────────────────────────────────
-var SUN_LON=-30, SUN_LAT=22;
+// Sun at upper-right → dawn terminator through Turkey, deep night over Africa/Europe
+var SUN_LON=82, SUN_LAT=20;
 var sunLatR=SUN_LAT*Math.PI/180, sunLonR=SUN_LON*Math.PI/180;
 var SX=Math.cos(sunLatR)*Math.cos(sunLonR);
 var SY=Math.sin(sunLatR);
@@ -398,41 +400,51 @@ function draw(){
   ld.addColorStop(1.0,'rgba(0,0,0,0.48)');
   ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
-  // ── 12. Outer atmosphere — layered Rayleigh ring (breathing) ────────────────
-  // Multi-frequency opacity oscillation gives a gentle inhale/exhale feel.
+  // ── 12. Outer atmosphere — vivid Rayleigh ring matching reference ────────────
   var atmBreath=0.88+0.10*Math.sin(vPhase*1.10)+0.05*Math.sin(vPhase*0.44+1.2);
   ctx.save(); ctx.globalAlpha=atmBreath;
-  var ag1=ctx.createRadialGradient(cx,cy,R*0.972,cx,cy,R*1.108);
+  // Layer A: main luminous ring — peak boosted to match reference's vivid cobalt halo
+  var ag1=ctx.createRadialGradient(cx,cy,R*0.966,cx,cy,R*1.122);
   ag1.addColorStop(0.00,'rgba(58,132,244,0)');
-  ag1.addColorStop(0.12,'rgba(98,172,255,0.50)');
-  ag1.addColorStop(0.38,'rgba(64,140,244,0.24)');
-  ag1.addColorStop(0.72,'rgba(44,112,226,0.08)');
+  ag1.addColorStop(0.10,'rgba(115,188,255,0.74)');  // bright cobalt peak
+  ag1.addColorStop(0.34,'rgba(72,150,252,0.36)');
+  ag1.addColorStop(0.66,'rgba(48,118,234,0.11)');
   ag1.addColorStop(1.00,'rgba(28,84,200,0)');
-  fillArc(ag1,R*1.108);
-
-  var ag2=ctx.createRadialGradient(cx,cy,R*1.01,cx,cy,R*1.22);
+  fillArc(ag1,R*1.122);
+  // Layer B: wider diffuse outer halo
+  var ag2=ctx.createRadialGradient(cx,cy,R*1.01,cx,cy,R*1.28);
   ag2.addColorStop(0.00,'rgba(44,112,246,0)');
-  ag2.addColorStop(0.28,'rgba(36,98,232,0.052)');
-  ag2.addColorStop(0.70,'rgba(24,74,210,0.018)');
+  ag2.addColorStop(0.26,'rgba(42,110,242,0.072)');
+  ag2.addColorStop(0.68,'rgba(28,80,216,0.024)');
   ag2.addColorStop(1.00,'rgba(14,56,184,0)');
-  fillArc(ag2,R*1.22);
-
+  fillArc(ag2,R*1.28);
+  // Layer C: innermost edge glow — gives the deep blue limb rim
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+1,0,TAU); ctx.clip();
-  var ag3=ctx.createRadialGradient(cx,cy,R*0.88,cx,cy,R*1.002);
+  var ag3=ctx.createRadialGradient(cx,cy,R*0.84,cx,cy,R*1.002);
   ag3.addColorStop(0.0,'rgba(30,88,200,0)');
-  ag3.addColorStop(0.75,'rgba(44,112,230,0.055)');
-  ag3.addColorStop(1.0,'rgba(62,138,250,0.18)');
+  ag3.addColorStop(0.70,'rgba(54,126,242,0.082)');
+  ag3.addColorStop(1.0,'rgba(85,162,255,0.34)');   // bright inner rim
   ctx.fillStyle=ag3; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
   ctx.restore(); // end atmBreath globalAlpha
 
-  // ── 13. Sun-side limb scatter ─────────────────────────────────────────────
-  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.18);
-  slg.addColorStop(0.0,'rgba(255,255,255,0)');
-  slg.addColorStop(0.72,'rgba(220,236,255,0)');
-  slg.addColorStop(0.86,'rgba(220,236,255,0.10)');
-  slg.addColorStop(0.96,'rgba(255,248,230,0.04)');
-  slg.addColorStop(1.0,'rgba(255,255,255,0)');
-  fillArc(slg,R*1.16);
+  // ── 13. Sun-side limb scatter + hotspot ──────────────────────────────────
+  // Wide backlit atmosphere glow on the sun side (reference shows very strong)
+  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.58,sunSX,sunSY,R*1.36);
+  slg.addColorStop(0.00,'rgba(255,255,255,0)');
+  slg.addColorStop(0.54,'rgba(210,232,255,0)');
+  slg.addColorStop(0.70,'rgba(190,222,255,0.20)');
+  slg.addColorStop(0.82,'rgba(175,215,255,0.40)');  // bright limb arc
+  slg.addColorStop(0.92,'rgba(255,248,220,0.18)');  // warm sun-edge tint
+  slg.addColorStop(1.00,'rgba(255,255,255,0)');
+  fillArc(slg,R*1.32);
+  // Hotspot: bright white-gold point where sun grazes the atmospheric limb
+  var hpX=cx+R*0.94*sdx, hpY=cy+R*0.94*sdy;
+  var hg=ctx.createRadialGradient(hpX,hpY,0,hpX,hpY,R*0.30);
+  hg.addColorStop(0.00,'rgba(255,255,228,0.46)');
+  hg.addColorStop(0.18,'rgba(228,242,255,0.24)');
+  hg.addColorStop(0.52,'rgba(185,218,255,0.08)');
+  hg.addColorStop(1.00,'rgba(145,198,255,0)');
+  fillArc(hg,R*1.30);
 
   // ── 14. Specular ocean highlight (ambient drift) ──────────────────────────
   var driftX=Math.sin(vPhase*0.10)*R*0.012;
@@ -547,7 +559,7 @@ function frame(t){
 }
 window.addEventListener('resize',function(){
   W=window.innerWidth||W; H=window.innerHeight||H;
-  cx=W*0.5; cy=H*0.46; R=Math.min(W,H)*0.44; cv.width=W; cv.height=H;
+  cx=W*0.5; cy=H*0.52; R=Math.min(W,H)*0.46; cv.width=W; cv.height=H;
 });
 window.onVoiceState=function(state){
   vState=state; SPEED=state==='speaking'?10.0:state==='listening'?6.8:3.6;
