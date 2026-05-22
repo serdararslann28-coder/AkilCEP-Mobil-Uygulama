@@ -47,30 +47,35 @@ void main(){
   vec3 norm = normalize(vWorldNormal);
   float sunDot = dot(norm, normalize(sunDir));
 
-  // Wider terminator blend: cinematic sunrise/sunset band
-  float dayFactor = smoothstep(-0.24, 0.22, sunDot);
-
   vec4 day   = texture2D(dayTex,   vUv);
   vec4 night = texture2D(nightTex, vUv);
 
-  // City lights pulse during AI speaking
+  // ── Day side: Lambertian diffuse + ambient so continents read clearly ──────
+  // diffuse ramps from 0 at terminator to 1 at noon; ambient keeps far-day side
+  // from looking flat.  1.10 boost compensates for the raw sRGB jpeg being dark.
+  float diffuse  = max(0.0, sunDot);
+  float dayLight = diffuse * 1.10 + 0.055;
+  vec4 daySide   = day * dayLight;
+
+  // ── Blend factor: cinematic wide terminator ───────────────────────────────
+  float dayFactor = smoothstep(-0.18, 0.22, sunDot);
+
+  // ── Night side: moonlit land + city lights (pulse with AI speaking) ───────
   float cityBoost = 1.0 + vSpeak * 0.30 * (0.5 + 0.5*sin(vPhase*2.2));
+  vec4 nightSide  = day * 0.022 + night * 1.75 * cityBoost;
 
-  // Night side: faint moonlit land + amplified city lights
-  vec4 nightSide = day * 0.016 + night * 1.60 * cityBoost;
+  // ── Combine ───────────────────────────────────────────────────────────────
+  vec4 color = mix(nightSide, daySide, dayFactor);
 
-  // Blend day / night
-  vec4 color = mix(nightSide, day, dayFactor);
+  // Cinematic terminator — warm amber sunrise/sunset band
+  float term = smoothstep(-0.26, -0.06, sunDot) * smoothstep(0.26, 0.06, sunDot);
+  color.rgb += vec3(0.32, 0.14, 0.02) * term * 0.36;
 
-  // Cinematic terminator — warm amber glow at the day/night line
-  float term = smoothstep(-0.28, -0.08, sunDot) * smoothstep(0.28, 0.08, sunDot);
-  color.rgb += vec3(0.30, 0.13, 0.02) * term * 0.38;
+  // Listening: subtle cool blue on lit surface
+  color.rgb += vec3(0.0, 0.018, 0.055) * vListen * dayFactor;
 
-  // Listening: subtle cool blue lift on the day side
-  color.rgb += vec3(0.0, 0.020, 0.060) * vListen * dayFactor * 0.90;
-
-  // Speaking: very slight warm fill on night limb (cities feel energized)
-  color.rgb += vec3(0.055, 0.022, 0.0) * vSpeak * (1.0 - dayFactor) * 0.60;
+  // Speaking: warm fill on night limb — cities feel energized
+  color.rgb += vec3(0.055, 0.022, 0.0) * vSpeak * (1.0 - dayFactor) * 0.55;
 
   gl_FragColor = color;
 }
@@ -216,7 +221,10 @@ function init(){
   renderer = new THREE.WebGLRenderer({canvas:gl, antialias:true, alpha:false});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   renderer.setSize(W, H);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // LinearSRGBColorSpace disables the renderer's sRGB output-encoding pass.
+  // Custom ShaderMaterial samples raw sRGB JPEGs — applying the encoder on top
+  // would double-compress gamma and make everything too dark.
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000008);
