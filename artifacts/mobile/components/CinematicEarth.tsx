@@ -233,6 +233,8 @@ var STARS=[];
 
 // ── State ─────────────────────────────────────────────────────────────────────
 var rot=28, SPEED=3.6, vState='idle', vPhase=0, dt=0, lastT=-1;
+// Smooth state blending — each value eases 0→1 toward active state (~0.55s transition)
+var vListen=0, vSpeak=0, vIdle=1;
 
 // ── Spherical projection ──────────────────────────────────────────────────────
 function proj(lon,lat){
@@ -404,14 +406,16 @@ function draw(){
   tg.addColorStop(0.73,'rgba(0,0,0,0)');
   ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
-  // ── 09. City lights (smaller, warmer, softer) ─────────────────────────────
+  // ── 09. City lights ───────────────────────────────────────────────────────
+  // During AI speaking: cities gently brighten — the planet is energized.
+  var cityBoost=1.0+vSpeak*0.22*(0.5+0.5*Math.sin(vPhase*2.2));
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
   for(var ci=0;ci<CITIES.length;ci++){
     var city=CITIES[ci], cp2=proj(city[0],city[1]);
     if(cp2.z<0) continue;
     if(cp2.sun>0.15) continue;
     var fade=Math.max(0,Math.min(1,(0.15-cp2.sun)/0.22));
-    var br=city[2]*fade;
+    var br=city[2]*fade*cityBoost;
     if(br<0.05) continue;
     var cr=1.7*br+0.4;
     var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*3.2);
@@ -476,7 +480,11 @@ function draw(){
   fillArc(slg,R*1.14);
 
   // ── 14. Specular ocean highlight ──────────────────────────────────────────
-  var spX=cx+R*0.22*sdx, spY=cy+R*0.17*sdy;
+  // Ambient drift: specular slowly wanders ±1% of R over ~60-80 sec cycles
+  // Gives a barely-perceptible cloud-movement feeling — the planet is alive.
+  var driftX=Math.sin(vPhase*0.10)*R*0.012;
+  var driftY=Math.cos(vPhase*0.07)*R*0.008;
+  var spX=cx+R*0.22*sdx+driftX, spY=cy+R*0.17*sdy+driftY;
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
   var sp=ctx.createRadialGradient(spX,spY,0,spX,spY,R*0.34);
   sp.addColorStop(0.0,'rgba(210,234,255,0.16)');
@@ -488,47 +496,68 @@ function draw(){
   ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU);
   ctx.strokeStyle='rgba(75,145,245,0.14)'; ctx.lineWidth=0.6; ctx.stroke();
 
-  // ── 16. Voice reactions ───────────────────────────────────────────────────
+  // ── 16. Living Earth — organic emotional states ───────────────────────────
+  // Three overlapping breathing frequencies create organic, never-mechanical motion.
+  // Real physiological systems always have multiple simultaneous rhythms.
+  var b1=0.5+0.5*Math.sin(vPhase*1.38);   // 0.22 Hz — atmospheric breath  (4.5s cycle)
+  var b2=0.5+0.5*Math.sin(vPhase*0.48);   // 0.076 Hz — deep tidal swell   (13s cycle)
+  var b3=0.5+0.5*Math.sin(vPhase*3.60);   // 0.57 Hz — surface shimmer      (1.75s cycle)
 
-  if(vState==='listening'){
-    var la=ctx.createRadialGradient(cx,cy,R*0.93,cx,cy,R*1.17);
-    la.addColorStop(0.0,'rgba(72,150,252,0)');
-    la.addColorStop(0.2,'rgba(92,165,252,0.17)');
-    la.addColorStop(0.6,'rgba(62,136,245,0.07)');
-    la.addColorStop(1.0,'rgba(42,112,232,0)');
-    fillArc(la,R*1.17);
-    for(var ri=0;ri<3;ri++){
-      var rp=((vPhase*0.44+ri*0.333)%1+1)%1;
-      ctx.beginPath(); ctx.arc(cx,cy,R*(1.06+rp*0.46),0,TAU);
-      ctx.strokeStyle='rgba(110,185,252,'+Math.max(0,(1-rp)*0.20)+')';
-      ctx.lineWidth=0.5+(1-rp)*0.65; ctx.stroke();
-    }
+  // ── IDLE: gentle atmospheric breathing ────────────────────────────────────
+  // Always present when idle. Three frequencies layered so it never feels looped.
+  if(vIdle>0.008){
+    var idleA=vIdle*(0.52+0.28*b1+0.20*b2);
+    var ba=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.135);
+    ba.addColorStop(0.0,'rgba(42,94,198,0)');
+    ba.addColorStop(0.38,'rgba(46,102,205,'+(0.034*idleA)+')');
+    ba.addColorStop(0.72,'rgba(30,74,172,'+(0.012*idleA)+')');
+    ba.addColorStop(1.0,'rgba(22,60,150,0)');
+    fillArc(ba,R*1.135);
   }
 
-  if(vState==='speaking'){
-    var pulse=0.5+0.5*Math.sin(vPhase*3.2);
-    var pulse2=0.5+0.5*Math.sin(vPhase*2.0+1.1);
-    var co=ctx.createRadialGradient(cx,cy,R*0.90,cx,cy,R*1.30);
-    co.addColorStop(0.0,'rgba(255,158,40,0)');
-    co.addColorStop(0.20,'rgba(255,148,35,'+(0.17+0.11*pulse)+')');
-    co.addColorStop(0.48,'rgba(255,115,20,'+(0.065*pulse2)+')');
-    co.addColorStop(1.0,'rgba(255,74,12,0)');
-    fillArc(co,R*1.30);
+  // ── LISTENING: cool blue shift + single slow organic wave ─────────────────
+  // The atmosphere leans cool and a heartbeat wave rolls outward — once per
+  // ~2.6s. One wave feels like listening; three felt like UI.
+  if(vListen>0.008){
+    var lisA=vListen*(0.60+0.25*b1+0.15*b3);
+    var la=ctx.createRadialGradient(cx,cy,R*0.93,cx,cy,R*1.19);
+    la.addColorStop(0.00,'rgba(68,148,254,0)');
+    la.addColorStop(0.18,'rgba(88,164,254,'+(lisA*0.165)+')');
+    la.addColorStop(0.55,'rgba(58,132,244,'+(lisA*0.065)+')');
+    la.addColorStop(1.00,'rgba(38,108,230,0)');
+    fillArc(la,R*1.19);
+    // Single organic pulse wave — expands and fades like a breath
+    var wp=(vPhase*0.38)%1;
+    var wAlpha=Math.max(0,(1-wp)*(1-wp)*vListen*0.195);
+    ctx.beginPath(); ctx.arc(cx,cy,R*(1.04+wp*0.52),0,TAU);
+    ctx.strokeStyle='rgba(98,176,254,'+wAlpha+')';
+    ctx.lineWidth=0.35+(1-wp)*0.85; ctx.stroke();
+  }
+
+  // ── SPEAKING: warm atmosphere + globe interior brightens ──────────────────
+  // The planet brightens as if energized — dual-frequency so it breathes
+  // organically rather than pulsing mechanically.
+  if(vSpeak>0.008){
+    var sp1=0.5+0.5*Math.sin(vPhase*2.55);
+    var sp2=0.5+0.5*Math.sin(vPhase*1.65+0.95);
+    var spA=vSpeak*(0.46+0.33*sp1+0.21*sp2);
+
+    // Outer warm corona
+    var co=ctx.createRadialGradient(cx,cy,R*0.91,cx,cy,R*1.32);
+    co.addColorStop(0.00,'rgba(255,150,36,0)');
+    co.addColorStop(0.17,'rgba(255,143,34,'+(0.148*spA)+')');
+    co.addColorStop(0.44,'rgba(255,110,19,'+(0.060*spA)+')');
+    co.addColorStop(0.78,'rgba(255,68,10,'+(0.018*spA)+')');
+    co.addColorStop(1.00,'rgba(255,50,8,0)');
+    fillArc(co,R*1.32);
+
+    // Globe interior warmth — day side brightens, limb picks up amber
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-    var gw=ctx.createRadialGradient(cx,cy,R*0.70,cx,cy,R);
-    gw.addColorStop(0,'rgba(255,138,30,0)');
-    gw.addColorStop(0.84,'rgba(255,128,26,'+(0.055*pulse)+')');
-    gw.addColorStop(1.0,'rgba(255,108,20,'+(0.13*pulse)+')');
+    var gw=ctx.createRadialGradient(cx,cy,R*0.68,cx,cy,R);
+    gw.addColorStop(0.00,'rgba(255,140,32,0)');
+    gw.addColorStop(0.82,'rgba(255,126,25,'+(0.048*spA)+')');
+    gw.addColorStop(1.00,'rgba(255,106,18,'+(0.108*spA)+')');
     ctx.fillStyle=gw; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
-  }
-
-  if(vState==='idle'){
-    var br2=0.5+0.5*Math.sin(vPhase*0.50);
-    var ba=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.12);
-    ba.addColorStop(0.0,'rgba(46,98,202,0)');
-    ba.addColorStop(0.4,'rgba(50,105,208,'+(0.038*br2)+')');
-    ba.addColorStop(1.0,'rgba(28,70,158,0)');
-    fillArc(ba,R*1.12);
   }
 
   // ── 17. Labels ────────────────────────────────────────────────────────────
@@ -542,6 +571,11 @@ function frame(t){
   if(lastT>=0){
     dt=(t-lastT)/1000; if(dt>0.12) dt=0.12;
     rot=(rot+SPEED*dt)%360; vPhase+=dt;
+    // Smooth state blending — eases at ~1.8/sec so transitions feel organic
+    var bs=Math.min(1,1.8*dt);
+    vListen+=((vState==='listening'?1:0)-vListen)*bs;
+    vSpeak +=((vState==='speaking' ?1:0)-vSpeak )*bs;
+    vIdle  +=((vState==='idle'     ?1:0)-vIdle  )*bs;
   }
   lastT=t; draw(); requestAnimationFrame(frame);
 }
