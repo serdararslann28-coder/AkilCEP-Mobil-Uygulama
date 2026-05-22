@@ -113,12 +113,25 @@ var cx = W*0.5, cy = H*0.50, R = Math.min(W,H)*0.46;
 // ── Earth texture — NASA Blue Marble equirectangular 2048×1024 ────────────────
 // Loads async; a deep-blue placeholder renders until ready.
 var earthImg = null, earthReady = false;
+// Load texture without crossOrigin — WebView source is an HTML string so the
+// effective origin is null; servers reject CORS requests from null origin and
+// the image silently fails.  We never call getImageData(), so no CORS needed.
 (function(){
-  var img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload  = function(){ earthImg = img; earthReady = true; };
-  img.onerror = function(){ earthReady = false; };
-  img.src = 'https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg';
+  var URLS = [
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg',
+    'https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg',
+    'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'
+  ];
+  var idx = 0;
+  function tryNext(){
+    if(idx >= URLS.length){ earthReady = false; return; }
+    var img = new Image();
+    // NO crossOrigin — null-origin WebView causes CORS rejection with it set
+    img.onload  = function(){ earthImg = img; earthReady = true; };
+    img.onerror = function(){ idx++; tryNext(); };
+    img.src = URLS[idx++];
+  }
+  tryNext();
 })();
 
 // ── Scan-line sphere texture renderer ─────────────────────────────────────────
