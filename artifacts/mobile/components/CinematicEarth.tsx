@@ -108,7 +108,7 @@ var cv = document.getElementById('c');
 cv.width = W; cv.height = H;
 var ctx = cv.getContext('2d');
 if(!ctx) return;
-var cx = W*0.5, cy = H*0.52, R = Math.min(W,H)*0.46; // lower + slightly larger → cinematic crop
+var cx = W*0.5, cy = H*0.50, R = Math.min(W,H)*0.46;
 
 // ── Earth texture — NASA Blue Marble equirectangular 2048×1024 ────────────────
 // Loads async; a deep-blue placeholder renders until ready.
@@ -201,8 +201,9 @@ var rot=28, SPEED=3.6, vState='idle', vPhase=0, dt=0, lastT=-1;
 var vListen=0, vSpeak=0, vIdle=1;
 
 // ── Spherical projection ──────────────────────────────────────────────────────
-// Sun at upper-right → dawn terminator through Turkey, deep night over Africa/Europe
-var SUN_LON=82, SUN_LAT=20;
+// SUN_LON=130: Turkey sun=0.152 (twilight, city lights show), France=-0.07 (night),
+// Arabia=0.22 (full day). Terminator near globe centre. Matches reference exactly.
+var SUN_LON=130, SUN_LAT=20;
 var sunLatR=SUN_LAT*Math.PI/180, sunLonR=SUN_LON*Math.PI/180;
 var SX=Math.cos(sunLatR)*Math.cos(sunLonR);
 var SY=Math.sin(sunLatR);
@@ -309,17 +310,29 @@ function draw(){
   cv2.addColorStop(1.0,'rgba(0,0,0,0.12)');
   ctx.fillStyle=cv2; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
-  // ── 08. Night hemisphere + wide cinematic terminator ─────────────────────
+  // ── 08. Night hemisphere — linear gradient along sun direction ───────────
+  // Linear approach correctly separates day/night: dark clamped to the left
+  // of the blend zone, transparent to the right. The gradient follows the sun
+  // vector so the terminator has the correct slight tilt from SUN_LAT.
+  //   SUN_LON=130 → equatorial terminator at lon=40°E (rot=28 → cx+0.21R)
+  //   Turkey (35°E, sun=0.152) falls inside blend → texture shows + city lights ✓
+  //   France (10°E, sun=−0.07) falls in deep night zone ✓
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-  var tg=ctx.createRadialGradient(nCX,cy,0,nCX,cy,R*1.70);
-  tg.addColorStop(0.00,'rgba(0,2,14,0.97)');
-  tg.addColorStop(0.28,'rgba(0,2,14,0.92)');
-  tg.addColorStop(0.44,'rgba(2,4,20,0.72)');
-  tg.addColorStop(0.52,'rgba(34,16,6,0.50)');
-  tg.addColorStop(0.58,'rgba(62,28,6,0.26)');
-  tg.addColorStop(0.64,'rgba(22,10,2,0.12)');
-  tg.addColorStop(0.72,'rgba(0,0,0,0)');
-  ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
+  var tLon = SUN_LON - 90;
+  var tX = cx + R * Math.sin((tLon - rot) * Math.PI / 180);  // equatorial terminator x
+  var tW = R * 0.13;  // half-blend ≈ 15° of longitude — tight, cinematic
+  var ng = ctx.createLinearGradient(
+    tX - sdx*tW, cy - sdy*tW,   // night-side edge of blend zone
+    tX + sdx*tW, cy + sdy*tW    // day-side edge of blend zone
+  );
+  ng.addColorStop(0.00,'rgba(0,2,14,0.97)');    // deep night (clamped left)
+  ng.addColorStop(0.30,'rgba(0,2,14,0.93)');
+  ng.addColorStop(0.50,'rgba(2,4,20,0.76)');
+  ng.addColorStop(0.64,'rgba(34,16,6,0.52)');   // warm amber twilight band
+  ng.addColorStop(0.78,'rgba(62,28,6,0.24)');   // orange horizon glow
+  ng.addColorStop(0.91,'rgba(22,10,2,0.08)');
+  ng.addColorStop(1.00,'rgba(0,0,0,0)');         // day side — transparent
+  ctx.fillStyle=ng; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
   // ── 09. City lights — three-layer warm golden glow ────────────────────────
   var cityBoost=1.0+vSpeak*0.28*(0.5+0.5*Math.sin(vPhase*2.2));
@@ -559,7 +572,7 @@ function frame(t){
 }
 window.addEventListener('resize',function(){
   W=window.innerWidth||W; H=window.innerHeight||H;
-  cx=W*0.5; cy=H*0.52; R=Math.min(W,H)*0.46; cv.width=W; cv.height=H;
+  cx=W*0.5; cy=H*0.50; R=Math.min(W,H)*0.46; cv.width=W; cv.height=H;
 });
 window.onVoiceState=function(state){
   vState=state; SPEED=state==='speaking'?10.0:state==='listening'?6.8:3.6;
