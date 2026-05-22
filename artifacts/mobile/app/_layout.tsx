@@ -8,7 +8,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -38,13 +39,26 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  // On web, browser handles @font-face natively — never block render.
+  // On native, give fonts up to 2 s then proceed with system fallback.
+  const isWeb = Platform.OS === "web";
+  const [ready, setReady] = useState(isWeb);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
+      setReady(true);
+      return;
     }
+    if (isWeb) return; // already ready
+    const t = setTimeout(() => {
+      setReady(true);
+      SplashScreen.hideAsync();
+    }, 2000);
+    return () => clearTimeout(t);
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!ready) return null;
 
   return (
     <SafeAreaProvider>
