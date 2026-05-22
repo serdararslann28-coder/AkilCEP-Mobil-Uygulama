@@ -256,7 +256,7 @@ function draw(){
   // ── 01. Space background ───────────────────────────────────────────────────
   ctx.fillStyle='#000008'; ctx.fillRect(0,0,W,H);
   var bgG=ctx.createRadialGradient(cx,cy,R*1.4,cx,cy,Math.max(W,H));
-  bgG.addColorStop(0,'rgba(10,18,52,0.28)');
+  bgG.addColorStop(0,'rgba(6,12,32,0.15)');
   bgG.addColorStop(1,'rgba(0,0,6,0)');
   ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
 
@@ -432,15 +432,15 @@ function draw(){
   // Layer A: main luminous ring — peak boosted to match reference's vivid cobalt halo
   var ag1=ctx.createRadialGradient(cx,cy,R*0.966,cx,cy,R*1.122);
   ag1.addColorStop(0.00,'rgba(58,132,244,0)');
-  ag1.addColorStop(0.10,'rgba(115,188,255,0.74)');  // bright cobalt peak
-  ag1.addColorStop(0.34,'rgba(72,150,252,0.36)');
+  ag1.addColorStop(0.10,'rgba(110,182,255,0.50)');  // refined cobalt peak — less sci-fi
+  ag1.addColorStop(0.34,'rgba(68,145,248,0.26)');
   ag1.addColorStop(0.66,'rgba(48,118,234,0.11)');
   ag1.addColorStop(1.00,'rgba(28,84,200,0)');
   fillArc(ag1,R*1.122);
   // Layer B: wider diffuse outer halo
   var ag2=ctx.createRadialGradient(cx,cy,R*1.01,cx,cy,R*1.28);
   ag2.addColorStop(0.00,'rgba(44,112,246,0)');
-  ag2.addColorStop(0.26,'rgba(42,110,242,0.072)');
+  ag2.addColorStop(0.26,'rgba(42,110,242,0.044)');
   ag2.addColorStop(0.68,'rgba(28,80,216,0.024)');
   ag2.addColorStop(1.00,'rgba(14,56,184,0)');
   fillArc(ag2,R*1.28);
@@ -449,7 +449,7 @@ function draw(){
   var ag3=ctx.createRadialGradient(cx,cy,R*0.84,cx,cy,R*1.002);
   ag3.addColorStop(0.0,'rgba(30,88,200,0)');
   ag3.addColorStop(0.70,'rgba(54,126,242,0.082)');
-  ag3.addColorStop(1.0,'rgba(85,162,255,0.34)');   // bright inner rim
+  ag3.addColorStop(1.0,'rgba(80,155,248,0.20)');   // subtle inner rim
   ctx.fillStyle=ag3; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
   ctx.restore(); // end atmBreath globalAlpha
 
@@ -458,16 +458,16 @@ function draw(){
   var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.58,sunSX,sunSY,R*1.36);
   slg.addColorStop(0.00,'rgba(255,255,255,0)');
   slg.addColorStop(0.54,'rgba(210,232,255,0)');
-  slg.addColorStop(0.70,'rgba(190,222,255,0.20)');
-  slg.addColorStop(0.82,'rgba(175,215,255,0.40)');  // bright limb arc
-  slg.addColorStop(0.92,'rgba(255,248,220,0.18)');  // warm sun-edge tint
+  slg.addColorStop(0.70,'rgba(190,222,255,0.13)');
+  slg.addColorStop(0.82,'rgba(175,215,255,0.25)');  // refined limb arc
+  slg.addColorStop(0.92,'rgba(255,248,220,0.11)');  // warm sun-edge tint
   slg.addColorStop(1.00,'rgba(255,255,255,0)');
   fillArc(slg,R*1.32);
   // Hotspot: bright white-gold point where sun grazes the atmospheric limb
   var hpX=cx+R*0.94*sdx, hpY=cy+R*0.94*sdy;
   var hg=ctx.createRadialGradient(hpX,hpY,0,hpX,hpY,R*0.30);
-  hg.addColorStop(0.00,'rgba(255,255,228,0.46)');
-  hg.addColorStop(0.18,'rgba(228,242,255,0.24)');
+  hg.addColorStop(0.00,'rgba(255,255,228,0.28)');
+  hg.addColorStop(0.18,'rgba(228,242,255,0.14)');
   hg.addColorStop(0.52,'rgba(185,218,255,0.08)');
   hg.addColorStop(1.00,'rgba(145,198,255,0)');
   fillArc(hg,R*1.30);
@@ -588,7 +588,7 @@ window.addEventListener('resize',function(){
   cx=W*0.5; cy=H*0.50; R=Math.min(W,H)*0.46; cv.width=W; cv.height=H;
 });
 window.onVoiceState=function(state){
-  vState=state; SPEED=state==='speaking'?10.0:state==='listening'?6.8:3.6;
+  vState=state; SPEED=state==='speaking'?7.5:state==='listening'?5.2:2.6;
 };
 requestAnimationFrame(frame);
 })();

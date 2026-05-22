@@ -1,8 +1,6 @@
 /**
- * Voice Screen — the Earth IS the AI.
- *
- * Minimal: no mic buttons, no waveforms.
- * Tap anywhere → cycle state. Earth reacts visually.
+ * Voice Screen — immersive globe voice mode (modal overlay).
+ * Opens directly in listening state. Tap to pause / dismiss.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -31,144 +29,213 @@ type VoiceState = "idle" | "listening" | "speaking";
 
 export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
-  const [state, setState] = useState<VoiceState>("idle");
+  const [state, setState] = useState<VoiceState>("listening");
 
-  // Tiny indicator dot — pulses per state
-  const dotScale   = useSharedValue(1);
-  const dotOpacity = useSharedValue(0.35);
+  const topPad = Platform.OS === "web" ? 20 : insets.top;
+  const btmPad = Platform.OS === "web" ? 40 : insets.bottom;
+
+  // Expanding ring behind the indicator dot
+  const ringScale   = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+
+  // 7 waveform bars — declared at top level
+  const b0 = useSharedValue(0.10);
+  const b1 = useSharedValue(0.10);
+  const b2 = useSharedValue(0.10);
+  const b3 = useSharedValue(0.10);
+  const b4 = useSharedValue(0.10);
+  const b5 = useSharedValue(0.10);
+  const b6 = useSharedValue(0.10);
+
+  const s0 = useAnimatedStyle(() => ({ height: Math.max(2, b0.value * 11) }));
+  const s1 = useAnimatedStyle(() => ({ height: Math.max(2, b1.value * 15) }));
+  const s2 = useAnimatedStyle(() => ({ height: Math.max(2, b2.value * 20) }));
+  const s3 = useAnimatedStyle(() => ({ height: Math.max(2, b3.value * 24) }));
+  const s4 = useAnimatedStyle(() => ({ height: Math.max(2, b4.value * 20) }));
+  const s5 = useAnimatedStyle(() => ({ height: Math.max(2, b5.value * 15) }));
+  const s6 = useAnimatedStyle(() => ({ height: Math.max(2, b6.value * 11) }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity:   ringOpacity.value,
+  }));
 
   useEffect(() => {
+    // Expanding ring
     if (state === "listening") {
-      dotScale.value = withRepeat(
-        withSequence(withTiming(1.6, { duration: 700 }), withTiming(1, { duration: 700 })),
-        -1, true
-      );
-      dotOpacity.value = withRepeat(
-        withSequence(withTiming(1, { duration: 700 }), withTiming(0.28, { duration: 700 })),
-        -1, true
-      );
+      ringScale.value   = withRepeat(withSequence(withTiming(1, { duration: 0 }), withTiming(1.8, { duration: 1500 })), -1, false);
+      ringOpacity.value = withRepeat(withSequence(withTiming(0.22, { duration: 0 }), withTiming(0, { duration: 1500 })), -1, false);
     } else if (state === "speaking") {
-      dotScale.value = withRepeat(
-        withSequence(withTiming(1.35, { duration: 420 }), withTiming(0.88, { duration: 420 })),
+      ringScale.value   = withRepeat(withSequence(withTiming(1, { duration: 0 }), withTiming(1.45, { duration: 850 })), -1, false);
+      ringOpacity.value = withRepeat(withSequence(withTiming(0.16, { duration: 0 }), withTiming(0, { duration: 850 })), -1, false);
+    } else {
+      ringOpacity.value = withTiming(0, { duration: 300 });
+    }
+
+    // Waveform bars
+    const vals = [b0, b1, b2, b3, b4, b5, b6];
+    const dur  = state === "speaking"  ? [265, 215, 175, 150, 175, 215, 265]
+               : state === "listening" ? [500, 420, 365, 325, 365, 420, 500]
+               : [2000, 1750, 1550, 1350, 1550, 1750, 2000];
+    const peak = state === "speaking"  ? [0.50, 0.70, 0.88, 1.00, 0.88, 0.70, 0.50]
+               : state === "listening" ? [0.36, 0.54, 0.72, 0.90, 0.72, 0.54, 0.36]
+               : [0.14, 0.20, 0.26, 0.32, 0.26, 0.20, 0.14];
+    vals.forEach((v, i) => {
+      v.value = withRepeat(
+        withSequence(withTiming(peak[i], { duration: dur[i] }), withTiming(0.05, { duration: dur[i] })),
         -1, true
       );
-      dotOpacity.value = withTiming(0.90);
-    } else {
-      dotScale.value   = withTiming(1);
-      dotOpacity.value = withTiming(0.30);
-    }
+    });
   }, [state]);
-
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: dotScale.value }],
-    opacity:   dotOpacity.value,
-  }));
 
   const handleTap = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setState(s =>
-      s === "idle"      ? "listening" :
-      s === "listening" ? "speaking"  : "listening"
-    );
+    setState(s => s === "idle" ? "listening" : s === "listening" ? "speaking" : "idle");
   };
-
-  const handleClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
-  };
-
-  const topPad = Platform.OS === "web" ? 20 : insets.top + 14;
-  const btmPad = Platform.OS === "web" ? 40 : insets.bottom + 32;
 
   const label =
-    state === "listening" ? "Dinliyorum..." :
-    state === "speaking"  ? "Yanıtlıyorum..." :
+    state === "listening" ? "Seni dinliyorum" :
+    state === "speaking"  ? "Yanıt veriyorum" :
     "Konuşmak için dokun";
 
-  const dotColor =
-    state === "listening" ? "rgba(100,185,255,0.95)" :
-    state === "speaking"  ? "rgba(255,175,70,0.95)"  :
-    "rgba(255,255,255,0.35)";
+  const hint = state !== "idle" ? "durdurmak için dokun" : "";
+
+  const accentColor =
+    state === "listening" ? "rgba(68,162,255,0.80)" :
+    state === "speaking"  ? "rgba(255,162,60,0.80)"  :
+    "rgba(255,255,255,0.28)";
 
   return (
-    <View style={styles.container}>
-
-      {/* ── Earth fills entire screen — tap anywhere ─────────────────── */}
-      <Pressable
-        style={StyleSheet.absoluteFillObject}
-        onPress={handleTap}
-      >
+    <View style={styles.root}>
+      <Pressable style={StyleSheet.absoluteFillObject} onPress={handleTap}>
         <CinematicEarth voiceState={state} />
       </Pressable>
 
-      {/* ── Top edge — close button ───────────────────────────────────── */}
-      <View
-        style={[styles.topEdge, { paddingTop: topPad }, { pointerEvents: "box-none" } as any]}
-      >
+      {/* ── Close button ─────────────────────────────────────────────────── */}
+      <View style={[styles.topBar, { paddingTop: topPad + 4 }]} pointerEvents="box-none">
         <TouchableOpacity
-          onPress={handleClose}
-          hitSlop={18}
           style={styles.closeBtn}
-          activeOpacity={0.6}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
+          hitSlop={16}
         >
-          <Feather name="x" size={16} color="rgba(255,255,255,0.42)" />
+          <Feather name="x" size={15} color="rgba(255,255,255,0.42)" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Bottom edge — state indicator ────────────────────────────── */}
-      <View
-        style={[styles.bottomEdge, { paddingBottom: btmPad }, { pointerEvents: "none" } as any]}
-      >
-        <Animated.View
-          style={[styles.dot, { backgroundColor: dotColor }, dotStyle]}
-        />
-        <Text style={styles.label}>{label}</Text>
-      </View>
+      {/* ── Bottom status ────────────────────────────────────────────────── */}
+      <View style={[styles.bottom, { paddingBottom: btmPad + 18 }]} pointerEvents="none">
 
+        {/* Pulsing ring + dot */}
+        <View style={styles.indicatorWrap}>
+          <Animated.View style={[styles.pulseRing, { borderColor: accentColor }, ringStyle]} />
+          <View style={[styles.dot, { backgroundColor: accentColor }]} />
+        </View>
+
+        {/* Status */}
+        <Text style={[styles.label, { color: state !== "idle" ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.30)" }]}>
+          {label}
+        </Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+
+        {/* Waveform */}
+        <View style={styles.waveRow}>
+          {Array.from({ length: 10 }, (_, i) => <View key={`ld${i}`} style={styles.waveDot} />)}
+          <Animated.View style={[styles.waveBar, s0]} />
+          <Animated.View style={[styles.waveBar, s1]} />
+          <Animated.View style={[styles.waveBar, s2]} />
+          <Animated.View style={[styles.waveBar, s3]} />
+          <Animated.View style={[styles.waveBar, s4]} />
+          <Animated.View style={[styles.waveBar, s5]} />
+          <Animated.View style={[styles.waveBar, s6]} />
+          {Array.from({ length: 10 }, (_, i) => <View key={`rd${i}`} style={styles.waveDot} />)}
+        </View>
+
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  root: {
+    flex:            1,
     backgroundColor: "#000010",
   },
 
-  topEdge: {
-    position:  "absolute",
-    top:        0,
-    right:      0,
-    paddingRight: 20,
-    zIndex:    20,
-    alignItems: "flex-end",
+  topBar: {
+    position:     "absolute",
+    top:          0,
+    right:        0,
+    paddingRight: 18,
+    zIndex:       20,
   },
   closeBtn: {
-    width:  36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
+    width:           36,
+    height:          36,
+    borderRadius:    18,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth:     StyleSheet.hairlineWidth,
+    borderColor:     "rgba(255,255,255,0.09)",
+    alignItems:      "center",
+    justifyContent:  "center",
   },
 
-  bottomEdge: {
-    position: "absolute",
-    bottom:   0,
-    left:     0,
-    right:    0,
+  bottom: {
+    position:  "absolute",
+    bottom:    0,
+    left:      0,
+    right:     0,
     alignItems: "center",
-    zIndex:   20,
+    zIndex:    20,
+    gap:       7,
+  },
+  indicatorWrap: {
+    width:          40,
+    height:         40,
+    alignItems:     "center",
+    justifyContent: "center",
+    marginBottom:   4,
+  },
+  pulseRing: {
+    position:     "absolute",
+    width:        40,
+    height:       40,
+    borderRadius: 20,
+    borderWidth:  1.5,
   },
   dot: {
-    width:        5,
-    height:       5,
-    borderRadius: 2.5,
-    marginBottom: 8,
+    width:        6,
+    height:       6,
+    borderRadius: 3,
   },
   label: {
-    fontSize:     11,
-    color:        "rgba(255,255,255,0.38)",
-    letterSpacing: 2.0,
+    fontSize:      11,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: 1.8,
     textTransform: "uppercase",
-    fontFamily:   "Inter_400Regular",
+  },
+  hint: {
+    fontSize:      9,
+    fontFamily:    "Inter_400Regular",
+    color:         "rgba(255,255,255,0.20)",
+    letterSpacing: 1.2,
+  },
+
+  waveRow: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           3,
+    marginTop:     6,
+    height:        26,
+  },
+  waveDot: {
+    width:           1.5,
+    height:          1.5,
+    borderRadius:    1,
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  waveBar: {
+    width:           2.5,
+    borderRadius:    1.5,
+    backgroundColor: "rgba(148,202,255,0.60)",
   },
 });
