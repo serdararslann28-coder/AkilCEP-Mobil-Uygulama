@@ -250,11 +250,11 @@ function draw(){
   // Sun-highlight offset makes the lit ocean gleam vs dark far-side
   var oCX=cx+R*0.32*sdx, oCY=cy+R*0.22*sdy;
   var oG=ctx.createRadialGradient(oCX,oCY,R*0.03,cx,cy,R);
-  oG.addColorStop(0.00,'#2274aa');  // sun-lit highlight — vivid mid-blue
-  oG.addColorStop(0.13,'#185e90');  // bright deep water
-  oG.addColorStop(0.32,'#0e4472');  // mid-depth
-  oG.addColorStop(0.52,'#082850');  // abyssal
-  oG.addColorStop(0.74,'#040e26');  // deep void
+  oG.addColorStop(0.00,'#2882bc');  // sun-lit highlight — richer cobalt-blue
+  oG.addColorStop(0.13,'#1668a0');  // bright deep water
+  oG.addColorStop(0.32,'#0e4878');  // mid-depth
+  oG.addColorStop(0.52,'#072a54');  // abyssal
+  oG.addColorStop(0.74,'#040e28');  // deep void
   oG.addColorStop(1.00,'#020810');  // terminator/limb black
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=oG; ctx.fill(); ctx.restore();
 
@@ -303,7 +303,7 @@ function draw(){
     var b2=parseInt(hex.slice(5,7),16);
 
     // Layer 1: directional gradient (sun→shadow within polygon)
-    var tH=Math.min(1.0,t*1.14), tL=Math.max(0.04,t*0.86), pR=R*0.18;
+    var tH=Math.min(1.0,t*1.18), tL=Math.max(0.04,t*0.85), pR=R*0.18;
     var pLG=ctx.createLinearGradient(
       cp.x+sdx*pR, cp.y+sdy*pR, cp.x-sdx*pR, cp.y-sdy*pR
     );
@@ -389,9 +389,9 @@ function draw(){
     ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*2.4,0,TAU); ctx.fillStyle=cg1; ctx.fill();
     // Inner core — warm white–gold pinpoint
     var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*0.90);
-    cg2.addColorStop(0.0,'rgba(255,252,215,'+(br*0.88)+')');
-    cg2.addColorStop(0.45,'rgba(255,228,148,'+(br*0.42)+')');
-    cg2.addColorStop(1.0,'rgba(255,195,80,0)');
+    cg2.addColorStop(0.0,'rgba(255,255,224,'+(br*0.92)+')');
+    cg2.addColorStop(0.45,'rgba(255,232,155,'+(br*0.44)+')');
+    cg2.addColorStop(1.0,'rgba(255,200,88,0)');
     ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*0.90,0,TAU); ctx.fillStyle=cg2; ctx.fill();
   }
   ctx.restore();
@@ -450,9 +450,9 @@ function draw(){
   // Layer A: dense bright ring right at the limb
   var ag1=ctx.createRadialGradient(cx,cy,R*0.972,cx,cy,R*1.108);
   ag1.addColorStop(0.00,'rgba(58,132,244,0)');
-  ag1.addColorStop(0.12,'rgba(92,166,254,0.46)');  // bright peak
-  ag1.addColorStop(0.38,'rgba(62,138,242,0.22)');
-  ag1.addColorStop(0.72,'rgba(42,110,224,0.07)');
+  ag1.addColorStop(0.12,'rgba(98,172,255,0.50)');  // bright peak
+  ag1.addColorStop(0.38,'rgba(64,140,244,0.24)');
+  ag1.addColorStop(0.72,'rgba(44,112,226,0.08)');
   ag1.addColorStop(1.00,'rgba(28,84,200,0)');
   fillArc(ag1,R*1.108);
 
