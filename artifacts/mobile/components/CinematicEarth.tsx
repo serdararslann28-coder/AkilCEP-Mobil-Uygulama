@@ -1,17 +1,19 @@
 /**
- * CinematicEarth v6 — Canvas2D stylized Earth, stable Expo/WebView.
+ * CinematicEarth v7 — real NASA texture via Canvas2D scan-line projection.
  *
- * Restored from stylized polygon system + enhanced:
- *   - Two-layer polygon fill: directional LinearGradient + radial centre-bright mound
- *   - Chaikin 2× smoothing at startup → organic coastlines from coarse skeletons
- *   - shadowBlur coastline feathering into ocean
- *   - 6-stop deep cinematic ocean with latitude depth layer
- *   - Wider, warmer terminator (amber+orange twilight band)
- *   - Softer city lights (reduced bloom, warmer amber)
- *   - Layered Rayleigh atmosphere ring with sun-side scatter
- *   - Living Earth: smooth state-blend uniforms + multi-frequency organic breathing
- *   - Voice states: idle breath | listening blue wave | speaking warm corona
- *   - Specular highlight ambient drift (subtle cloud-movement illusion)
+ * Surface rendering:
+ *   - Equirectangular → orthographic sphere via horizontal scan-line strips
+ *   - 96 bands × ≤2 drawImage calls each (~200 calls/frame ≈ 2 ms on mobile)
+ *   - Texture: earth_atmos_2048.jpg from unpkg CDN (NASA Blue Marble, ~400 KB)
+ *   - While loading: deep-blue ocean placeholder so animation starts instantly
+ *   - ctx.filter brightness/saturate applied per-frame for subtle richness
+ *
+ * Overlay pipeline (Canvas2D, unchanged from v6):
+ *   - Step 05: latitude tint (reduced — real texture already has climate zones)
+ *   - Steps 06-17: haze, curvature, night/terminator, city lights, polar ice,
+ *     aurora, limb darkening, Rayleigh rings, sun scatter, specular, globe edge,
+ *     living-Earth voice reactions (idle breath, listening rings, speaking corona)
+ *   - Labels: Türkiye / Istanbul / Ankara
  */
 import React, { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
@@ -19,56 +21,6 @@ import { WebView } from "react-native-webview";
 
 type VoiceState = "idle" | "listening" | "speaking";
 interface Props { voiceState: VoiceState; }
-
-// ─── Land polygons — 34 biome regions ────────────────────────────────────────
-// Chaikin 2× runs at startup; these are coarse control-point skeletons.
-const LAND = [
-  // ── Africa — Sahara warm gold, tropical deep emerald ────────────────────────
-  {c:"#c49428",p:[[-6,36],[8,37],[24,33],[34,30],[42,28],[50,22],[44,18],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,30],[-6,36]]},
-  {c:"#a88c24",p:[[-18,14],[-10,16],[0,16],[8,16],[18,14],[28,14],[36,14],[42,10],[44,14],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,14]]},
-  {c:"#147218",p:[[-18,4],[-18,14],[0,14],[8,14],[18,14],[28,14],[20,8],[12,4],[4,2],[-2,4],[-10,4],[-18,4]]},
-  {c:"#4a6e26",p:[[36,14],[42,10],[46,6],[48,0],[44,-4],[40,-10],[36,-18],[32,-26],[28,-34],[18,-34],[14,-28],[12,-18],[14,-10],[18,-4],[24,0],[28,4],[32,8],[36,14]]},
-  {c:"#2e6e22",p:[[44,-12],[48,-14],[50,-18],[50,-24],[46,-26],[44,-22],[42,-18],[44,-12]]},
-  // ── Europe — richer forest greens ──────────────────────────────────────────
-  {c:"#2e7228",p:[[-6,44],[-2,44],[2,44],[8,48],[12,48],[14,44],[18,44],[22,44],[24,48],[22,52],[14,56],[8,54],[4,52],[-4,52],[-6,48],[-6,44]]},
-  {c:"#326426",p:[[4,56],[8,54],[14,56],[18,58],[22,58],[22,66],[18,70],[12,70],[6,62],[4,58],[4,56]]},
-  {c:"#5e7228",p:[[-10,36],[-6,36],[-4,38],[-2,40],[2,40],[4,40],[4,44],[-4,44],[-6,44],[-10,44],[-10,40],[-10,36]]},
-  {c:"#4e7028",p:[[12,44],[14,44],[18,44],[22,44],[24,44],[28,44],[36,42],[40,40],[36,44],[28,46],[22,48],[16,46],[12,44]]},
-  // ── Turkey — warm olive ─────────────────────────────────────────────────────
-  {c:"#7a7030",p:[[26,37],[27,36.8],[29,36.2],[31,36],[33,36.2],[36,36],[38,36.2],[40,36.4],[42,36.8],[44,37.2],[44,38.2],[43,39.2],[42,40.2],[41,41],[40,41.5],[38,41.8],[36,42],[32,42],[29.5,42],[27.5,41.2],[26.5,40],[26.2,38.5],[26,37]]},
-  // ── Middle East — deeper amber & ochre ─────────────────────────────────────
-  {c:"#9a7c38",p:[[36,32],[40,34],[44,38],[44,34],[48,30],[48,24],[44,22],[40,26],[36,28],[34,30],[36,32]]},
-  {c:"#c49420",p:[[36,28],[40,26],[44,22],[48,24],[56,18],[60,14],[56,12],[52,14],[46,12],[44,14],[40,14],[36,18],[36,22],[36,28]]},
-  {c:"#9a7230",p:[[44,38],[48,40],[52,40],[60,36],[66,32],[66,26],[62,22],[58,20],[56,18],[52,22],[48,24],[48,30],[44,34],[44,38]]},
-  // ── Russia — deep taiga green ──────────────────────────────────────────────
-  {c:"#386632",p:[[24,48],[28,52],[32,56],[36,58],[40,62],[44,68],[50,66],[56,68],[60,64],[62,58],[58,52],[50,48],[44,44],[36,42],[28,44],[24,48]]},
-  {c:"#326028",p:[[60,52],[68,56],[70,64],[70,72],[80,72],[100,72],[120,72],[140,70],[150,68],[155,60],[150,52],[140,52],[130,48],[120,52],[110,50],[100,54],[90,52],[80,54],[70,52],[60,52]]},
-  // ── Central + South Asia ───────────────────────────────────────────────────
-  {c:"#a08030",p:[[50,48],[60,52],[68,56],[70,48],[66,40],[60,36],[52,40],[48,40],[44,44],[48,50],[50,48]]},
-  {c:"#5c7428",p:[[60,36],[66,26],[66,22],[70,18],[76,8],[80,10],[84,14],[88,22],[80,28],[76,30],[70,28],[66,28],[62,26],[60,30],[60,36]]},
-  {c:"#1e7018",p:[[98,20],[100,14],[102,8],[104,0],[100,-4],[96,0],[94,8],[92,18],[96,22],[98,20]]},
-  {c:"#187014",p:[[100,-4],[102,-2],[104,0],[106,-2],[106,-6],[102,-6],[100,-4]]},
-  {c:"#147212",p:[[108,4],[110,2],[112,0],[116,2],[116,4],[114,6],[110,6],[108,4]]},
-  // ── East Asia ──────────────────────────────────────────────────────────────
-  {c:"#727830",p:[[74,38],[80,50],[90,52],[100,52],[110,50],[120,52],[130,48],[128,40],[126,32],[120,24],[114,18],[108,18],[104,22],[100,18],[96,22],[92,20],[94,24],[88,22],[80,28],[76,30],[70,28],[70,36],[74,38]]},
-  {c:"#306a2c",p:[[130,31],[132,33],[136,35],[137,40],[134,42],[132,42],[130,38],[128,33],[130,31]]},
-  {c:"#386c2e",p:[[126,34],[128,36],[130,38],[128,38],[126,36],[124,36],[126,34]]},
-  // ── North America ──────────────────────────────────────────────────────────
-  {c:"#325e26",p:[[-168,60],[-156,58],[-148,58],[-136,58],[-130,54],[-132,56],[-140,58],[-152,58],[-164,58],[-168,58],[-168,60]]},
-  {c:"#346a28",p:[[-136,58],[-130,54],[-124,50],[-80,44],[-72,42],[-64,44],[-60,44],[-60,50],[-66,52],[-76,58],[-84,64],[-96,68],[-100,70],[-80,72],[-60,72],[-50,70],[-36,62],[-42,58],[-52,54],[-56,50],[-66,46],[-76,46],[-90,60],[-100,58],[-120,58],[-130,54],[-136,58]]},
-  {c:"#3e7028",p:[[-124,48],[-120,44],[-110,44],[-100,44],[-80,44],[-72,42],[-70,40],[-76,34],[-80,30],[-88,30],[-96,24],[-100,24],[-106,24],[-110,30],[-114,32],[-118,34],[-122,36],[-124,38],[-124,48]]},
-  {c:"#6a7024",p:[[-116,28],[-100,24],[-96,22],[-88,22],[-84,18],[-80,12],[-78,10],[-84,10],[-88,16],[-92,18],[-100,22],[-106,22],[-112,28],[-116,30],[-116,28]]},
-  // ── South America — Amazon deep emerald ────────────────────────────────────
-  {c:"#0e7216",p:[[-78,10],[-70,12],[-60,8],[-52,4],[-50,0],[-44,-2],[-40,-4],[-44,-8],[-50,-8],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
-  {c:"#286e1c",p:[[-40,-4],[-36,-8],[-36,-16],[-38,-22],[-44,-24],[-48,-16],[-50,-8],[-44,-8],[-40,-4]]},
-  {c:"#7a6424",p:[[-78,10],[-80,4],[-80,0],[-76,0],[-68,-6],[-68,-18],[-70,-30],[-72,-44],[-70,-50],[-66,-54],[-60,-52],[-56,-38],[-54,-20],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
-  // ── Australia — rich outback ochre + eastern green ─────────────────────────
-  {c:"#c09428",p:[[114,-22],[122,-20],[128,-18],[134,-14],[136,-18],[138,-22],[136,-26],[130,-26],[126,-30],[120,-34],[116,-32],[112,-28],[114,-22]]},
-  {c:"#506c26",p:[[138,-18],[140,-18],[144,-18],[148,-20],[152,-24],[152,-30],[148,-36],[142,-38],[136,-38],[132,-32],[128,-30],[126,-30],[130,-26],[136,-26],[138,-22],[136,-18],[138,-18]]},
-  // ── Polar ice — crisp arctic white-blue ────────────────────────────────────
-  {c:"#b4d0e4",p:[[-44,60],[-36,62],[-24,68],[-18,72],[-22,76],[-30,78],[-42,82],[-52,80],[-58,74],[-54,66],[-44,60]]},
-  {c:"#cce0ee",p:[[-180,-72],[0,-72],[180,-72],[180,-90],[-180,-90],[-180,-72]]},
-];
 
 // ─── City lights [lon, lat, brightness] ──────────────────────────────────────
 const CITIES = [
@@ -101,7 +53,6 @@ const CITIES = [
   [174.8,-36.9,0.68],
 ];
 
-const LAND_JSON   = JSON.stringify(LAND);
 const CITIES_JSON = JSON.stringify(CITIES);
 
 const EARTH_HTML = `<!DOCTYPE html>
@@ -111,7 +62,7 @@ const EARTH_HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;background:#00000c;overflow:hidden}
+html,body{width:100%;height:100%;background:#000008;overflow:hidden}
 canvas{position:absolute;top:0;left:0;display:block}
 #ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
 .lb{
@@ -148,7 +99,6 @@ canvas{position:absolute;top:0;left:0;display:block}
 (function(){
 'use strict';
 
-var LAND   = ${LAND_JSON};
 var CITIES = ${CITIES_JSON};
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
@@ -160,25 +110,76 @@ var ctx = cv.getContext('2d');
 if(!ctx) return;
 var cx = W*0.5, cy = H*0.46, R = Math.min(W,H)*0.44;
 
-// ── Sun direction (fixed) ─────────────────────────────────────────────────────
-var SUN_LON=-30, SUN_LAT=22;
-var sunLatR=SUN_LAT*Math.PI/180, sunLonR=SUN_LON*Math.PI/180;
-var SX=Math.cos(sunLatR)*Math.cos(sunLonR);
-var SY=Math.sin(sunLatR);
-var SZ=Math.cos(sunLatR)*Math.sin(sunLonR);
+// ── Earth texture — NASA Blue Marble equirectangular 2048×1024 ────────────────
+// Loads async; a deep-blue placeholder renders until ready.
+var earthImg = null, earthReady = false;
+(function(){
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload  = function(){ earthImg = img; earthReady = true; };
+  img.onerror = function(){ earthReady = false; };
+  img.src = 'https://unpkg.com/three@0.160.0/examples/textures/planets/earth_atmos_2048.jpg';
+})();
 
-// ── Chaikin 2× smoothing (runs once at startup) ────────────────────────────────
-function chaikin(pts){
-  var out=[], n=pts.length;
-  for(var i=0;i<n;i++){
-    var a=pts[i], b=pts[(i+1)%n];
-    out.push([a[0]*0.75+b[0]*0.25, a[1]*0.75+b[1]*0.25]);
-    out.push([a[0]*0.25+b[0]*0.75, a[1]*0.25+b[1]*0.75]);
+// ── Scan-line sphere texture renderer ─────────────────────────────────────────
+// Projects equirectangular texture onto an orthographic sphere using 96 horizontal
+// bands. Each band: one (or two, if wraps dateline) ctx.drawImage call.
+// Performance: ~200 drawImage calls / frame ≈ 2 ms on mobile.
+var NBANDS = 96;
+
+function drawTextureSphere(img){
+  var texW = img.naturalWidth  || 2048;
+  var texH = img.naturalHeight || 1024;
+  var invBands = 1 / NBANDS;
+  var rowH     = texH * invBands;
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.clip();
+
+  // Subtle brightness / saturation lift so the NASA photo reads well over the
+  // cinematic dark background.
+  try { ctx.filter = 'brightness(1.06) saturate(1.12) contrast(1.04)'; } catch(e){}
+
+  for(var ib = 0; ib < NBANDS; ib++){
+    var t0  = ib * invBands;
+    var t1  = (ib + 1) * invBands;
+    var yTop = cy - R + t0 * 2 * R;
+    var yBot = cy - R + t1 * 2 * R + 0.5;  // 0.5 px overlap prevents hairline gaps
+    var yMid = (yTop + yBot) * 0.5;
+    var yRel = yMid - cy;
+
+    if(Math.abs(yRel) >= R * 0.9998) continue;
+
+    var lat   = Math.asin(yRel / R);                 // latitude at row centre
+    var chord = 2 * R * Math.cos(lat);               // visible width at this lat
+    if(chord < 1) continue;
+
+    // Equirectangular: latitude maps linearly top→bottom (north→south)
+    var texY  = (0.5 - lat / Math.PI) * texH;
+    var scrX  = cx - chord * 0.5;
+    var bandH = yBot - yTop;
+
+    // Visible hemisphere: longitude range [rot−90°, rot+90°]
+    // Mapped to texture x: texXStart … texXStart + texW/2
+    var lonStart  = ((rot - 90) % 360 + 360) % 360;
+    var texXStart = lonStart / 360 * texW;
+    var texXW     = texW * 0.5;   // 180° = half the texture
+
+    if(texXStart + texXW <= texW){
+      // No dateline wrap — single drawImage
+      ctx.drawImage(img, texXStart, texY, texXW, rowH, scrX, yTop, chord, bandH);
+    } else {
+      // Wrap: two pieces either side of the dateline
+      var w1  = texW - texXStart;
+      var w2  = texXW - w1;
+      var sw1 = chord * w1 / texXW;
+      ctx.drawImage(img, texXStart, texY, w1, rowH, scrX,       yTop, sw1,        bandH);
+      ctx.drawImage(img, 0,          texY, w2, rowH, scrX + sw1, yTop, chord - sw1, bandH);
+    }
   }
-  return out;
-}
-for(var pi=0;pi<LAND.length;pi++){
-  if(LAND[pi].p.length>5) LAND[pi].p=chaikin(chaikin(LAND[pi].p));
+
+  try { ctx.filter = 'none'; } catch(e){}
+  ctx.restore();
 }
 
 // ── Seeded starfield ──────────────────────────────────────────────────────────
@@ -198,6 +199,12 @@ var rot=28, SPEED=3.6, vState='idle', vPhase=0, dt=0, lastT=-1;
 var vListen=0, vSpeak=0, vIdle=1;
 
 // ── Spherical projection ──────────────────────────────────────────────────────
+var SUN_LON=-30, SUN_LAT=22;
+var sunLatR=SUN_LAT*Math.PI/180, sunLonR=SUN_LON*Math.PI/180;
+var SX=Math.cos(sunLatR)*Math.cos(sunLonR);
+var SY=Math.sin(sunLatR);
+var SZ=Math.cos(sunLatR)*Math.sin(sunLonR);
+
 function proj(lon,lat){
   var dlonR=(lon-rot)*Math.PI/180, latR=lat*Math.PI/180;
   var cLat=Math.cos(latR), sLat=Math.sin(latR);
@@ -206,7 +213,6 @@ function proj(lon,lat){
   return{x:cx+R*Math.sin(dlonR)*cLat, y:cy-R*sLat, z:Math.cos(dlonR)*cLat,
          sun:nx*SX+ny*SY+nz*SZ};
 }
-function phash(n){ return((n*2654435769)>>>0)/4294967296; }
 
 // ── Label helper ──────────────────────────────────────────────────────────────
 function setLabel(lId,dId,lon,lat){
@@ -230,15 +236,14 @@ function draw(){
   if(adlon>180) adlon-=360;
   var nCX=cx+R*0.52*Math.sin(adlon*Math.PI/180);
 
-  // ── 01. Space background — deep cinematic void ────────────────────────────
+  // ── 01. Space background ───────────────────────────────────────────────────
   ctx.fillStyle='#000008'; ctx.fillRect(0,0,W,H);
-  // Subtle deep-space ambient gradient — slightly lighter toward the globe
   var bgG=ctx.createRadialGradient(cx,cy,R*1.4,cx,cy,Math.max(W,H));
   bgG.addColorStop(0,'rgba(10,18,52,0.28)');
   bgG.addColorStop(1,'rgba(0,0,6,0)');
   ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
 
-  // ── 02. Stars — calmer, smaller ───────────────────────────────────────────
+  // ── 02. Stars ──────────────────────────────────────────────────────────────
   for(var si=0;si<STARS.length;si++){
     var st=STARS[si];
     var ot=st.o*(0.86+0.14*Math.sin(vPhase*st.tw+st.tp));
@@ -246,93 +251,39 @@ function draw(){
     ctx.fillStyle='rgba(255,255,255,'+ot+')'; ctx.fill();
   }
 
-  // ── 03. Ocean — rich deep cinematic blue ──────────────────────────────────
-  // Sun-highlight offset makes the lit ocean gleam vs dark far-side
-  var oCX=cx+R*0.32*sdx, oCY=cy+R*0.22*sdy;
-  var oG=ctx.createRadialGradient(oCX,oCY,R*0.03,cx,cy,R);
-  oG.addColorStop(0.00,'#2882bc');  // sun-lit highlight — richer cobalt-blue
-  oG.addColorStop(0.13,'#1668a0');  // bright deep water
-  oG.addColorStop(0.32,'#0e4878');  // mid-depth
-  oG.addColorStop(0.52,'#072a54');  // abyssal
-  oG.addColorStop(0.74,'#040e28');  // deep void
-  oG.addColorStop(1.00,'#020810');  // terminator/limb black
-  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=oG; ctx.fill(); ctx.restore();
-
-  // Latitude depth layer — polar darkening, tropical saturation
-  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-  var odG=ctx.createLinearGradient(cx,cy-R,cx,cy+R);
-  odG.addColorStop(0.00,'rgba(4,12,44,0.18)');
-  odG.addColorStop(0.24,'rgba(4,14,46,0.06)');
-  odG.addColorStop(0.46,'rgba(0,24,54,0.0)');
-  odG.addColorStop(0.54,'rgba(0,24,54,0.0)');
-  odG.addColorStop(0.76,'rgba(4,14,46,0.06)');
-  odG.addColorStop(1.00,'rgba(4,12,44,0.18)');
-  ctx.fillStyle=odG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
-
-  // ── 04. Land polygons — two-layer technique ───────────────────────────────
-  var shadowR=Math.max(0.4,R*0.005);  // tighter feather = crisper coastlines
-  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
-
-  for(var i=0;i<LAND.length;i++){
-    var poly=LAND[i], pts=poly.p, pn=pts.length;
-    var sl=0, slt=0;
-    for(var j=0;j<pn;j++){ sl+=pts[j][0]; slt+=pts[j][1]; }
-    var cp=proj(sl/pn, slt/pn);
-    if(cp.z<-0.14) continue;
-
-    ctx.beginPath();
-    var first=true;
-    for(var k=0;k<pn;k++){
-      var vp=proj(pts[k][0],pts[k][1]);
-      if(vp.z<-0.22) continue;
-      if(first){ctx.moveTo(vp.x,vp.y);first=false;}
-      else ctx.lineTo(vp.x,vp.y);
-    }
-    if(first) continue;
-    ctx.closePath();
-
-    // Ambient raised: sun-facing continents stay rich, shadow-facing stay readable
-    var raw=cp.sun*1.60+0.34;
-    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.68);
-    t*=(0.92+0.08*phash(i));
-    t=Math.max(0.14,t);  // 0.14 floor: no continent ever goes invisible
-
-    var hex=poly.c;
-    var r2=parseInt(hex.slice(1,3),16);
-    var g2=parseInt(hex.slice(3,5),16);
-    var b2=parseInt(hex.slice(5,7),16);
-
-    // Wider contrast spread: bright faces brighter, shadow faces still readable
-    var tH=Math.min(1.0,t*1.22), tL=Math.max(0.08,t*0.88), pR=R*0.18;
-    var pLG=ctx.createLinearGradient(
-      cp.x+sdx*pR, cp.y+sdy*pR, cp.x-sdx*pR, cp.y-sdy*pR
-    );
-    pLG.addColorStop(0,'rgb('+Math.round(r2*tH)+','+Math.round(g2*tH)+','+Math.round(b2*tH)+')');
-    pLG.addColorStop(1,'rgb('+Math.round(r2*tL)+','+Math.round(g2*tL)+','+Math.round(b2*tL)+')');
-
-    ctx.shadowColor='rgb('+Math.round(r2*t)+','+Math.round(g2*t)+','+Math.round(b2*t)+')';
-    ctx.shadowBlur=shadowR;
-    ctx.fillStyle=pLG; ctx.fill();
-    ctx.shadowBlur=0; ctx.shadowColor='transparent';
-
-    // Layer 2: radial centre-bright (terrain mound depth)
-    var pRG=ctx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,R*0.22);
-    pRG.addColorStop(0.0,'rgba(255,255,255,0.055)');
-    pRG.addColorStop(0.5,'rgba(255,255,255,0.016)');
-    pRG.addColorStop(1.0,'rgba(0,0,0,0.032)');
-    ctx.fillStyle=pRG; ctx.fill();
+  // ── 03. Earth surface ──────────────────────────────────────────────────────
+  // Real NASA texture when loaded; deep-blue gradient placeholder while loading.
+  if(earthReady && earthImg){
+    drawTextureSphere(earthImg);
+  } else {
+    // Placeholder: deep cinematic ocean blue so the globe is visible immediately
+    var oCX=cx+R*0.32*sdx, oCY=cy+R*0.22*sdy;
+    var oG=ctx.createRadialGradient(oCX,oCY,R*0.03,cx,cy,R);
+    oG.addColorStop(0.00,'#2882bc');
+    oG.addColorStop(0.32,'#0e4878');
+    oG.addColorStop(0.72,'#040e26');
+    oG.addColorStop(1.00,'#020810');
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=oG; ctx.fill(); ctx.restore();
   }
-  ctx.restore();
 
-  // ── 05. Latitude climate-zone tint ────────────────────────────────────────
+  // ── 04. Sphere diffuse shading — makes flat texture read as a 3-D sphere ──
+  // A sun-centred radial multiply lifts the lit hemisphere and darkens the edge,
+  // complementing the night hemisphere (step 08) that handles the dark side.
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var dfG=ctx.createRadialGradient(cx+R*0.28*sdx,cy+R*0.20*sdy,0,cx,cy,R);
+  dfG.addColorStop(0.00,'rgba(255,252,235,0.12)');  // warm sun centre
+  dfG.addColorStop(0.35,'rgba(255,248,225,0.04)');
+  dfG.addColorStop(0.68,'rgba(0,0,0,0)');
+  dfG.addColorStop(1.00,'rgba(0,0,0,0.18)');        // edge darkening
+  ctx.fillStyle=dfG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
+
+  // ── 05. Latitude tint — very subtle; real texture already has climate zones ─
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
   var latG=ctx.createLinearGradient(cx,cy-R,cx,cy+R);
-  latG.addColorStop(0.00,'rgba(118,152,208,0.055)');
-  latG.addColorStop(0.26,'rgba(78,122,178,0.020)');
-  latG.addColorStop(0.46,'rgba(36,92,36,0.038)');
-  latG.addColorStop(0.54,'rgba(36,92,36,0.038)');
-  latG.addColorStop(0.74,'rgba(78,122,178,0.020)');
-  latG.addColorStop(1.00,'rgba(118,152,208,0.055)');
+  latG.addColorStop(0.00,'rgba(118,152,208,0.022)');
+  latG.addColorStop(0.46,'rgba(36,92,36,0.010)');
+  latG.addColorStop(0.54,'rgba(36,92,36,0.010)');
+  latG.addColorStop(1.00,'rgba(118,152,208,0.022)');
   ctx.fillStyle=latG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
   // ── 06. Inner atmosphere haze ─────────────────────────────────────────────
@@ -358,8 +309,8 @@ function draw(){
   tg.addColorStop(0.00,'rgba(0,2,14,0.97)');
   tg.addColorStop(0.28,'rgba(0,2,14,0.92)');
   tg.addColorStop(0.44,'rgba(2,4,20,0.72)');
-  tg.addColorStop(0.52,'rgba(34,16,6,0.50)');  // deep amber
-  tg.addColorStop(0.58,'rgba(62,28,6,0.26)');  // warm orange
+  tg.addColorStop(0.52,'rgba(34,16,6,0.50)');
+  tg.addColorStop(0.58,'rgba(62,28,6,0.26)');
   tg.addColorStop(0.64,'rgba(22,10,2,0.12)');
   tg.addColorStop(0.72,'rgba(0,0,0,0)');
   ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
@@ -375,19 +326,16 @@ function draw(){
     var br=city[2]*fade*cityBoost;
     if(br<0.05) continue;
     var cr=1.5*br+0.36;
-    // Far bloom — very wide, very faint warm amber cloud
     var cg0=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*4.2);
     cg0.addColorStop(0.0,'rgba(255,195,80,'+(br*0.11)+')');
     cg0.addColorStop(0.55,'rgba(255,158,50,'+(br*0.042)+')');
     cg0.addColorStop(1.0,'rgba(255,120,28,0)');
     ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*4.2,0,TAU); ctx.fillStyle=cg0; ctx.fill();
-    // Mid bloom — warm gold
     var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*2.4);
     cg1.addColorStop(0.0,'rgba(255,228,148,'+(br*0.28)+')');
     cg1.addColorStop(0.5,'rgba(255,198,90,'+(br*0.12)+')');
     cg1.addColorStop(1.0,'rgba(255,165,52,0)');
     ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*2.4,0,TAU); ctx.fillStyle=cg1; ctx.fill();
-    // Inner core — warm white–gold pinpoint
     var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*0.90);
     cg2.addColorStop(0.0,'rgba(255,255,224,'+(br*0.92)+')');
     cg2.addColorStop(0.45,'rgba(255,232,155,'+(br*0.44)+')');
@@ -412,17 +360,15 @@ function draw(){
   }
 
   // ── 10b. Aurora borealis — extremely subtle animated shimmer ──────────────
-  // Three overlapping patches near the north polar ring, only on the dark side.
   var auroraData=[
-    {lon:0,   lat:72, col:[68,225,128]},   // emerald green
-    {lon:55,  lat:68, col:[52,185,218]},   // cyan-teal
-    {lon:-55, lat:70, col:[148,105,228]},  // soft violet
+    {lon:0,   lat:72, col:[68,225,128]},
+    {lon:55,  lat:68, col:[52,185,218]},
+    {lon:-55, lat:70, col:[148,105,228]},
   ];
   for(var ai=0;ai<auroraData.length;ai++){
     var ad=auroraData[ai];
     var ap=proj(ad.lon,ad.lat);
     if(ap.z<0.04) continue;
-    // Fade: only on night side (low/negative sun), and only when facing viewer
     var aFade=ap.z*Math.max(0,0.92-ap.sun*9.0);
     if(aFade<0.01) continue;
     var aAnim=0.5+0.5*Math.sin(vPhase*(0.55+ai*0.22)+ai*2.3);
@@ -447,16 +393,14 @@ function draw(){
   ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
   // ── 12. Outer atmosphere — layered Rayleigh ring ──────────────────────────
-  // Layer A: dense bright ring right at the limb
   var ag1=ctx.createRadialGradient(cx,cy,R*0.972,cx,cy,R*1.108);
   ag1.addColorStop(0.00,'rgba(58,132,244,0)');
-  ag1.addColorStop(0.12,'rgba(98,172,255,0.50)');  // bright peak
+  ag1.addColorStop(0.12,'rgba(98,172,255,0.50)');
   ag1.addColorStop(0.38,'rgba(64,140,244,0.24)');
   ag1.addColorStop(0.72,'rgba(44,112,226,0.08)');
   ag1.addColorStop(1.00,'rgba(28,84,200,0)');
   fillArc(ag1,R*1.108);
 
-  // Layer B: wider diffuse outer halo
   var ag2=ctx.createRadialGradient(cx,cy,R*1.01,cx,cy,R*1.22);
   ag2.addColorStop(0.00,'rgba(44,112,246,0)');
   ag2.addColorStop(0.28,'rgba(36,98,232,0.052)');
@@ -464,7 +408,6 @@ function draw(){
   ag2.addColorStop(1.00,'rgba(14,56,184,0)');
   fillArc(ag2,R*1.22);
 
-  // Layer C: innermost thin glow band — adds blue edge depth to the globe rim
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+1,0,TAU); ctx.clip();
   var ag3=ctx.createRadialGradient(cx,cy,R*0.88,cx,cy,R*1.002);
   ag3.addColorStop(0.0,'rgba(30,88,200,0)');
@@ -472,7 +415,7 @@ function draw(){
   ag3.addColorStop(1.0,'rgba(62,138,250,0.18)');
   ctx.fillStyle=ag3; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
-  // ── 13. Sun-side limb scatter — brightened ────────────────────────────────
+  // ── 13. Sun-side limb scatter ─────────────────────────────────────────────
   var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.18);
   slg.addColorStop(0.0,'rgba(255,255,255,0)');
   slg.addColorStop(0.72,'rgba(220,236,255,0)');
@@ -497,12 +440,10 @@ function draw(){
   ctx.strokeStyle='rgba(70,140,244,0.13)'; ctx.lineWidth=0.6; ctx.stroke();
 
   // ── 16. Living Earth — organic emotional states ───────────────────────────
-  // Three overlapping breathing cycles — never feels mechanical or looped.
-  var b1=0.5+0.5*Math.sin(vPhase*1.38);   // 0.22 Hz  — main breath (4.5s)
-  var b2=0.5+0.5*Math.sin(vPhase*0.48);   // 0.076 Hz — tidal swell (13s)
-  var b3=0.5+0.5*Math.sin(vPhase*3.60);   // 0.57 Hz  — surface shimmer (1.75s)
+  var b1=0.5+0.5*Math.sin(vPhase*1.38);
+  var b2=0.5+0.5*Math.sin(vPhase*0.48);
+  var b3=0.5+0.5*Math.sin(vPhase*3.60);
 
-  // IDLE — gentle atmosphere breathing (always present)
   if(vIdle>0.008){
     var idleA=vIdle*(0.52+0.28*b1+0.20*b2);
     var ba=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.135);
@@ -513,10 +454,8 @@ function draw(){
     fillArc(ba,R*1.135);
   }
 
-  // LISTENING — cool blue atmosphere shift + two staggered organic rings
   if(vListen>0.008){
     var lisA=vListen*(0.60+0.25*b1+0.15*b3);
-    // Atmosphere colour shift — cooler, more blue during listening
     var la=ctx.createRadialGradient(cx,cy,R*0.92,cx,cy,R*1.22);
     la.addColorStop(0.00,'rgba(65,148,255,0)');
     la.addColorStop(0.15,'rgba(90,168,255,'+(lisA*0.18)+')');
@@ -524,13 +463,11 @@ function draw(){
     la.addColorStop(0.82,'rgba(38,108,230,'+(lisA*0.022)+')');
     la.addColorStop(1.00,'rgba(30,88,210,0)');
     fillArc(la,R*1.22);
-    // Ring 1 — primary heartbeat, 2.6s period
     var wp1=(vPhase*0.385)%1;
     var wA1=Math.max(0,Math.pow(1-wp1,1.8)*vListen*0.22);
     ctx.beginPath(); ctx.arc(cx,cy,R*(1.035+wp1*0.55),0,TAU);
     ctx.strokeStyle='rgba(100,178,255,'+wA1+')';
     ctx.lineWidth=0.30+(1-wp1)*1.0; ctx.stroke();
-    // Ring 2 — offset 0.5 phase, slightly different period (4.1s) — avoids mechanical feel
     var wp2=((vPhase*0.385)+0.5)%1;
     var wA2=Math.max(0,Math.pow(1-wp2,1.8)*vListen*0.14);
     ctx.beginPath(); ctx.arc(cx,cy,R*(1.035+wp2*0.55),0,TAU);
@@ -538,12 +475,10 @@ function draw(){
     ctx.lineWidth=0.22+(1-wp2)*0.65; ctx.stroke();
   }
 
-  // SPEAKING — warm atmosphere brightens + elegant dual-ring pulse
   if(vSpeak>0.008){
     var sp1=0.5+0.5*Math.sin(vPhase*2.55);
     var sp2=0.5+0.5*Math.sin(vPhase*1.65+0.95);
     var spA=vSpeak*(0.46+0.33*sp1+0.21*sp2);
-    // Warm corona — two-layer: inner amber + outer deep orange
     var co=ctx.createRadialGradient(cx,cy,R*0.90,cx,cy,R*1.35);
     co.addColorStop(0.00,'rgba(255,158,42,0)');
     co.addColorStop(0.14,'rgba(255,148,36,'+(0.16*spA)+')');
@@ -551,14 +486,12 @@ function draw(){
     co.addColorStop(0.70,'rgba(255,76,12,'+(0.020*spA)+')');
     co.addColorStop(1.00,'rgba(255,52,8,0)');
     fillArc(co,R*1.35);
-    // Inner globe brightens with voice — warm tidal fill
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
     var gw=ctx.createRadialGradient(cx,cy,R*0.60,cx,cy,R);
     gw.addColorStop(0,'rgba(255,148,36,0)');
     gw.addColorStop(0.78,'rgba(255,130,28,'+(0.052*spA)+')');
     gw.addColorStop(1.0,'rgba(255,108,18,'+(0.115*spA)+')');
     ctx.fillStyle=gw; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
-    // Slow expanding pulse ring — cinematic breath of the AI
     var pp1=(vPhase*0.22)%1;
     var pA1=Math.max(0,Math.pow(1-pp1,2.2)*vSpeak*0.18);
     ctx.beginPath(); ctx.arc(cx,cy,R*(1.02+pp1*0.68),0,TAU);
