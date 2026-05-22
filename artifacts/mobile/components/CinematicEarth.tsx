@@ -270,7 +270,7 @@ function draw(){
   ctx.fillStyle=odG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
   // ── 04. Land polygons — two-layer technique ───────────────────────────────
-  var shadowR=Math.max(1.0,R*0.010);
+  var shadowR=Math.max(0.4,R*0.005);  // tighter feather = crisper coastlines
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
 
   for(var i=0;i<LAND.length;i++){
@@ -291,19 +291,19 @@ function draw(){
     if(first) continue;
     ctx.closePath();
 
-    // Boost land brightness: stronger diffuse + wider gamma curve = richer saturation
-    var raw=cp.sun*1.65+0.22;
-    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.72);
+    // Ambient raised: sun-facing continents stay rich, shadow-facing stay readable
+    var raw=cp.sun*1.60+0.34;
+    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.68);
     t*=(0.92+0.08*phash(i));
-    t=Math.max(0.07,t);
+    t=Math.max(0.14,t);  // 0.14 floor: no continent ever goes invisible
 
     var hex=poly.c;
     var r2=parseInt(hex.slice(1,3),16);
     var g2=parseInt(hex.slice(3,5),16);
     var b2=parseInt(hex.slice(5,7),16);
 
-    // Layer 1: directional gradient (sun→shadow within polygon)
-    var tH=Math.min(1.0,t*1.18), tL=Math.max(0.04,t*0.85), pR=R*0.18;
+    // Wider contrast spread: bright faces brighter, shadow faces still readable
+    var tH=Math.min(1.0,t*1.22), tL=Math.max(0.08,t*0.88), pR=R*0.18;
     var pLG=ctx.createLinearGradient(
       cp.x+sdx*pR, cp.y+sdy*pR, cp.x-sdx*pR, cp.y-sdy*pR
     );
@@ -339,8 +339,8 @@ function draw(){
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
   var ih=ctx.createRadialGradient(cx,cy,R*0.83,cx,cy,R*1.005);
   ih.addColorStop(0.0,'rgba(14,44,122,0)');
-  ih.addColorStop(0.6,'rgba(20,52,148,0.065)');
-  ih.addColorStop(1.0,'rgba(28,66,178,0.28)');
+  ih.addColorStop(0.6,'rgba(20,52,148,0.040)');
+  ih.addColorStop(1.0,'rgba(28,66,178,0.16)');
   ctx.fillStyle=ih; ctx.fillRect(cx-R*1.1,cy-R*1.1,R*2.2,R*2.2); ctx.restore();
 
   // ── 07. Terrain curvature (viewer-facing centre-bright) ───────────────────
@@ -441,9 +441,9 @@ function draw(){
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
   var ld=ctx.createRadialGradient(cx,cy,R*0.60,cx,cy,R*1.005);
   ld.addColorStop(0.0,'rgba(0,0,0,0)');
-  ld.addColorStop(0.68,'rgba(0,0,0,0.065)');
-  ld.addColorStop(0.86,'rgba(0,0,0,0.26)');
-  ld.addColorStop(1.0,'rgba(0,0,0,0.60)');
+  ld.addColorStop(0.68,'rgba(0,0,0,0.045)');
+  ld.addColorStop(0.86,'rgba(0,0,0,0.20)');
+  ld.addColorStop(1.0,'rgba(0,0,0,0.48)');
   ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
   // ── 12. Outer atmosphere — layered Rayleigh ring ──────────────────────────
