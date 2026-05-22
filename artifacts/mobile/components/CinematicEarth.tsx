@@ -1,15 +1,16 @@
 /**
- * CinematicEarth v3 — Pure Canvas2D, zero network deps.
+ * CinematicEarth v4 — Pure Canvas2D, zero network deps.
  *
- * Key visual improvements over v2:
- *   - Chaikin corner-cutting applied 2× at startup (15-pt polygons → ~60 smooth pts)
- *   - Per-polygon shadowBlur in fill color → coastlines feather into ocean naturally
- *   - Terrain curvature overlay (center-bright / edge-dark)
- *   - Reduced atmosphere glow (less neon, more real)
- *   - Reduced terminator intensity
- *   - Label anti-overlap: Istanbul left-offset, Ankara right-offset
- *   - Smaller stars (max 0.55 radius), subtler twinkle
- *   - Smaller city bloom radii
+ * Core rendering upgrades over v3:
+ *   - Two-layer polygon fill:
+ *       Layer 1 = directional LinearGradient along sun→shadow axis per polygon
+ *       Layer 2 = radial center-bright overlay → terrain-mound depth feeling
+ *   - Richer biome colour palette (distinct desert / jungle / boreal / savanna)
+ *   - Latitude climate-zone tint overlay (polar cool ↔ equatorial green)
+ *   - Deeper ocean: 5-stop gradient + N-S latitude depth layer
+ *   - Wider cinematic terminator (orange-amber sunset band)
+ *   - shadowBlur coastline feathering kept from v3
+ *   - Chaikin 2× smoothing kept from v3
  */
 import React, { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
@@ -18,58 +19,92 @@ import { WebView } from "react-native-webview";
 type VoiceState = "idle" | "listening" | "speaking";
 interface Props { voiceState: VoiceState; }
 
-// ─── Land polygons [lon, lat] — 34 regions ────────────────────────────────────
-// Chaikin smoothing is applied at runtime startup (2 passes), so these can be
-// coarser control-point outlines — smoothing handles the organic curve quality.
+// ─── Land polygons — 34 biome regions ────────────────────────────────────────
+// Colours chosen to match real Earth biomes.
+// Chaikin 2× smoothing runs at startup, so these are control-point skeletons.
 const LAND = [
   // ── Africa ─────────────────────────────────────────────────────────────────
-  {c:"#a88020",p:[[-6,36],[8,37],[24,33],[34,30],[42,28],[50,22],[44,18],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,30],[-6,36]]},
-  {c:"#7a7828",p:[[-18,14],[-10,16],[0,16],[8,16],[18,14],[28,14],[36,14],[42,10],[44,14],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,14]]},
-  {c:"#286624",p:[[-18,4],[-18,14],[0,14],[8,14],[18,14],[28,14],[20,8],[12,4],[4,2],[-2,4],[-10,4],[-18,4]]},
-  {c:"#5a7030",p:[[36,14],[42,10],[46,6],[48,0],[44,-4],[40,-10],[36,-18],[32,-26],[28,-34],[18,-34],[14,-28],[12,-18],[14,-10],[18,-4],[24,0],[28,4],[32,8],[36,14]]},
-  {c:"#3a6428",p:[[44,-12],[48,-14],[50,-18],[50,-24],[46,-26],[44,-22],[42,-18],[44,-12]]},
+  // Sahara + North Africa coast
+  {c:"#b09a30",p:[[-6,36],[8,37],[24,33],[34,30],[42,28],[50,22],[44,18],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,30],[-6,36]]},
+  // Sahel dry-grassland transition
+  {c:"#8a7e2c",p:[[-18,14],[-10,16],[0,16],[8,16],[18,14],[28,14],[36,14],[42,10],[44,14],[36,20],[28,22],[18,22],[8,22],[-2,22],[-10,24],[-18,24],[-18,14]]},
+  // West Africa / Congo tropical forest
+  {c:"#22681c",p:[[-18,4],[-18,14],[0,14],[8,14],[18,14],[28,14],[20,8],[12,4],[4,2],[-2,4],[-10,4],[-18,4]]},
+  // East + Southern Africa savanna
+  {c:"#567030",p:[[36,14],[42,10],[46,6],[48,0],[44,-4],[40,-10],[36,-18],[32,-26],[28,-34],[18,-34],[14,-28],[12,-18],[14,-10],[18,-4],[24,0],[28,4],[32,8],[36,14]]},
+  // Madagascar
+  {c:"#38662a",p:[[44,-12],[48,-14],[50,-18],[50,-24],[46,-26],[44,-22],[42,-18],[44,-12]]},
   // ── Europe ─────────────────────────────────────────────────────────────────
-  {c:"#3a6e30",p:[[-6,44],[-2,44],[2,44],[8,48],[12,48],[14,44],[18,44],[22,44],[24,48],[22,52],[14,56],[8,54],[4,52],[-4,52],[-6,48],[-6,44]]},
-  {c:"#486434",p:[[4,56],[8,54],[14,56],[18,58],[22,58],[22,66],[18,70],[12,70],[6,62],[4,58],[4,56]]},
-  {c:"#5e7830",p:[[-10,36],[-6,36],[-4,38],[-2,40],[2,40],[4,40],[4,44],[-4,44],[-6,44],[-10,44],[-10,40],[-10,36]]},
-  {c:"#5a7430",p:[[12,44],[14,44],[18,44],[22,44],[24,44],[28,44],[36,42],[40,40],[36,44],[28,46],[22,48],[16,46],[12,44]]},
+  // Western + Central Europe — temperate deciduous
+  {c:"#346a2c",p:[[-6,44],[-2,44],[2,44],[8,48],[12,48],[14,44],[18,44],[22,44],[24,48],[22,52],[14,56],[8,54],[4,52],[-4,52],[-6,48],[-6,44]]},
+  // Scandinavia — boreal
+  {c:"#3c5e2e",p:[[4,56],[8,54],[14,56],[18,58],[22,58],[22,66],[18,70],[12,70],[6,62],[4,58],[4,56]]},
+  // Iberian Peninsula — Mediterranean scrub
+  {c:"#5e7632",p:[[-10,36],[-6,36],[-4,38],[-2,40],[2,40],[4,40],[4,44],[-4,44],[-6,44],[-10,44],[-10,40],[-10,36]]},
+  // Italy + Balkans
+  {c:"#547232",p:[[12,44],[14,44],[18,44],[22,44],[24,44],[28,44],[36,42],[40,40],[36,44],[28,46],[22,48],[16,46],[12,44]]},
   // ── Turkey ─────────────────────────────────────────────────────────────────
-  {c:"#7a7440",p:[[26,37],[28,36.5],[30,36],[34,36],[36,36.5],[40,36],[44,37],[44,38],[42,40],[40,41.5],[36,42],[30,42],[27.5,41],[26,39.5],[26,37]]},
+  // Anatolian plateau — dry olive steppe
+  {c:"#70703c",p:[[26,37],[27,36.8],[29,36.2],[31,36],[33,36.2],[36,36],[38,36.2],[40,36.4],[42,36.8],[44,37.2],[44,38.2],[43,39.2],[42,40.2],[41,41],[40,41.5],[38,41.8],[36,42],[32,42],[29.5,42],[27.5,41.2],[26.5,40],[26.2,38.5],[26,37]]},
   // ── Middle East ────────────────────────────────────────────────────────────
-  {c:"#907840",p:[[36,32],[40,34],[44,38],[44,34],[48,30],[48,24],[44,22],[40,26],[36,28],[34,30],[36,32]]},
+  // Levant + Syria + Iraq — semi-arid
+  {c:"#8c7840",p:[[36,32],[40,34],[44,38],[44,34],[48,30],[48,24],[44,22],[40,26],[36,28],[34,30],[36,32]]},
+  // Arabian Peninsula — hot desert
   {c:"#b09028",p:[[36,28],[40,26],[44,22],[48,24],[56,18],[60,14],[56,12],[52,14],[46,12],[44,14],[40,14],[36,18],[36,22],[36,28]]},
-  {c:"#9a8038",p:[[44,38],[48,40],[52,40],[60,36],[66,32],[66,26],[62,22],[58,20],[56,18],[52,22],[48,24],[48,30],[44,34],[44,38]]},
+  // Iran + Afghanistan — highland steppe
+  {c:"#907038",p:[[44,38],[48,40],[52,40],[60,36],[66,32],[66,26],[62,22],[58,20],[56,18],[52,22],[48,24],[48,30],[44,34],[44,38]]},
   // ── Russia ─────────────────────────────────────────────────────────────────
-  {c:"#466838",p:[[24,48],[28,52],[32,56],[36,58],[40,62],[44,68],[50,66],[56,68],[60,64],[62,58],[58,52],[50,48],[44,44],[36,42],[28,44],[24,48]]},
-  {c:"#406030",p:[[60,52],[68,56],[70,64],[70,72],[80,72],[100,72],[120,72],[140,70],[150,68],[155,60],[150,52],[140,52],[130,48],[120,52],[110,50],[100,54],[90,52],[80,54],[70,52],[60,52]]},
+  // European Russia — mixed forest
+  {c:"#406034",p:[[24,48],[28,52],[32,56],[36,58],[40,62],[44,68],[50,66],[56,68],[60,64],[62,58],[58,52],[50,48],[44,44],[36,42],[28,44],[24,48]]},
+  // Siberia — dark taiga
+  {c:"#3a5c2c",p:[[60,52],[68,56],[70,64],[70,72],[80,72],[100,72],[120,72],[140,70],[150,68],[155,60],[150,52],[140,52],[130,48],[120,52],[110,50],[100,54],[90,52],[80,54],[70,52],[60,52]]},
   // ── Central + South Asia ───────────────────────────────────────────────────
-  {c:"#907840",p:[[50,48],[60,52],[68,56],[70,48],[66,40],[60,36],[52,40],[48,40],[44,44],[48,50],[50,48]]},
-  {c:"#6e7430",p:[[60,36],[66,26],[66,22],[70,18],[76,8],[80,10],[84,14],[88,22],[80,28],[76,30],[70,28],[66,28],[62,26],[60,30],[60,36]]},
-  {c:"#2e6426",p:[[98,20],[100,14],[102,8],[104,0],[100,-4],[96,0],[94,8],[92,18],[96,22],[98,20]]},
-  {c:"#286820",p:[[100,-4],[102,-2],[104,0],[106,-2],[106,-6],[102,-6],[100,-4]]},
-  {c:"#286820",p:[[108,4],[110,2],[112,0],[116,2],[116,4],[114,6],[110,6],[108,4]]},
+  // Central Asia — dry steppe
+  {c:"#8c7c36",p:[[50,48],[60,52],[68,56],[70,48],[66,40],[60,36],[52,40],[48,40],[44,44],[48,50],[50,48]]},
+  // Indian subcontinent — mixed tropical
+  {c:"#687232",p:[[60,36],[66,26],[66,22],[70,18],[76,8],[80,10],[84,14],[88,22],[80,28],[76,30],[70,28],[66,28],[62,26],[60,30],[60,36]]},
+  // SE Asia peninsula — lush tropical
+  {c:"#286a1e",p:[[98,20],[100,14],[102,8],[104,0],[100,-4],[96,0],[94,8],[92,18],[96,22],[98,20]]},
+  // Malay Peninsula / Sumatra
+  {c:"#226818",p:[[100,-4],[102,-2],[104,0],[106,-2],[106,-6],[102,-6],[100,-4]]},
+  // Borneo / Java — jungle
+  {c:"#1e6616",p:[[108,4],[110,2],[112,0],[116,2],[116,4],[114,6],[110,6],[108,4]]},
   // ── East Asia ──────────────────────────────────────────────────────────────
-  {c:"#7e7c38",p:[[74,38],[80,50],[90,52],[100,52],[110,50],[120,52],[130,48],[128,40],[126,32],[120,24],[114,18],[108,18],[104,22],[100,18],[96,22],[92,20],[94,24],[88,22],[80,28],[76,30],[70,28],[70,36],[74,38]]},
-  {c:"#3a6830",p:[[130,31],[132,33],[136,35],[137,40],[134,42],[132,42],[130,38],[128,33],[130,31]]},
-  {c:"#446830",p:[[126,34],[128,36],[130,38],[128,38],[126,36],[124,36],[126,34]]},
+  // China + Mongolia — mixed steppe & forest
+  {c:"#7a7a36",p:[[74,38],[80,50],[90,52],[100,52],[110,50],[120,52],[130,48],[128,40],[126,32],[120,24],[114,18],[108,18],[104,22],[100,18],[96,22],[92,20],[94,24],[88,22],[80,28],[76,30],[70,28],[70,36],[74,38]]},
+  // Japan — temperate forest
+  {c:"#3a6630",p:[[130,31],[132,33],[136,35],[137,40],[134,42],[132,42],[130,38],[128,33],[130,31]]},
+  // Korean Peninsula
+  {c:"#426632",p:[[126,34],[128,36],[130,38],[128,38],[126,36],[124,36],[126,34]]},
   // ── North America ──────────────────────────────────────────────────────────
-  {c:"#3a5c28",p:[[-168,60],[-156,58],[-148,58],[-136,58],[-130,54],[-132,56],[-140,58],[-152,58],[-164,58],[-168,58],[-168,60]]},
-  {c:"#426830",p:[[-136,58],[-130,54],[-124,50],[-80,44],[-72,42],[-64,44],[-60,44],[-60,50],[-66,52],[-76,58],[-84,64],[-96,68],[-100,70],[-80,72],[-60,72],[-50,70],[-36,62],[-42,58],[-52,54],[-56,50],[-66,46],[-76,46],[-90,60],[-100,58],[-120,58],[-130,54],[-136,58]]},
-  {c:"#4e7030",p:[[-124,48],[-120,44],[-110,44],[-100,44],[-80,44],[-72,42],[-70,40],[-76,34],[-80,30],[-88,30],[-96,24],[-100,24],[-106,24],[-110,30],[-114,32],[-118,34],[-122,36],[-124,38],[-124,48]]},
-  {c:"#6a7830",p:[[-116,28],[-100,24],[-96,22],[-88,22],[-84,18],[-80,12],[-78,10],[-84,10],[-88,16],[-92,18],[-100,22],[-106,22],[-112,28],[-116,30],[-116,28]]},
+  // Alaska + Pacific NW — boreal
+  {c:"#3a5a2a",p:[[-168,60],[-156,58],[-148,58],[-136,58],[-130,54],[-132,56],[-140,58],[-152,58],[-164,58],[-168,58],[-168,60]]},
+  // Canada + NE USA — boreal & temperate
+  {c:"#3e642c",p:[[-136,58],[-130,54],[-124,50],[-80,44],[-72,42],[-64,44],[-60,44],[-60,50],[-66,52],[-76,58],[-84,64],[-96,68],[-100,70],[-80,72],[-60,72],[-50,70],[-36,62],[-42,58],[-52,54],[-56,50],[-66,46],[-76,46],[-90,60],[-100,58],[-120,58],[-130,54],[-136,58]]},
+  // Eastern + Central USA — temperate
+  {c:"#4a6e30",p:[[-124,48],[-120,44],[-110,44],[-100,44],[-80,44],[-72,42],[-70,40],[-76,34],[-80,30],[-88,30],[-96,24],[-100,24],[-106,24],[-110,30],[-114,32],[-118,34],[-122,36],[-124,38],[-124,48]]},
+  // Mexico + Central America — subtropical dry
+  {c:"#66742e",p:[[-116,28],[-100,24],[-96,22],[-88,22],[-84,18],[-80,12],[-78,10],[-84,10],[-88,16],[-92,18],[-100,22],[-106,22],[-112,28],[-116,30],[-116,28]]},
   // ── South America ──────────────────────────────────────────────────────────
-  {c:"#226018",p:[[-78,10],[-70,12],[-60,8],[-52,4],[-50,0],[-44,-2],[-40,-4],[-44,-8],[-50,-8],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
-  {c:"#3a6426",p:[[-40,-4],[-36,-8],[-36,-16],[-38,-22],[-44,-24],[-48,-16],[-50,-8],[-44,-8],[-40,-4]]},
-  {c:"#7a6c38",p:[[-78,10],[-80,4],[-80,0],[-76,0],[-68,-6],[-68,-18],[-70,-30],[-72,-44],[-70,-50],[-66,-54],[-60,-52],[-56,-38],[-54,-20],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
+  // Amazon basin — tropical rainforest (deepest green on Earth)
+  {c:"#1e5e18",p:[[-78,10],[-70,12],[-60,8],[-52,4],[-50,0],[-44,-2],[-40,-4],[-44,-8],[-50,-8],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
+  // Eastern Brazil — cerrado / savanna
+  {c:"#3a6222",p:[[-40,-4],[-36,-8],[-36,-16],[-38,-22],[-44,-24],[-48,-16],[-50,-8],[-44,-8],[-40,-4]]},
+  // Andes + western S. America — highland
+  {c:"#78682e",p:[[-78,10],[-80,4],[-80,0],[-76,0],[-68,-6],[-68,-18],[-70,-30],[-72,-44],[-70,-50],[-66,-54],[-60,-52],[-56,-38],[-54,-20],[-54,-4],[-60,-4],[-66,-4],[-70,0],[-76,2],[-78,6],[-78,10]]},
   // ── Australia ──────────────────────────────────────────────────────────────
-  {c:"#b09030",p:[[114,-22],[122,-20],[128,-18],[134,-14],[136,-18],[138,-22],[136,-26],[130,-26],[126,-30],[120,-34],[116,-32],[112,-28],[114,-22]]},
-  {c:"#5e7030",p:[[138,-18],[140,-18],[144,-18],[148,-20],[152,-24],[152,-30],[148,-36],[142,-38],[136,-38],[132,-32],[128,-30],[126,-30],[130,-26],[136,-26],[138,-22],[136,-18],[138,-18]]},
+  // Interior — red ochre outback
+  {c:"#ac8e28",p:[[114,-22],[122,-20],[128,-18],[134,-14],[136,-18],[138,-22],[136,-26],[130,-26],[126,-30],[120,-34],[116,-32],[112,-28],[114,-22]]},
+  // Eastern / coastal — eucalyptus
+  {c:"#5c6c2e",p:[[138,-18],[140,-18],[144,-18],[148,-20],[152,-24],[152,-30],[148,-36],[142,-38],[136,-38],[132,-32],[128,-30],[126,-30],[130,-26],[136,-26],[138,-22],[136,-18],[138,-18]]},
   // ── Polar ──────────────────────────────────────────────────────────────────
-  {c:"#b0c8d8",p:[[-44,60],[-36,62],[-24,68],[-18,72],[-22,76],[-30,78],[-42,82],[-52,80],[-58,74],[-54,66],[-44,60]]},
-  {c:"#c0d0e2",p:[[-180,-72],[0,-72],[180,-72],[180,-90],[-180,-90],[-180,-72]]},
+  // Greenland ice sheet
+  {c:"#aac2d4",p:[[-44,60],[-36,62],[-24,68],[-18,72],[-22,76],[-30,78],[-42,82],[-52,80],[-58,74],[-54,66],[-44,60]]},
+  // Antarctica
+  {c:"#bccede",p:[[-180,-72],[0,-72],[180,-72],[180,-90],[-180,-90],[-180,-72]]},
 ];
 
-// ─── City lights [lon, lat, brightness 0-1] ───────────────────────────────────
+// ─── City lights [lon, lat, brightness] — 85 global cities ───────────────────
 const CITIES = [
   [29.0,41.0,1.0],[32.9,39.9,0.9],[27.1,38.4,0.7],
   [-0.1,51.5,0.82],[2.3,48.9,0.82],[13.4,52.5,0.80],[12.5,41.9,0.76],
@@ -117,19 +152,19 @@ canvas{position:absolute;top:0;left:0;display:block}
   position:absolute;
   font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;
   white-space:nowrap;text-transform:uppercase;
-  color:rgba(205,228,255,0.82);
-  text-shadow:0 0 7px rgba(120,185,255,0.40);
-  transition:opacity 1.0s ease;
+  color:rgba(205,228,255,0.80);
+  text-shadow:0 0 6px rgba(120,185,255,0.35);
+  transition:opacity 1.1s ease;
   pointer-events:none;
 }
-#lTR{font-size:7.5px;font-weight:700;letter-spacing:2.5px;transform:translate(-50%,-260%)}
-#lIS{font-size:5.5px;font-weight:600;letter-spacing:2px;transform:translate(-120%,-168%)}
-#lAN{font-size:5.5px;font-weight:600;letter-spacing:2px;transform:translate(18%,-168%)}
+#lTR{font-size:7px;font-weight:700;letter-spacing:2.5px;transform:translate(-50%,-265%)}
+#lIS{font-size:5px;font-weight:600;letter-spacing:1.8px;transform:translate(-118%,-168%)}
+#lAN{font-size:5px;font-weight:600;letter-spacing:1.8px;transform:translate(18%,-168%)}
 .dot{
   position:absolute;width:2px;height:2px;border-radius:50%;
-  background:rgba(200,228,255,0.82);transform:translate(-50%,-50%);
-  box-shadow:0 0 4px 1px rgba(155,210,255,0.38);
-  transition:opacity 1.0s ease;pointer-events:none;
+  background:rgba(200,228,255,0.78);transform:translate(-50%,-50%);
+  box-shadow:0 0 3px 1px rgba(150,205,255,0.32);
+  transition:opacity 1.1s ease;pointer-events:none;
 }
 </style>
 </head>
@@ -137,11 +172,11 @@ canvas{position:absolute;top:0;left:0;display:block}
 <canvas id="c"></canvas>
 <div id="ui">
   <div class="lb" id="lTR" style="opacity:0">TURKIYE</div>
-  <div class="dot"    id="dTR" style="opacity:0"></div>
+  <div class="dot" id="dTR" style="opacity:0"></div>
   <div class="lb" id="lIS" style="opacity:0">Istanbul</div>
-  <div class="dot"    id="dIS" style="opacity:0"></div>
+  <div class="dot" id="dIS" style="opacity:0"></div>
   <div class="lb" id="lAN" style="opacity:0">Ankara</div>
-  <div class="dot"    id="dAN" style="opacity:0"></div>
+  <div class="dot" id="dAN" style="opacity:0"></div>
 </div>
 <script>
 (function(){
@@ -159,7 +194,7 @@ var ctx = cv.getContext('2d');
 if(!ctx) return;
 var cx = W*0.5, cy = H*0.46, R = Math.min(W,H)*0.44;
 
-// ── Sun ────────────────────────────────────────────────────────────────────────
+// ── Sun direction ─────────────────────────────────────────────────────────────
 var SUN_LON = -30, SUN_LAT = 22;
 var sunLatR = SUN_LAT * Math.PI/180;
 var sunLonR = SUN_LON * Math.PI/180;
@@ -167,37 +202,32 @@ var SX = Math.cos(sunLatR)*Math.cos(sunLonR);
 var SY = Math.sin(sunLatR);
 var SZ = Math.cos(sunLatR)*Math.sin(sunLonR);
 
-// ── Chaikin corner-cutting subdivision (2 passes at startup) ──────────────────
-// Converts angular polygons into smooth organic curves with zero runtime cost.
+// ── Chaikin corner-cutting (2 passes at startup) ──────────────────────────────
+// Turns angular control-point skeletons into smooth organic outlines.
 function chaikin(pts){
-  var out = [], n = pts.length;
-  for(var i = 0; i < n; i++){
-    var a = pts[i], b = pts[(i+1)%n];
+  var out=[], n=pts.length;
+  for(var i=0;i<n;i++){
+    var a=pts[i], b=pts[(i+1)%n];
     out.push([a[0]*0.75+b[0]*0.25, a[1]*0.75+b[1]*0.25]);
     out.push([a[0]*0.25+b[0]*0.75, a[1]*0.25+b[1]*0.75]);
   }
   return out;
 }
-// Preprocess — skip very simple shapes (Antarctica rectangle)
-for(var pi = 0; pi < LAND.length; pi++){
+for(var pi=0;pi<LAND.length;pi++){
   if(LAND[pi].p.length > 5){
     LAND[pi].p = chaikin(chaikin(LAND[pi].p));
   }
 }
 
-// ── Starfield (smaller, subtler than v2) ──────────────────────────────────────
-var STARS = [];
+// ── Starfield ─────────────────────────────────────────────────────────────────
+var STARS=[];
 (function(){
-  var s = 0xDEADBEEF;
-  function rn(){ s = (s*1664525+1013904223)>>>0; return s/4294967296; }
-  for(var i = 0; i < 350; i++){
-    var t = rn();
-    // Tiered sizes — top tier capped at 0.55 for subtler sky
-    var r = t<0.60 ? 0.12+rn()*0.18 :
-            t<0.88 ? 0.28+rn()*0.22 :
-            t<0.97 ? 0.48+rn()*0.24 :
-                     0.68+rn()*0.28;
-    STARS.push({x:rn()*W, y:rn()*H, r:r, o:0.12+rn()*0.62, tw:0.4+rn()*1.2, tp:rn()*6.28});
+  var s=0xDEADBEEF;
+  function rn(){ s=(s*1664525+1013904223)>>>0; return s/4294967296; }
+  for(var i=0;i<340;i++){
+    var t=rn();
+    var r=t<0.60?0.10+rn()*0.16:t<0.88?0.24+rn()*0.20:t<0.97?0.44+rn()*0.20:0.62+rn()*0.24;
+    STARS.push({x:rn()*W,y:rn()*H,r:r,o:0.10+rn()*0.58,tw:0.35+rn()*1.1,tp:rn()*6.28});
   }
 })();
 
@@ -208,13 +238,10 @@ var rot=28, SPEED=3.6, vState='idle', vPhase=0, dt=0, lastT=-1;
 function proj(lon,lat){
   var dlonR=(lon-rot)*Math.PI/180, latR=lat*Math.PI/180;
   var cLat=Math.cos(latR), sLat=Math.sin(latR);
-  var cDl=Math.cos(dlonR), sDl=Math.sin(dlonR);
   var lonR=lon*Math.PI/180;
   var nx=Math.cos(lonR)*cLat, ny=sLat, nz=Math.sin(lonR)*cLat;
-  return{x:cx+R*sDl*cLat, y:cy-R*sLat, z:cDl*cLat, sun:nx*SX+ny*SY+nz*SZ};
+  return{x:cx+R*Math.sin(dlonR)*cLat, y:cy-R*sLat, z:Math.cos(dlonR)*cLat, sun:nx*SX+ny*SY+nz*SZ};
 }
-
-// ── Micro-variation hash ───────────────────────────────────────────────────────
 function phash(n){ return((n*2654435769)>>>0)/4294967296; }
 
 // ── Label helper ──────────────────────────────────────────────────────────────
@@ -222,57 +249,62 @@ function setLabel(lId,dId,lon,lat){
   var p=proj(lon,lat), op=p.z>0.14?'1':'0';
   var el=document.getElementById(lId), dt2=document.getElementById(dId);
   if(el){ el.style.left=p.x+'px'; el.style.top=p.y+'px'; el.style.opacity=op; }
-  if(dt2){ dt2.style.left=p.x+'px'; dt2.style.top=p.y+'px'; dt2.style.opacity=p.z>0.14?'0.80':'0'; }
+  if(dt2){ dt2.style.left=p.x+'px'; dt2.style.top=p.y+'px'; dt2.style.opacity=p.z>0.14?'0.78':'0'; }
 }
-
-// ── Radial gradient arc fill helper ──────────────────────────────────────────
 function fillArc(g,r){ ctx.beginPath(); ctx.arc(cx,cy,r,0,6.2832); ctx.fillStyle=g; ctx.fill(); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 function draw(){
   var TAU=6.2832;
 
-  // sun screen offset
   var sunDlonR=(SUN_LON-rot)*Math.PI/180;
   var sdx=Math.sin(sunDlonR)*Math.cos(sunLatR);
   var sdy=-Math.sin(sunLatR);
-  var sunSX=cx+R*0.78*sdx, sunSY=cy+R*0.78*sdy;
+  var sunSX=cx+R*0.76*sdx, sunSY=cy+R*0.76*sdy;
 
-  // anti-sun center
   var adlon=(((SUN_LON+180)-rot)%360+360)%360;
   if(adlon>180) adlon-=360;
   var nCX=cx+R*0.50*Math.sin(adlon*Math.PI/180), nCY=cy;
 
-  // ── 1. Space ───────────────────────────────────────────────────────────────
+  // ── 01. Space ─────────────────────────────────────────────────────────────
   ctx.fillStyle='#00000e'; ctx.fillRect(0,0,W,H);
 
-  // ── 2. Stars ───────────────────────────────────────────────────────────────
-  for(var si=0; si<STARS.length; si++){
+  // ── 02. Stars ─────────────────────────────────────────────────────────────
+  for(var si=0;si<STARS.length;si++){
     var st=STARS[si];
-    var tw=st.o*(0.84+0.16*Math.sin(vPhase*st.tw+st.tp));
+    var ot=st.o*(0.85+0.15*Math.sin(vPhase*st.tw+st.tp));
     ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,TAU);
-    ctx.fillStyle='rgba(255,255,255,'+tw+')'; ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,'+ot+')'; ctx.fill();
   }
 
-  // ── 3. Ocean base ──────────────────────────────────────────────────────────
-  // Richer, deeper ocean: tropical blue-teal on day side, near-black at depth
-  var oG=ctx.createRadialGradient(cx+R*0.32*sdx,cy+R*0.26*sdy,R*0.04,cx,cy,R);
-  oG.addColorStop(0.00,'#1a6090');
-  oG.addColorStop(0.22,'#135278');
-  oG.addColorStop(0.52,'#0c3460');
-  oG.addColorStop(0.80,'#081c38');
-  oG.addColorStop(1.00,'#040c1e');
+  // ── 03. Ocean base — deep rich blue ───────────────────────────────────────
+  var oCX=cx+R*0.30*sdx, oCY=cy+R*0.22*sdy;
+  var oG=ctx.createRadialGradient(oCX,oCY,R*0.04,cx,cy,R);
+  oG.addColorStop(0.00,'#186090');   // bright tropical day-side
+  oG.addColorStop(0.20,'#104c78');
+  oG.addColorStop(0.46,'#0a3260');
+  oG.addColorStop(0.72,'#061a36');
+  oG.addColorStop(1.00,'#030a1c');   // abyssal deep
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=oG; ctx.fill(); ctx.restore();
 
-  // ── 4. Land polygons (single clip, Chaikin-smoothed, shadowBlur feathering) ─
+  // Ocean latitude depth: poles slightly darker, tropics slightly more vibrant
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var odG=ctx.createLinearGradient(cx,cy-R,cx,cy+R);
+  odG.addColorStop(0.00,'rgba(8,20,55,0.12)');   // polar darkening N
+  odG.addColorStop(0.28,'rgba(8,20,55,0.04)');
+  odG.addColorStop(0.50,'rgba(0,30,60,0)');       // equatorial: no tint
+  odG.addColorStop(0.72,'rgba(8,20,55,0.04)');
+  odG.addColorStop(1.00,'rgba(8,20,55,0.12)');   // polar darkening S
+  ctx.fillStyle=odG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
+
+  // ── 04. Land polygons — two-layer technique ───────────────────────────────
+  // Single sphere clip for the entire land batch (performance)
+  var shadowR=Math.max(1.0,R*0.010);
   ctx.save();
   ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
 
-  var shadowR=Math.max(1.2,R*0.010);  // ~1.8px on phone — feathers coastlines
-
-  for(var i=0; i<LAND.length; i++){
+  for(var i=0;i<LAND.length;i++){
     var poly=LAND[i], pts=poly.p, n=pts.length;
-    // centroid visibility
     var sl=0, slt=0;
     for(var j=0;j<n;j++){ sl+=pts[j][0]; slt+=pts[j][1]; }
     var cp=proj(sl/n,slt/n);
@@ -289,9 +321,9 @@ function draw(){
     if(first) continue;
     ctx.closePath();
 
-    // Smooth shading: pow curve + micro-variation
-    var raw=cp.sun*1.50+0.22;
-    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.80);
+    // --- Shading scalar (hemisphere lighting) ---
+    var raw=cp.sun*1.52+0.20;
+    var t=Math.pow(Math.max(0,Math.min(1,raw)),0.78);
     t*=(0.93+0.07*phash(i));
     t=Math.max(0.06,t);
 
@@ -299,196 +331,204 @@ function draw(){
     var r2=parseInt(hex.slice(1,3),16);
     var g2=parseInt(hex.slice(3,5),16);
     var b2=parseInt(hex.slice(5,7),16);
-    var fc='rgb('+Math.round(r2*t)+','+Math.round(g2*t)+','+Math.round(b2*t)+')';
 
-    // shadowBlur in fill color — feathers polygon edges into the ocean naturally
-    ctx.shadowColor=fc;
+    // --- Layer 1: Directional linear gradient (sun→shadow within polygon) ---
+    // Gives each landmass directional light variation — breaks the flat look.
+    var tH=Math.min(1.0,t*1.14);   // sun-facing: brighter
+    var tL=Math.max(0.04,t*0.86);  // shadow side: darker
+    var pR=R*0.18;
+    var pLG=ctx.createLinearGradient(
+      cp.x+sdx*pR, cp.y+sdy*pR,
+      cp.x-sdx*pR, cp.y-sdy*pR
+    );
+    pLG.addColorStop(0,'rgb('+Math.round(r2*tH)+','+Math.round(g2*tH)+','+Math.round(b2*tH)+')');
+    pLG.addColorStop(1,'rgb('+Math.round(r2*tL)+','+Math.round(g2*tL)+','+Math.round(b2*tL)+')');
+
+    // shadowBlur feathers coastlines into the ocean
+    ctx.shadowColor='rgb('+Math.round(r2*t)+','+Math.round(g2*t)+','+Math.round(b2*t)+')';
     ctx.shadowBlur=shadowR;
-    ctx.fillStyle=fc;
+    ctx.fillStyle=pLG;
     ctx.fill();
     ctx.shadowBlur=0; ctx.shadowColor='transparent';
 
-    // Very subtle coastline stroke on well-lit polys only
-    if(cp.sun>0.10){
-      ctx.strokeStyle='rgba(0,0,0,'+Math.min(0.10,cp.sun*0.09)+')';
-      ctx.lineWidth=0.3; ctx.stroke();
-    }
+    // --- Layer 2: Radial centre-bright overlay (terrain mound depth) ---
+    // Makes each continent feel convex / 3-dimensional.
+    var pRG=ctx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,R*0.22);
+    pRG.addColorStop(0.0,'rgba(255,255,255,0.055)');
+    pRG.addColorStop(0.5,'rgba(255,255,255,0.016)');
+    pRG.addColorStop(1.0,'rgba(0,0,0,0.032)');
+    ctx.fillStyle=pRG;
+    ctx.fill();
   }
   ctx.restore();
 
-  // ── 5. Terrain curvature overlay (center-bright, limb-dark) ──────────────
-  // Simulates the globe curving away from the viewer — separate from sun shading
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-  var cv2=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
-  cv2.addColorStop(0.0, 'rgba(255,255,255,0.04)');
-  cv2.addColorStop(0.45,'rgba(255,255,255,0)');
-  cv2.addColorStop(0.80,'rgba(0,0,0,0.04)');
-  cv2.addColorStop(1.0, 'rgba(0,0,0,0.14)');
-  ctx.fillStyle=cv2; ctx.fillRect(cx-R,cy-R,R*2,R*2);
-  ctx.restore();
+  // ── 05. Latitude climate-zone tint ────────────────────────────────────────
+  // Very subtle: cools poles (blue) and adds a trace equatorial green warmth.
+  // Affects land + ocean equally for atmospheric believability.
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var latG=ctx.createLinearGradient(cx,cy-R,cx,cy+R);
+  latG.addColorStop(0.00,'rgba(120,155,210,0.055)');   // polar N — blue-grey
+  latG.addColorStop(0.26,'rgba(80,125,180,0.020)');
+  latG.addColorStop(0.46,'rgba(38,95,38,0.038)');      // equatorial — green
+  latG.addColorStop(0.54,'rgba(38,95,38,0.038)');
+  latG.addColorStop(0.74,'rgba(80,125,180,0.020)');
+  latG.addColorStop(1.00,'rgba(120,155,210,0.055)');   // polar S — blue-grey
+  ctx.fillStyle=latG; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
-  // ── 6. Inner atmosphere haze (soft blue near limb, inside sphere) ─────────
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
+  // ── 06. Inner atmosphere haze (inside limb, soft blue vignette) ──────────
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
   var ih=ctx.createRadialGradient(cx,cy,R*0.82,cx,cy,R*1.005);
-  ih.addColorStop(0.0,'rgba(18,50,130,0)');
-  ih.addColorStop(0.6,'rgba(24,60,155,0.08)');
-  ih.addColorStop(1.0,'rgba(32,75,185,0.32)');
-  ctx.fillStyle=ih; ctx.fillRect(cx-R*1.1,cy-R*1.1,R*2.2,R*2.2);
-  ctx.restore();
+  ih.addColorStop(0.0,'rgba(16,48,125,0)');
+  ih.addColorStop(0.6,'rgba(22,56,150,0.07)');
+  ih.addColorStop(1.0,'rgba(30,70,180,0.30)');
+  ctx.fillStyle=ih; ctx.fillRect(cx-R*1.1,cy-R*1.1,R*2.2,R*2.2); ctx.restore();
 
-  // ── 7. Terminator + penumbra (cinematic but not overpowering) ────────────
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-  var tg=ctx.createRadialGradient(nCX,nCY,0,nCX,nCY,R*1.60);
-  tg.addColorStop(0.00,'rgba(0,2,14,0.96)');
-  tg.addColorStop(0.30,'rgba(0,2,14,0.90)');
-  tg.addColorStop(0.46,'rgba(2,4,20,0.70)');
-  tg.addColorStop(0.54,'rgba(28,14,5,0.46)');   // amber transition
-  tg.addColorStop(0.61,'rgba(50,28,8,0.22)');   // twilight
-  tg.addColorStop(0.69,'rgba(12,6,2,0.10)');
-  tg.addColorStop(0.76,'rgba(0,0,0,0)');
-  ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2);
-  ctx.restore();
+  // ── 07. Terrain curvature overlay (viewer-facing centre-bright) ───────────
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var cv2=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+  cv2.addColorStop(0.0,'rgba(255,255,255,0.036)');
+  cv2.addColorStop(0.45,'rgba(255,255,255,0)');
+  cv2.addColorStop(0.82,'rgba(0,0,0,0.038)');
+  cv2.addColorStop(1.0,'rgba(0,0,0,0.13)');
+  ctx.fillStyle=cv2; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
 
-  // ── 8. City lights (smaller, softer, warmer) ──────────────────────────────
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
-  for(var ci=0; ci<CITIES.length; ci++){
-    var city=CITIES[ci];
-    var cp2=proj(city[0],city[1]);
-    if(cp2.z<0.0) continue;
-    if(cp2.sun>0.16) continue;
-    var fade=Math.max(0,Math.min(1,(0.16-cp2.sun)/0.22));
+  // ── 08. Night hemisphere + cinematic terminator ───────────────────────────
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
+  var tg=ctx.createRadialGradient(nCX,nCY,0,nCX,nCY,R*1.65);
+  tg.addColorStop(0.00,'rgba(0,2,14,0.97)');
+  tg.addColorStop(0.28,'rgba(0,2,14,0.92)');
+  tg.addColorStop(0.44,'rgba(2,4,20,0.74)');
+  tg.addColorStop(0.52,'rgba(32,16,6,0.50)');    // deep amber terminator
+  tg.addColorStop(0.58,'rgba(60,30,8,0.26)');    // orange twilight
+  tg.addColorStop(0.65,'rgba(18,9,2,0.12)');
+  tg.addColorStop(0.73,'rgba(0,0,0,0)');
+  ctx.fillStyle=tg; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
+
+  // ── 09. City lights (smaller, warmer, softer) ─────────────────────────────
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,TAU); ctx.clip();
+  for(var ci=0;ci<CITIES.length;ci++){
+    var city=CITIES[ci], cp2=proj(city[0],city[1]);
+    if(cp2.z<0) continue;
+    if(cp2.sun>0.15) continue;
+    var fade=Math.max(0,Math.min(1,(0.15-cp2.sun)/0.22));
     var br=city[2]*fade;
     if(br<0.05) continue;
-    var cr=1.8*br+0.4;
-    // outer amber bloom — smaller radius than v2
-    var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*3.5);
-    cg1.addColorStop(0.0,'rgba(255,228,145,'+(br*0.28)+')');
-    cg1.addColorStop(0.45,'rgba(255,192,80,'+(br*0.12)+')');
-    cg1.addColorStop(1.0,'rgba(255,155,45,0)');
-    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*3.5,0,TAU); ctx.fillStyle=cg1; ctx.fill();
-    // hot core — tight
-    var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*1.2);
-    cg2.addColorStop(0.0,'rgba(255,252,215,'+(br*0.88)+')');
-    cg2.addColorStop(0.5,'rgba(255,225,130,'+(br*0.40)+')');
-    cg2.addColorStop(1.0,'rgba(255,195,70,0)');
-    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*1.2,0,TAU); ctx.fillStyle=cg2; ctx.fill();
+    var cr=1.7*br+0.4;
+    var cg1=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*3.2);
+    cg1.addColorStop(0.0,'rgba(255,225,140,'+(br*0.26)+')');
+    cg1.addColorStop(0.5,'rgba(255,188,72,'+(br*0.11)+')');
+    cg1.addColorStop(1.0,'rgba(255,150,42,0)');
+    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*3.2,0,TAU); ctx.fillStyle=cg1; ctx.fill();
+    var cg2=ctx.createRadialGradient(cp2.x,cp2.y,0,cp2.x,cp2.y,cr*1.1);
+    cg2.addColorStop(0.0,'rgba(255,250,210,'+(br*0.86)+')');
+    cg2.addColorStop(0.5,'rgba(255,220,125,'+(br*0.38)+')');
+    cg2.addColorStop(1.0,'rgba(255,190,65,0)');
+    ctx.beginPath(); ctx.arc(cp2.x,cp2.y,cr*1.1,0,TAU); ctx.fillStyle=cg2; ctx.fill();
   }
   ctx.restore();
 
-  // ── 9. Polar ice glow ─────────────────────────────────────────────────────
+  // ── 10. Polar ice glow ────────────────────────────────────────────────────
   var poles=[[0,88],[0,-88]];
-  for(var ip=0; ip<poles.length; ip++){
+  for(var ip=0;ip<poles.length;ip++){
     var pp=proj(poles[ip][0],poles[ip][1]);
-    if(pp.z<0.0) continue;
-    var pa=0.28+0.18*Math.max(0,pp.sun);
+    if(pp.z<0) continue;
+    var pa=0.26+0.16*Math.max(0,pp.sun);
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-    var pg2=ctx.createRadialGradient(pp.x,pp.y,0,pp.x,pp.y,R*0.28*pp.z);
-    pg2.addColorStop(0.0,'rgba(205,232,255,'+(pa*0.82)+')');
-    pg2.addColorStop(0.45,'rgba(182,218,248,'+(pa*0.38)+')');
-    pg2.addColorStop(1.0,'rgba(155,200,240,0)');
-    ctx.beginPath(); ctx.arc(pp.x,pp.y,R*0.28*pp.z,0,TAU);
+    var pg2=ctx.createRadialGradient(pp.x,pp.y,0,pp.x,pp.y,R*0.26*pp.z);
+    pg2.addColorStop(0.0,'rgba(202,230,252,'+(pa*0.80)+')');
+    pg2.addColorStop(0.45,'rgba(178,215,246,'+(pa*0.36)+')');
+    pg2.addColorStop(1.0,'rgba(152,198,240,0)');
+    ctx.beginPath(); ctx.arc(pp.x,pp.y,R*0.26*pp.z,0,TAU);
     ctx.fillStyle=pg2; ctx.fill(); ctx.restore();
   }
 
-  // ── 10. Limb darkening ────────────────────────────────────────────────────
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
+  // ── 11. Limb darkening ────────────────────────────────────────────────────
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R+0.5,0,TAU); ctx.clip();
   var ld=ctx.createRadialGradient(cx,cy,R*0.58,cx,cy,R*1.005);
   ld.addColorStop(0.0,'rgba(0,0,0,0)');
-  ld.addColorStop(0.70,'rgba(0,0,0,0.08)');
-  ld.addColorStop(0.88,'rgba(0,0,0,0.30)');
-  ld.addColorStop(1.0,'rgba(0,0,0,0.65)');
-  ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1);
-  ctx.restore();
+  ld.addColorStop(0.70,'rgba(0,0,0,0.07)');
+  ld.addColorStop(0.88,'rgba(0,0,0,0.28)');
+  ld.addColorStop(1.0,'rgba(0,0,0,0.62)');
+  ctx.fillStyle=ld; ctx.fillRect(cx-R*1.05,cy-R*1.05,R*2.1,R*2.1); ctx.restore();
 
-  // ── 11. Outer atmosphere — Rayleigh ring (less neon than v2) ─────────────
+  // ── 12. Outer atmosphere — Rayleigh ring ──────────────────────────────────
   var ag1=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.10);
-  ag1.addColorStop(0.00,'rgba(70,150,248,0)');
-  ag1.addColorStop(0.14,'rgba(92,165,252,0.44)');
-  ag1.addColorStop(0.42,'rgba(65,138,240,0.22)');
-  ag1.addColorStop(0.72,'rgba(48,115,228,0.08)');
-  ag1.addColorStop(1.00,'rgba(32,88,205,0)');
+  ag1.addColorStop(0.00,'rgba(65,145,245,0)');
+  ag1.addColorStop(0.14,'rgba(88,160,250,0.40)');
+  ag1.addColorStop(0.42,'rgba(60,132,238,0.20)');
+  ag1.addColorStop(0.72,'rgba(45,110,222,0.07)');
+  ag1.addColorStop(1.00,'rgba(30,85,200,0)');
   fillArc(ag1,R*1.10);
 
-  // ── 12. Diffuse outer halo (very subtle) ─────────────────────────────────
-  var ag2=ctx.createRadialGradient(cx,cy,R*1.02,cx,cy,R*1.20);
-  ag2.addColorStop(0.0,'rgba(45,112,248,0)');
-  ag2.addColorStop(0.3,'rgba(38,102,235,0.05)');
-  ag2.addColorStop(0.7,'rgba(28,85,210,0.02)');
-  ag2.addColorStop(1.0,'rgba(18,68,185,0)');
-  fillArc(ag2,R*1.20);
+  // Diffuse outer halo — barely visible, just for depth
+  var ag2=ctx.createRadialGradient(cx,cy,R*1.02,cx,cy,R*1.19);
+  ag2.addColorStop(0.0,'rgba(42,108,245,0)');
+  ag2.addColorStop(0.3,'rgba(36,98,232,0.04)');
+  ag2.addColorStop(1.0,'rgba(18,65,182,0)');
+  fillArc(ag2,R*1.19);
 
-  // ── 13. Sun-side limb scatter (warm white, subtle) ────────────────────────
-  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.18);
+  // ── 13. Sun-side limb scatter ─────────────────────────────────────────────
+  var slg=ctx.createRadialGradient(sunSX,sunSY,R*0.68,sunSX,sunSY,R*1.16);
   slg.addColorStop(0.0,'rgba(255,255,255,0)');
-  slg.addColorStop(0.74,'rgba(228,240,255,0)');
-  slg.addColorStop(0.86,'rgba(228,240,255,0.10)');
+  slg.addColorStop(0.75,'rgba(225,240,255,0)');
+  slg.addColorStop(0.87,'rgba(225,240,255,0.09)');
   slg.addColorStop(1.0,'rgba(255,255,255,0)');
-  fillArc(slg,R*1.16);
+  fillArc(slg,R*1.14);
 
   // ── 14. Specular ocean highlight ──────────────────────────────────────────
-  var spX=cx+R*0.24*sdx, spY=cy+R*0.18*sdy;
+  var spX=cx+R*0.22*sdx, spY=cy+R*0.17*sdy;
   ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-  var sp=ctx.createRadialGradient(spX,spY,0,spX,spY,R*0.36);
-  sp.addColorStop(0.0,'rgba(215,236,255,0.18)');
-  sp.addColorStop(0.45,'rgba(175,212,255,0.07)');
-  sp.addColorStop(1.0,'rgba(115,170,255,0)');
-  ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=sp; ctx.fill();
-  ctx.restore();
+  var sp=ctx.createRadialGradient(spX,spY,0,spX,spY,R*0.34);
+  sp.addColorStop(0.0,'rgba(210,234,255,0.16)');
+  sp.addColorStop(0.45,'rgba(170,210,255,0.06)');
+  sp.addColorStop(1.0,'rgba(110,165,255,0)');
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.fillStyle=sp; ctx.fill(); ctx.restore();
 
-  // ── 15. Globe edge ring ───────────────────────────────────────────────────
+  // ── 15. Globe edge ────────────────────────────────────────────────────────
   ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU);
-  ctx.strokeStyle='rgba(80,150,248,0.16)';
-  ctx.lineWidth=0.6; ctx.stroke();
+  ctx.strokeStyle='rgba(75,145,245,0.14)'; ctx.lineWidth=0.6; ctx.stroke();
 
   // ── 16. Voice reactions ───────────────────────────────────────────────────
 
   if(vState==='listening'){
-    // Atmosphere rim brightens — cool blue-white
-    var la=ctx.createRadialGradient(cx,cy,R*0.93,cx,cy,R*1.18);
-    la.addColorStop(0.0,'rgba(75,155,255,0)');
-    la.addColorStop(0.2,'rgba(95,170,255,0.18)');
-    la.addColorStop(0.6,'rgba(65,140,248,0.08)');
-    la.addColorStop(1.0,'rgba(45,115,235,0)');
-    fillArc(la,R*1.18);
-    // 3 thin expanding rings
-    for(var ri=0; ri<3; ri++){
-      var rp=((vPhase*0.46+ri*0.333)%1+1)%1;
-      ctx.beginPath(); ctx.arc(cx,cy,R*(1.05+rp*0.48),0,TAU);
-      ctx.strokeStyle='rgba(115,188,255,'+Math.max(0,(1-rp)*0.22)+')';
-      ctx.lineWidth=0.6+(1-rp)*0.7; ctx.stroke();
+    var la=ctx.createRadialGradient(cx,cy,R*0.93,cx,cy,R*1.17);
+    la.addColorStop(0.0,'rgba(72,150,252,0)');
+    la.addColorStop(0.2,'rgba(92,165,252,0.17)');
+    la.addColorStop(0.6,'rgba(62,136,245,0.07)');
+    la.addColorStop(1.0,'rgba(42,112,232,0)');
+    fillArc(la,R*1.17);
+    for(var ri=0;ri<3;ri++){
+      var rp=((vPhase*0.44+ri*0.333)%1+1)%1;
+      ctx.beginPath(); ctx.arc(cx,cy,R*(1.06+rp*0.46),0,TAU);
+      ctx.strokeStyle='rgba(110,185,252,'+Math.max(0,(1-rp)*0.20)+')';
+      ctx.lineWidth=0.5+(1-rp)*0.65; ctx.stroke();
     }
   }
 
   if(vState==='speaking'){
     var pulse=0.5+0.5*Math.sin(vPhase*3.2);
     var pulse2=0.5+0.5*Math.sin(vPhase*2.0+1.1);
-    var co=ctx.createRadialGradient(cx,cy,R*0.90,cx,cy,R*1.32);
-    co.addColorStop(0.0,'rgba(255,162,42,0)');
-    co.addColorStop(0.20,'rgba(255,150,36,'+(0.18+0.12*pulse)+')');
-    co.addColorStop(0.48,'rgba(255,118,22,'+(0.07*pulse2)+')');
-    co.addColorStop(1.0,'rgba(255,76,12,0)');
-    fillArc(co,R*1.32);
+    var co=ctx.createRadialGradient(cx,cy,R*0.90,cx,cy,R*1.30);
+    co.addColorStop(0.0,'rgba(255,158,40,0)');
+    co.addColorStop(0.20,'rgba(255,148,35,'+(0.17+0.11*pulse)+')');
+    co.addColorStop(0.48,'rgba(255,115,20,'+(0.065*pulse2)+')');
+    co.addColorStop(1.0,'rgba(255,74,12,0)');
+    fillArc(co,R*1.30);
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,TAU); ctx.clip();
-    var gw=ctx.createRadialGradient(cx,cy,R*0.68,cx,cy,R);
-    gw.addColorStop(0,'rgba(255,142,32,0)');
-    gw.addColorStop(0.82,'rgba(255,132,28,'+(0.06*pulse)+')');
-    gw.addColorStop(1.0,'rgba(255,112,22,'+(0.14*pulse)+')');
-    ctx.fillStyle=gw; ctx.fillRect(cx-R,cy-R,R*2,R*2);
-    ctx.restore();
+    var gw=ctx.createRadialGradient(cx,cy,R*0.70,cx,cy,R);
+    gw.addColorStop(0,'rgba(255,138,30,0)');
+    gw.addColorStop(0.84,'rgba(255,128,26,'+(0.055*pulse)+')');
+    gw.addColorStop(1.0,'rgba(255,108,20,'+(0.13*pulse)+')');
+    ctx.fillStyle=gw; ctx.fillRect(cx-R,cy-R,R*2,R*2); ctx.restore();
   }
 
   if(vState==='idle'){
-    var br2=0.5+0.5*Math.sin(vPhase*0.52);
-    var ba=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.13);
-    ba.addColorStop(0.0,'rgba(48,100,205,0)');
-    ba.addColorStop(0.4,'rgba(52,108,212,'+(0.04*br2)+')');
-    ba.addColorStop(1.0,'rgba(30,72,162,0)');
-    fillArc(ba,R*1.13);
+    var br2=0.5+0.5*Math.sin(vPhase*0.50);
+    var ba=ctx.createRadialGradient(cx,cy,R*0.97,cx,cy,R*1.12);
+    ba.addColorStop(0.0,'rgba(46,98,202,0)');
+    ba.addColorStop(0.4,'rgba(50,105,208,'+(0.038*br2)+')');
+    ba.addColorStop(1.0,'rgba(28,70,158,0)');
+    fillArc(ba,R*1.12);
   }
 
   // ── 17. Labels ────────────────────────────────────────────────────────────
@@ -505,16 +545,13 @@ function frame(t){
   }
   lastT=t; draw(); requestAnimationFrame(frame);
 }
-
 window.addEventListener('resize',function(){
   W=window.innerWidth||screen.width||W; H=window.innerHeight||screen.height||H;
   cx=W*0.5; cy=H*0.46; R=Math.min(W,H)*0.44; cv.width=W; cv.height=H;
 });
-
 window.onVoiceState=function(state){
   vState=state; SPEED=state==='speaking'?10.0:state==='listening'?6.8:3.6;
 };
-
 requestAnimationFrame(frame);
 })();
 </script>
