@@ -1,0 +1,348 @@
+Create the most advanced ULTRA REALISTIC CINEMATIC EARTH ever built for AkılCep Voyage Mode.
+
+IMPORTANT:
+This Earth must NEVER look:
+- low poly
+- cartoon
+- stylized
+- fake CGI
+- mobile game-like
+- arcade-like
+- cheap sci-fi globe
+
+The Earth must feel:
+- photorealistic
+- cinematic
+- luxurious
+- emotional
+- intelligent
+- alive
+- scientifically believable
+
+GOAL:
+The user should feel like they are looking at the REAL Earth from space inside the most advanced premium AI interface ever created.
+
+------------------------------------------------
+
+🌍 ULTRA PHOTOREALISTIC EARTH
+
+Build a highly detailed realistic Earth using:
+- ultra high resolution 8K+ NASA-quality Earth textures
+- physically accurate geography
+- realistic continents
+- realistic oceans
+- visible coastlines
+- realistic forests
+- realistic deserts
+- realistic mountains
+- realistic polar ice caps
+- accurate Earth curvature
+- physically believable atmosphere
+
+SHOW NATURALLY:
+- Europe
+- Africa
+- Asia
+- North America
+- South America
+
+IMPORTANT:
+The Earth must feel:
+- massive
+- alive
+- cinematic
+- physically real
+
+Avoid fake painted textures.
+
+------------------------------------------------
+
+☁️ ADVANCED CLOUD SYSTEM
+
+Create:
+- volumetric cloud rendering
+- multi-layer cloud atmosphere
+- realistic cloud transparency
+- soft cloud shadows
+- atmospheric cloud depth
+- realistic weather movement
+- slow cinematic cloud rotation
+
+IMPORTANT:
+Clouds must feel:
+- organic
+- natural
+- cinematic
+- alive
+
+Avoid fake flat cloud textures.
+
+------------------------------------------------
+
+🌗 REALISTIC DAY-NIGHT SHADOW SYSTEM
+
+Create a physically accurate rotating day-night shadow system.
+
+The Earth must NEVER appear fully illuminated.
+
+Create:
+- realistic sunlight falloff
+- cinematic sunset edge
+- smooth sunrise transition
+- moving planetary shadow
+- realistic dark hemisphere
+- atmospheric blue edge scattering
+- soft horizon glow
+
+SHOW:
+- city lights naturally appearing from darkness
+- daylight slowly transitioning into night
+- realistic planetary contrast
+
+IMPORTANT:
+Shadow movement must synchronize perfectly with Earth rotation.
+
+The transition between:
+- daylight
+- sunset edge
+- night side
+
+must feel:
+- cinematic
+- emotional
+- scientifically believable
+
+This feature is CRITICAL for realism.
+
+------------------------------------------------
+
+🌃 REALISTIC NIGHT SIDE
+
+Create:
+- authentic Earth night maps
+- realistic city light density
+- glowing urban clusters
+- warm golden illumination
+- realistic dark atmosphere
+- subtle realistic brightness
+
+IMPORTANT:
+Night lights must feel:
+- elegant
+- premium
+- believable
+
+DO NOT:
+- use neon lighting
+- use cyberpunk effects
+- overexpose city lights
+
+------------------------------------------------
+
+☀️ CINEMATIC LIGHTING SYSTEM
+
+Create physically accurate cinematic lighting:
+- realistic sunlight direction
+- atmospheric edge scattering
+- cinematic sunrise glow
+- realistic sunset rim light
+- HDR environment lighting
+- realistic ocean reflections
+- cinematic shadow transitions
+- physically accurate specular highlights
+- subtle bloom postprocessing
+
+IMPORTANT:
+Lighting must feel like real high-end NASA cinematography.
+
+Avoid fake CGI lighting.
+
+------------------------------------------------
+
+🌌 SPACE ENVIRONMENT
+
+Create:
+- deep realistic black space
+- cinematic cosmic depth
+- subtle distant stars
+- minimal elegant nebula haze
+- premium atmospheric feeling
+
+IMPORTANT:
+Space should feel:
+- calm
+- luxurious
+- emotional
+- intelligent
+
+Avoid crowded sci-fi visuals.
+
+------------------------------------------------
+
+🌀 EARTH ROTATION SYSTEM
+
+Create:
+- ultra smooth Earth rotation
+- realistic movement physics
+- emotionally calm motion
+- premium cinematic movement
+
+ROTATION SPEED:
+- exactly one full rotation every 50 seconds
+
+IMPORTANT:
+The Earth must feel:
+- heavy
+- massive
+- realistic
+- intelligent
+
+------------------------------------------------
+
+⚡ PREMIUM AI ENERGY SYSTEM
+
+Add subtle cinematic energy effects:
+- transparent orbit lines
+- elegant atmospheric pulses
+- intelligent ambient energy movement
+- soft orbital glow
+- cinematic AI interaction effects
+
+IMPORTANT:
+Effects must remain:
+- minimal
+- elegant
+- premium
+- realistic
+
+Effects should support realism,
+NOT overpower it.
+
+------------------------------------------------
+
+🎙️ AI REACTION SYSTEM
+
+WHEN AI SPEAKS:
+- atmosphere softly brightens
+- cinematic glow subtly increases
+- orbit energy gently reacts
+- ambient Earth pulse appears
+
+WHEN USER SPEAKS:
+- subtle listening pulse appears
+- Earth softly responds
+- atmosphere slightly reacts
+
+IMPORTANT:
+Interactions must feel emotionally intelligent.
+
+------------------------------------------------
+
+🇹🇷 TURKEY LABEL SYSTEM
+
+Add elegant geographic labels.
+
+SHOW:
+- TÜRKİYE
+- İstanbul
+- Ankara
+
+STYLE:
+- premium cinematic HUD
+- elegant typography
+- soft white-blue glow
+- subtle transparency
+- cinematic fade animations
+
+IMPORTANT:
+Labels must appear naturally during Earth rotation.
+
+Labels must:
+- feel minimal
+- feel premium
+- never distract from realism
+
+------------------------------------------------
+
+🎬 FINAL EXPERIENCE
+
+The final experience must feel like:
+- Interstellar
+- Apple cinematic design
+- NASA realism
+- luxury AI operating system
+- emotionally alive Earth
+- next-generation intelligent universe
+
+The user should feel:
+“I am looking at the real Earth inside the future of AI.”
+
+------------------------------------------------
+
+⚙️ REQUIRED TECHNOLOGY
+
+Use:
+- Three.js advanced rendering
+- physically based rendering (PBR)
+- atmospheric scattering shaders
+- multiple Earth texture layers
+- HDR lighting pipeline
+- bloom postprocessing
+- cinematic camera depth
+- high quality antialiasing
+- realistic specular maps
+- roughness maps
+- displacement maps
+- dynamic cloud sphere
+- GPU accelerated rendering
+
+------------------------------------------------
+
+🛡️ SYSTEM PROTECTION RULES
+
+IMPORTANT:
+Replace ONLY the Earth rendering and visual planet system.
+
+DO NOT remove or redesign:
+- Voice Mode
+- microphone system
+- speech recognition
+- speech synthesis
+- AI interaction system
+- UI layout
+- controls
+- gestures
+- audio engine
+- ambient sound system
+- phase logic
+- voice animations
+
+Keep the entire existing AkılCep Voice Mode system fully functional.
+
+ONLY upgrade:
+- Earth realism
+- shaders
+- atmosphere
+- clouds
+- lighting
+- cinematic rendering
+- day-night shadow system
+- realistic space visuals
+
+------------------------------------------------
+
+🚫 STRICTLY FORBIDDEN
+
+DO NOT:
+- use low poly Earth
+- use flat colors
+- use cartoon textures
+- use fake neon effects
+- use cheap mobile visuals
+- use exaggerated sci-fi glow
+- use unrealistic atmosphere
+- use arcade-style visuals
+
+The Earth must look REAL.
+The Earth must feel ALIVE.
+The Earth must feel CINEMATIC.
