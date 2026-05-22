@@ -22,8 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AI_MODELS, useChat } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
-
-const leafIcon = require("@/assets/images/leaf-only-transparent.png");
+import BrandHeader from "@/components/BrandHeader";
 
 const SCREEN_WIDTH  = Dimensions.get("window").width;
 const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 330);
@@ -104,17 +103,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
             HEADER — leaf icon + brand name
         ════════════════════════════════ */}
         <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-          {/* Brand identity row */}
-          <View style={styles.brandRow}>
-            <Image
-              source={leafIcon}
-              style={styles.leafIcon}
-              resizeMode="contain"
-            />
-            <Text style={[styles.brandName, { color: colors.foreground }]}>
-              AkılCEP
-            </Text>
-          </View>
+          <BrandHeader color={colors.foreground} />
 
           {/* Close */}
           <TouchableOpacity
@@ -318,24 +307,6 @@ const styles = StyleSheet.create({
     alignItems:      "center",
     justifyContent:  "space-between",
     marginBottom:    30,
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           10,
-    flex:          1,
-  },
-  leafIcon: {
-    width:      42,
-    height:     42,
-    flexShrink: 0,
-  },
-  brandName: {
-    fontSize:           48,
-    fontFamily:         "Inter_700Bold",
-    letterSpacing:      -1.8,
-    includeFontPadding: false,
-    lineHeight:         52,
   },
   closeBtn: {
     flexShrink: 0,
