@@ -17,7 +17,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Path, Svg } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AI_MODELS, useChat } from "@/context/ChatContext";
@@ -104,40 +103,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
       {/* ── Sidebar panel ── */}
       <Animated.View style={[styles.sidebar, sidebarStyle]}>
 
-        {/* ── Hairline silk accents (mirrored from home screen) ── */}
-        <Svg
-          style={StyleSheet.absoluteFillObject}
-          viewBox={`0 0 ${SIDEBAR_WIDTH} 845`}
-          preserveAspectRatio="xMidYMid slice"
-          pointerEvents="none"
-        >
-          {/* Right-edge S-curve */}
-          <Path
-            d={`M ${SIDEBAR_WIDTH - 4},172 C ${SIDEBAR_WIDTH - 14},214 ${SIDEBAR_WIDTH - 30},256 ${SIDEBAR_WIDTH - 28},298 C ${SIDEBAR_WIDTH - 26},340 ${SIDEBAR_WIDTH - 14},368 ${SIDEBAR_WIDTH - 20},408`}
-            stroke="#FFFFFF" strokeWidth="0.9" fill="none" opacity="0.60"
-          />
-          {/* Bottom sweep 1 */}
-          <Path
-            d={`M -10,668 C 50,638 130,626 210,642 C 290,658 ${SIDEBAR_WIDTH - 20},690 ${SIDEBAR_WIDTH + 20},676`}
-            stroke="#FFFFFF" strokeWidth="0.8" fill="none" opacity="0.45"
-          />
-          {/* Bottom sweep 2 */}
-          <Path
-            d={`M -10,710 C 54,682 132,670 214,686 C 296,702 ${SIDEBAR_WIDTH - 20},730 ${SIDEBAR_WIDTH + 20},716`}
-            stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.32"
-          />
-          {/* Bottom sweep 3 */}
-          <Path
-            d={`M -10,750 C 58,726 136,714 218,728 C 300,742 ${SIDEBAR_WIDTH - 20},768 ${SIDEBAR_WIDTH + 20},756`}
-            stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.22"
-          />
-          {/* Left-edge whisper */}
-          <Path
-            d="M 0,648 C 12,620 22,590 24,560 C 26,530 18,506 22,480"
-            stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.30"
-          />
-        </Svg>
-
         {/* ════════════════════════════════
             HEADER
         ════════════════════════════════ */}
@@ -181,12 +146,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 }}
                 activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.dot,
-                    { opacity: active ? 1 : 0.22 },
-                  ]}
-                />
                 <View style={styles.modelInfo}>
                   <Text
                     style={[
@@ -356,13 +315,6 @@ const styles = StyleSheet.create({
     gap:               10,
   },
   modelRowActive: { backgroundColor: C.activeRow },
-  dot: {
-    width:           5,
-    height:          5,
-    borderRadius:    3,
-    flexShrink:      0,
-    backgroundColor: C.foreground,
-  },
   modelInfo: {
     flexDirection: "row",
     alignItems:    "center",
