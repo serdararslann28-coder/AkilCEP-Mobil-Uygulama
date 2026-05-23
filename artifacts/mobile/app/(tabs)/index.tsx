@@ -21,6 +21,7 @@ import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
+const avatar   = require("@/assets/images/avatar.png");
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -66,14 +67,15 @@ export default function HomeScreen() {
         {/* Center — brand title */}
         <Text style={styles.topTitle}>C E B İ N D E K İ  A K I L</Text>
 
-        {/* Right — profile */}
+        {/* Right — avatar */}
         <TouchableOpacity
-          style={styles.circleBtn}
+          style={styles.avatarWrap}
           onPress={() => router.push("/chat")}
           hitSlop={14}
-          activeOpacity={0.65}
+          activeOpacity={0.80}
         >
-          <Feather name="user" size={16} color="#1C1C1E" />
+          <Image source={avatar} style={styles.avatarImg} />
+          <View style={styles.onlineDot} />
         </TouchableOpacity>
 
       </View>
@@ -204,6 +206,35 @@ const styles = StyleSheet.create({
     shadowOpacity:   0.18,
     shadowRadius:    8,
     elevation:       4,
+  },
+
+  avatarWrap: {
+    width:        44,
+    height:       44,
+    borderRadius: 22,
+    shadowColor:  "#9A9A9A",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.20,
+    shadowRadius: 8,
+    elevation:    4,
+  },
+  avatarImg: {
+    width:        44,
+    height:       44,
+    borderRadius: 22,
+    borderWidth:  1.5,
+    borderColor:  "rgba(255,255,255,0.80)",
+  },
+  onlineDot: {
+    position:        "absolute",
+    bottom:          1,
+    right:           1,
+    width:           11,
+    height:          11,
+    borderRadius:    6,
+    backgroundColor: "#34C759",
+    borderWidth:     2,
+    borderColor:     "#EBEBEC",
   },
 
   // ── Center
