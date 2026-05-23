@@ -1,12 +1,13 @@
 /**
- * Home — premium white minimalist AI assistant.
- * Apple-inspired luxury aesthetic. Voice Mode stays separate at /voice.
+ * Home — ultra premium white minimalist AI assistant.
+ * Apple-inspired luxury aesthetic. Voice Mode is a separate screen at /voice.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -16,12 +17,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import LeafIcon from "@/components/LeafIcon";
 import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 
+const leafLogo = require("@/assets/images/leaf-only-transparent.png");
+
 export default function HomeScreen() {
-  const insets  = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const { startNewConversation, sendMessage } = useChat();
 
   const [inputText, setInputText] = useState("");
@@ -45,60 +47,66 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Subtle background shapes ──────────────────────────────────── */}
+      {/* ── Soft background shapes ────────────────────────────────────── */}
       <View style={styles.shapeTL} />
       <View style={styles.shapeBR} />
       <View style={styles.shapeBL} />
 
       {/* ── Top bar ───────────────────────────────────────────────────── */}
-      <View style={[styles.topBar, { paddingTop: topPad + 12 }]}>
+      <View style={[styles.topBar, { paddingTop: topPad + 14 }]}>
         <TouchableOpacity
           style={styles.circleBtn}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setSidebar(true);
           }}
-          hitSlop={12}
-          activeOpacity={0.70}
+          hitSlop={14}
+          activeOpacity={0.65}
         >
-          <Feather name="menu" size={17} color="#1a1a1a" />
+          <Feather name="menu" size={16} color="#1C1C1E" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.circleBtn}
           onPress={() => router.push("/chat")}
-          hitSlop={12}
-          activeOpacity={0.70}
+          hitSlop={14}
+          activeOpacity={0.65}
         >
-          <Feather name="user" size={17} color="#1a1a1a" />
+          <Feather name="user" size={16} color="#1C1C1E" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Center — logo + wordmark ───────────────────────────────────── */}
+      {/* ── Center ────────────────────────────────────────────────────── */}
       <View style={styles.center}>
 
-        {/* Neumorphic logo circle */}
-        <View style={styles.logoCircle}>
-          <LeafIcon size={88} color="#111111" />
+        {/* Embossed logo circle */}
+        <View style={styles.logoCircleOuter}>
+          <View style={styles.logoCircleInner}>
+            <Image
+              source={leafLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         {/* Wordmark */}
         <Text style={styles.wordmark}>A K I L C E P</Text>
 
-        {/* Tagline with decorative lines */}
+        {/* Tagline */}
         <View style={styles.taglineRow}>
           <View style={styles.taglineLine} />
-          <Text style={styles.tagline}>Cebindeki Akıl</Text>
+          <Text style={styles.tagline}>cebindeki akıl</Text>
           <View style={styles.taglineLine} />
         </View>
 
       </View>
 
       {/* ── Floating input bar ─────────────────────────────────────────── */}
-      <View style={[styles.inputWrap, { paddingBottom: btmPad + 16 }]}>
+      <View style={[styles.inputWrap, { paddingBottom: btmPad + 14 }]}>
         <View style={styles.inputBar}>
 
-          {/* + button */}
+          {/* + */}
           <TouchableOpacity
             style={styles.inputIconBtn}
             onPress={() => {
@@ -106,17 +114,17 @@ export default function HomeScreen() {
               startNewConversation();
               router.push("/chat");
             }}
-            hitSlop={8}
-            activeOpacity={0.70}
+            hitSlop={10}
+            activeOpacity={0.65}
           >
-            <Feather name="plus" size={18} color="#1a1a1a" />
+            <Feather name="plus" size={18} color="#1C1C1E" />
           </TouchableOpacity>
 
-          {/* Text input */}
+          {/* Text field */}
           <TextInput
             style={styles.textInput}
             placeholder="Cepe sor"
-            placeholderTextColor="#ABABAB"
+            placeholderTextColor="#AEAEB2"
             value={inputText}
             onChangeText={setInputText}
             returnKeyType="send"
@@ -124,34 +132,31 @@ export default function HomeScreen() {
             blurOnSubmit={false}
           />
 
-          {/* Mic */}
+          {/* Mic — opens Voice Mode */}
           <TouchableOpacity
             style={styles.inputIconBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/voice");
             }}
-            hitSlop={8}
-            activeOpacity={0.70}
+            hitSlop={10}
+            activeOpacity={0.65}
           >
-            <Feather name="mic" size={17} color="#1a1a1a" />
+            <Feather name="mic" size={17} color="#1C1C1E" />
           </TouchableOpacity>
 
           {/* Send */}
           <TouchableOpacity
-            style={[
-              styles.inputIconBtn,
-              hasText && styles.inputIconBtnActive,
-            ]}
+            style={[styles.sendBtn, hasText && styles.sendBtnActive]}
             onPress={handleSend}
             disabled={!hasText}
-            hitSlop={8}
-            activeOpacity={0.70}
+            hitSlop={10}
+            activeOpacity={0.75}
           >
             <Feather
               name="arrow-up"
-              size={17}
-              color={hasText ? "#fff" : "#1a1a1a"}
+              size={16}
+              color={hasText ? "#FFFFFF" : "#8E8E93"}
             />
           </TouchableOpacity>
 
@@ -163,39 +168,41 @@ export default function HomeScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+
   root: {
     flex:            1,
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#F5F5F7",
   },
 
-  // ── Background abstract shapes
+  // ── Background shapes (very faint — fabric/silk feel)
   shapeTL: {
     position:        "absolute",
-    top:             -80,
-    left:            -80,
-    width:           280,
-    height:          280,
-    borderRadius:    140,
-    backgroundColor: "rgba(0,0,0,0.028)",
+    top:             -120,
+    left:            -120,
+    width:           360,
+    height:          360,
+    borderRadius:    180,
+    backgroundColor: "rgba(0,0,0,0.030)",
   },
   shapeBR: {
     position:        "absolute",
-    bottom:          60,
-    right:           -100,
-    width:           340,
-    height:          340,
-    borderRadius:    170,
-    backgroundColor: "rgba(0,0,0,0.022)",
-    transform:       [{ rotate: "20deg" }],
+    bottom:          80,
+    right:           -130,
+    width:           380,
+    height:          380,
+    borderRadius:    190,
+    backgroundColor: "rgba(0,0,0,0.024)",
+    transform:       [{ rotate: "15deg" }],
   },
   shapeBL: {
     position:        "absolute",
-    bottom:          -60,
-    left:            -60,
-    width:           220,
-    height:          220,
-    borderRadius:    110,
+    bottom:          -80,
+    left:            -80,
+    width:           260,
+    height:          260,
+    borderRadius:    130,
     backgroundColor: "rgba(0,0,0,0.018)",
   },
 
@@ -208,20 +215,22 @@ const styles = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
-    paddingHorizontal: 24,
-    zIndex:            10,
+    paddingHorizontal: 22,
+    zIndex:            20,
   },
   circleBtn: {
     width:           42,
     height:          42,
     borderRadius:    21,
-    backgroundColor: "#EFEFEF",
+    backgroundColor: "rgba(255,255,255,0.88)",
     alignItems:      "center",
     justifyContent:  "center",
-    shadowColor:     "#B0B0B0",
-    shadowOffset:    { width: 3, height: 3 },
-    shadowOpacity:   0.35,
-    shadowRadius:    6,
+    // iOS shadow
+    shadowColor:     "#9A9A9A",
+    shadowOffset:    { width: 0, height: 3 },
+    shadowOpacity:   0.22,
+    shadowRadius:    8,
+    // Android
     elevation:       4,
   },
 
@@ -230,35 +239,49 @@ const styles = StyleSheet.create({
     flex:           1,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            20,
+    gap:            18,
   },
 
-  // Neumorphic logo circle
-  logoCircle: {
-    width:           192,
-    height:          192,
-    borderRadius:    96,
-    backgroundColor: "#EFEFEF",
+  // Outer ring — very light border for depth
+  logoCircleOuter: {
+    width:           204,
+    height:          204,
+    borderRadius:    102,
+    backgroundColor: "#ECECEC",
     alignItems:      "center",
     justifyContent:  "center",
-    shadowColor:     "#B8B8B8",
-    shadowOffset:    { width: 10, height: 10 },
-    shadowOpacity:   0.55,
-    shadowRadius:    22,
-    elevation:       12,
-    marginBottom:    8,
+    shadowColor:     "#A0A0A0",
+    shadowOffset:    { width: 8, height: 12 },
+    shadowOpacity:   0.40,
+    shadowRadius:    28,
+    elevation:       14,
+    marginBottom:    10,
+  },
+  // Inner circle — slightly lighter for emboss effect
+  logoCircleInner: {
+    width:           188,
+    height:          188,
+    borderRadius:    94,
+    backgroundColor: "#F2F2F2",
+    alignItems:      "center",
+    justifyContent:  "center",
+    shadowColor:     "#FFFFFF",
+    shadowOffset:    { width: -5, height: -5 },
+    shadowOpacity:   0.90,
+    shadowRadius:    8,
+    elevation:       0,
   },
   logoImage: {
-    width:   120,
-    height:  120,
+    width:  116,
+    height: 116,
   },
 
   // Wordmark
   wordmark: {
-    fontSize:      18,
+    fontSize:      17,
     fontFamily:    "Inter_400Regular",
-    color:         "#1A1A1A",
-    letterSpacing: 9,
+    color:         "#1C1C1E",
+    letterSpacing: 8,
   },
 
   // Tagline
@@ -268,51 +291,61 @@ const styles = StyleSheet.create({
     gap:           10,
   },
   taglineLine: {
-    width:           28,
+    width:           24,
     height:          StyleSheet.hairlineWidth,
-    backgroundColor: "#AAAAAA",
+    backgroundColor: "#AEAEB2",
   },
   tagline: {
-    fontSize:      12,
+    fontSize:      11,
     fontFamily:    "Inter_400Regular",
-    color:         "#AAAAAA",
-    letterSpacing: 2.5,
+    color:         "#AEAEB2",
+    letterSpacing: 2.8,
   },
 
   // ── Input bar
   inputWrap: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
   inputBar: {
     flexDirection:     "row",
     alignItems:        "center",
     backgroundColor:   "#FFFFFF",
-    borderRadius:      50,
-    paddingVertical:   10,
-    paddingHorizontal: 10,
-    gap:               4,
-    shadowColor:       "#000",
-    shadowOffset:      { width: 0, height: 6 },
-    shadowOpacity:     0.08,
-    shadowRadius:      24,
-    elevation:         8,
-  },
-  textInput: {
-    flex:          1,
-    fontSize:      15,
-    fontFamily:    "Inter_400Regular",
-    color:         "#1A1A1A",
-    paddingHorizontal: 6,
-    paddingVertical:   4,
+    borderRadius:      60,
+    paddingVertical:   8,
+    paddingHorizontal: 8,
+    gap:               2,
+    // Premium depth shadow
+    shadowColor:       "#000000",
+    shadowOffset:      { width: 0, height: 8 },
+    shadowOpacity:     0.09,
+    shadowRadius:      28,
+    elevation:         10,
   },
   inputIconBtn: {
-    width:          38,
-    height:         38,
-    borderRadius:   19,
+    width:          40,
+    height:         40,
+    borderRadius:   20,
     alignItems:     "center",
     justifyContent: "center",
   },
-  inputIconBtnActive: {
-    backgroundColor: "#1A1A1A",
+  textInput: {
+    flex:              1,
+    fontSize:          15,
+    fontFamily:        "Inter_400Regular",
+    color:             "#1C1C1E",
+    paddingHorizontal: 4,
+    paddingVertical:   6,
   },
+  sendBtn: {
+    width:           38,
+    height:          38,
+    borderRadius:    19,
+    alignItems:      "center",
+    justifyContent:  "center",
+    backgroundColor: "#E5E5EA",
+  },
+  sendBtnActive: {
+    backgroundColor: "#1C1C1E",
+  },
+
 });
