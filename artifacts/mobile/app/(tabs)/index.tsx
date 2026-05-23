@@ -49,43 +49,40 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Silk lines ────────────────────────────────────────────────── */}
+      {/* ── Hairline silk accents ─────────────────────────────────────── */}
       <Svg
         style={StyleSheet.absoluteFillObject}
         viewBox="0 0 390 845"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* Right-edge S-curve — from just below top buttons, graceful S */}
+        {/* Right-edge S — hugs the right, starts below top buttons */}
         <Path
-          d="M 388,168 C 378,210 360,250 362,292 C 364,334 376,364 370,402"
-          stroke="#FFFFFF" strokeWidth="1.0" fill="none" opacity="0.80"
+          d="M 390,172 C 378,214 362,256 364,298 C 366,340 378,368 372,408"
+          stroke="#FFFFFF" strokeWidth="0.9" fill="none" opacity="0.60"
         />
 
-        {/* Left-edge whisper — faint counter-curve */}
+        {/* Bottom sweep 1 — thin arc from left edge, lower third */}
         <Path
-          d="M 2,636 C 14,610 24,582 26,554 C 28,526 20,502 24,476"
-          stroke="#FFFFFF" strokeWidth="0.65" fill="none" opacity="0.38"
+          d="M -10,668 C 72,638 176,626 296,642 C 416,658 468,696 560,680"
+          stroke="#FFFFFF" strokeWidth="0.8" fill="none" opacity="0.45"
         />
 
-        {/* Ribbon 1 — first wave, 16px band, sits at ~y=650 centre */}
+        {/* Bottom sweep 2 — slightly below, softer */}
         <Path
-          d="M -20,666 C 60,636 168,624 288,640 C 408,656 462,694 560,678
-             L 560,694 C 462,710 408,672 288,656 C 168,640 60,652 -20,682 Z"
-          fill="#FFFFFF" opacity="0.50"
+          d="M -10,710 C 76,682 178,670 300,686 C 422,702 472,736 565,720"
+          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.32"
         />
 
-        {/* Ribbon 2 — second wave, 14px band, ~y=708 centre */}
+        {/* Bottom sweep 3 — lowest, barely there */}
         <Path
-          d="M -20,712 C 66,684 172,672 294,688 C 416,704 468,740 568,724
-             L 568,738 C 468,754 416,718 294,702 C 172,686 66,698 -20,726 Z"
-          fill="#FFFFFF" opacity="0.38"
+          d="M -10,750 C 80,726 182,714 306,728 C 430,742 480,772 568,758"
+          stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.22"
         />
 
-        {/* Ribbon 3 — lowest, fills bottom corner */}
+        {/* Left-edge whisper — faint counter-accent */}
         <Path
-          d="M -20,756 C 68,732 176,720 300,734 C 424,748 476,778 576,762
-             L 576,845 L -20,845 Z"
-          fill="#FFFFFF" opacity="0.26"
+          d="M 0,648 C 14,620 26,590 28,560 C 30,530 22,506 26,480"
+          stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.30"
         />
       </Svg>
 
