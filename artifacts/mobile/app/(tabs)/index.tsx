@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import Svg, { Path } from "react-native-svg";
+
 import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 
@@ -47,10 +49,57 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Soft background shapes ────────────────────────────────────── */}
-      <View style={styles.shapeTL} />
-      <View style={styles.shapeBR} />
-      <View style={styles.shapeBL} />
+      {/* ── Silk background — soft flowing curves + corner glows ─────── */}
+      <View style={styles.glowTL} />
+      <View style={styles.glowBR} />
+
+      <Svg
+        style={StyleSheet.absoluteFillObject}
+        viewBox="0 0 390 845"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        {/* ── Bottom-right cluster — 4 layered S-curves ── */}
+        <Path
+          d="M 545,290 C 490,370 425,450 385,555 C 345,660 328,755 315,845"
+          stroke="#D0D0D3" strokeWidth="1.1" fill="none" opacity="0.50"
+        />
+        <Path
+          d="M 570,370 C 510,445 445,515 402,618 C 359,720 340,800 326,845"
+          stroke="#D8D8DB" strokeWidth="0.75" fill="none" opacity="0.38"
+        />
+        <Path
+          d="M 510,460 C 468,525 428,598 398,690 C 368,782 350,828 338,845"
+          stroke="#CACACE" strokeWidth="1.3" fill="none" opacity="0.30"
+        />
+        <Path
+          d="M 590,430 C 535,498 472,562 430,655 C 388,748 368,810 352,845"
+          stroke="#D4D4D7" strokeWidth="0.6" fill="none" opacity="0.42"
+        />
+
+        {/* ── Bottom-left cluster — 4 flowing curves ── */}
+        <Path
+          d="M -125,550 C -18,522 72,490 125,452 C 178,414 190,365 170,305"
+          stroke="#D0D0D3" strokeWidth="1.1" fill="none" opacity="0.50"
+        />
+        <Path
+          d="M -148,655 C -32,624 72,588 132,547 C 192,506 202,455 180,392"
+          stroke="#D8D8DB" strokeWidth="0.75" fill="none" opacity="0.38"
+        />
+        <Path
+          d="M -98,758 C 28,726 122,688 178,644 C 234,600 242,550 218,488"
+          stroke="#CACACE" strokeWidth="1.3" fill="none" opacity="0.30"
+        />
+        <Path
+          d="M -160,740 C -38,710 65,675 128,630 C 191,585 200,535 176,472"
+          stroke="#D4D4D7" strokeWidth="0.6" fill="none" opacity="0.42"
+        />
+
+        {/* ── Top-right whisper — single barely-there curve ── */}
+        <Path
+          d="M 390,80 C 360,120 340,165 355,215 C 370,265 390,285 395,320"
+          stroke="#D6D6D9" strokeWidth="0.6" fill="none" opacity="0.28"
+        />
+      </Svg>
 
       {/* ── Top bar ───────────────────────────────────────────────────── */}
       <View style={[styles.topBar, { paddingTop: topPad + 14 }]}>
@@ -176,34 +225,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F7",
   },
 
-  // ── Background shapes (very faint — fabric/silk feel)
-  shapeTL: {
+  // ── Soft corner glows (large, feathered — anchor for the silk lines)
+  glowTL: {
     position:        "absolute",
-    top:             -120,
-    left:            -120,
-    width:           360,
-    height:          360,
-    borderRadius:    180,
-    backgroundColor: "rgba(0,0,0,0.030)",
-  },
-  shapeBR: {
-    position:        "absolute",
-    bottom:          80,
-    right:           -130,
+    top:             -140,
+    left:            -140,
     width:           380,
     height:          380,
     borderRadius:    190,
-    backgroundColor: "rgba(0,0,0,0.024)",
-    transform:       [{ rotate: "15deg" }],
+    backgroundColor: "rgba(0,0,0,0.026)",
   },
-  shapeBL: {
+  glowBR: {
     position:        "absolute",
-    bottom:          -80,
-    left:            -80,
-    width:           260,
-    height:          260,
-    borderRadius:    130,
-    backgroundColor: "rgba(0,0,0,0.018)",
+    bottom:          60,
+    right:           -140,
+    width:           400,
+    height:          400,
+    borderRadius:    200,
+    backgroundColor: "rgba(0,0,0,0.020)",
   },
 
   // ── Top bar
