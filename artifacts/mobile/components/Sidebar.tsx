@@ -19,7 +19,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AI_MODELS, useChat } from "@/context/ChatContext";
+import { useChat } from "@/context/ChatContext";
 import BrandHeader from "@/components/BrandHeader";
 
 // ─── Home-screen palette (hardcoded, same tokens as index.tsx) ────────────────
@@ -51,8 +51,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     loadConversation,
     deleteConversation,
     startNewConversation,
-    selectedModel,
-    setSelectedModel,
   } = useChat();
 
   const translateX     = useSharedValue(-SIDEBAR_WIDTH);
@@ -128,39 +126,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
           <Feather name="plus" size={16} color={C.pillText} />
           <Text style={styles.newChatText}>Yeni Sohbet</Text>
         </TouchableOpacity>
-
-        {/* ════════════════════════════════
-            MODEL SELECTOR
-        ════════════════════════════════ */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>MODEL</Text>
-          {AI_MODELS.map((model) => {
-            const active = selectedModel === model.id;
-            return (
-              <TouchableOpacity
-                key={model.id}
-                style={[styles.modelRow, active && styles.modelRowActive]}
-                onPress={() => {
-                  setSelectedModel(model.id);
-                  Haptics.selectionAsync();
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.modelInfo}>
-                  <Text
-                    style={[
-                      styles.modelName,
-                      active && styles.modelNameActive,
-                    ]}
-                  >
-                    {model.name}
-                  </Text>
-                  <Text style={styles.modelBadge}>{model.badge}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
 
         {/* ════════════════════════════════
             CONVERSATION HISTORY
@@ -301,40 +266,6 @@ const styles = StyleSheet.create({
     marginBottom:  10,
     color:         C.zinc400,
     textTransform: "uppercase",
-  },
-
-  /* ── Model selector ── */
-  section:   { marginBottom: 24 },
-  modelRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    paddingVertical:   11,
-    paddingHorizontal: 12,
-    borderRadius:      13,
-    marginBottom:      3,
-    gap:               10,
-  },
-  modelRowActive: { backgroundColor: C.activeRow },
-  modelInfo: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           8,
-    flex:          1,
-  },
-  modelName: {
-    fontSize:      13.5,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-    color:         C.muted,
-  },
-  modelNameActive: {
-    fontFamily: "Inter_600SemiBold",
-    color:      C.foreground,
-  },
-  modelBadge: {
-    fontSize:   11,
-    fontFamily: "Inter_400Regular",
-    color:      C.zinc400,
   },
 
   /* ── History ── */
