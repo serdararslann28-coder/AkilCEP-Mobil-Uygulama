@@ -49,31 +49,47 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Silk lines — thin flowing curves at edges only ───────────── */}
+      {/* ── Silk waves ────────────────────────────────────────────────── */}
       <Svg
         style={StyleSheet.absoluteFillObject}
         viewBox="0 0 390 845"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* Bottom-right silk folds — all starting off right edge */}
-        <Path d="M 430,480 C 385,528 338,578 302,638 C 266,698 252,762 248,845"
-          stroke="#DADADD" strokeWidth="0.7" fill="none" opacity="0.55" />
-        <Path d="M 450,530 C 402,576 352,624 314,683 C 276,742 261,804 257,845"
-          stroke="#E0E0E3" strokeWidth="0.5" fill="none" opacity="0.45" />
-        <Path d="M 415,570 C 372,614 326,660 290,718 C 254,776 240,824 236,845"
-          stroke="#D6D6D9" strokeWidth="0.9" fill="none" opacity="0.38" />
-        <Path d="M 465,590 C 414,632 360,672 320,728 C 280,784 264,826 260,845"
-          stroke="#E2E2E5" strokeWidth="0.5" fill="none" opacity="0.40" />
-        <Path d="M 395,630 C 358,668 316,706 280,760 C 244,814 230,838 226,845"
-          stroke="#DADADD" strokeWidth="0.6" fill="none" opacity="0.30" />
+        {/* ── Broad ribbon wave 1 — main sweep, lower third ── */}
+        <Path
+          d="M -20,698 C 70,660 185,648 295,672 C 405,696 468,742 560,724
+             L 560,750 C 468,768 405,722 295,698 C 185,674 70,686 -20,724 Z"
+          fill="#FFFFFF" opacity="0.48"
+        />
+        {/* ── Broad ribbon wave 2 — slightly below, wider ── */}
+        <Path
+          d="M -20,748 C 85,716 195,702 308,724 C 421,746 480,788 570,770
+             L 570,796 C 480,814 421,772 308,750 C 195,728 85,742 -20,774 Z"
+          fill="#FFFFFF" opacity="0.38"
+        />
+        {/* ── Broad ribbon wave 3 — lowest, anchors bottom ── */}
+        <Path
+          d="M -20,800 C 75,775 185,762 305,780 C 425,798 490,828 575,812
+             L 575,845 L -20,845 Z"
+          fill="#FFFFFF" opacity="0.30"
+        />
 
-        {/* Bottom-left silk folds — mirrored, softer */}
-        <Path d="M -40,560 C 14,606 62,656 92,716 C 122,776 128,824 126,845"
-          stroke="#DADADD" strokeWidth="0.7" fill="none" opacity="0.42" />
-        <Path d="M -60,620 C -2,662 50,710 82,768 C 114,826 120,840 118,845"
-          stroke="#E0E0E3" strokeWidth="0.5" fill="none" opacity="0.34" />
-        <Path d="M -25,680 C 26,718 70,756 98,808 C 108,828 112,840 112,845"
-          stroke="#D8D8DB" strokeWidth="0.6" fill="none" opacity="0.28" />
+        {/* ── Thin whisper lines — edge accents ── */}
+        {/* Right edge, mid-screen — single elegant S */}
+        <Path
+          d="M 390,148 C 370,188 365,232 375,276 C 385,320 390,348 378,385"
+          stroke="#FFFFFF" strokeWidth="1.2" fill="none" opacity="0.72"
+        />
+        {/* Right edge, lower — parallels the ribbons */}
+        <Path
+          d="M 390,520 C 368,554 348,592 336,638 C 324,684 326,718 320,748"
+          stroke="#FFFFFF" strokeWidth="0.8" fill="none" opacity="0.55"
+        />
+        {/* Left edge whisper */}
+        <Path
+          d="M 0,680 C 22,660 40,638 48,612 C 56,586 52,562 58,540"
+          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.45"
+        />
       </Svg>
 
       {/* ── Top bar ───────────────────────────────────────────────────── */}
@@ -197,7 +213,7 @@ const styles = StyleSheet.create({
 
   root: {
     flex:            1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#E9E9EB",
   },
 
   // ── Top bar
