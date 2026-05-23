@@ -1,328 +1,509 @@
 /**
- * Home — the Globe IS the AI.
- * Full-screen cinematic Earth with minimal glassmorphic chrome overlay.
- * Apple-level premium: strong type hierarchy, clean spacing, no excess glow.
+ * Home — clean AI assistant home screen.
+ * Input area + suggestion cards + quick actions.
+ * Uses useColors() for theming. Voice Mode is a separate modal screen (/voice).
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Platform,
-  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
+  withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import CinematicEarth from "@/components/CinematicEarth";
 import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
+import { useColors } from "@/hooks/useColors";
 
-type VoiceState = "idle" | "listening" | "speaking";
+// ─── Suggestion prompts ───────────────────────────────────────────────────────
+const SUGGESTIONS = [
+  { icon: "zap"      , label: "Kod yaz"   , sub: "Kod üret veya düzelt"   , prompt: "Basit bir React bileşeni yaz" },
+  { icon: "file-text", label: "Özet çıkar", sub: "Metni kısalt ve özetle" , prompt: "Bu metni özetle: " },
+  { icon: "cpu"      , label: "Analiz et" , sub: "Derin analiz yap"       , prompt: "Bunu analiz et: " },
+  { icon: "globe"    , label: "Çeviri yap", sub: "Dil çevirisi"           , prompt: "İngilizce'ye çevir: " },
+] as const;
 
 export default function HomeScreen() {
-  const insets        = useSafeAreaInsets();
-  const { startNewConversation } = useChat();
-  const [voice, setVoice]       = useState<VoiceState>("idle");
-  const [sidebar, setSidebar]   = useState(false);
+  const colors  = useColors();
+  const insets  = useSafeAreaInsets();
+  const { startNewConversation, sendMessage } = useChat();
+
+  const [inputText, setInputText] = useState("");
+  const [sidebar, setSidebar]     = useState(false);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 36 : insets.bottom;
 
-  // ── Live indicator dot ──────────────────────────────────────────────────────
-  const dotScale   = useSharedValue(1);
-  const dotOpacity = useSharedValue(0.30);
-
-  // ── 7 waveform bar heights ──────────────────────────────────────────────────
-  const b0 = useSharedValue(0.10);
-  const b1 = useSharedValue(0.10);
-  const b2 = useSharedValue(0.10);
-  const b3 = useSharedValue(0.10);
-  const b4 = useSharedValue(0.10);
-  const b5 = useSharedValue(0.10);
-  const b6 = useSharedValue(0.10);
-
-  const s0 = useAnimatedStyle(() => ({ height: Math.max(2, b0.value * 12) }));
-  const s1 = useAnimatedStyle(() => ({ height: Math.max(2, b1.value * 17) }));
-  const s2 = useAnimatedStyle(() => ({ height: Math.max(2, b2.value * 22) }));
-  const s3 = useAnimatedStyle(() => ({ height: Math.max(2, b3.value * 26) }));
-  const s4 = useAnimatedStyle(() => ({ height: Math.max(2, b4.value * 22) }));
-  const s5 = useAnimatedStyle(() => ({ height: Math.max(2, b5.value * 17) }));
-  const s6 = useAnimatedStyle(() => ({ height: Math.max(2, b6.value * 12) }));
-
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: dotScale.value }],
-    opacity:   dotOpacity.value,
+  const sendScale = useSharedValue(1);
+  const sendStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sendScale.value }],
   }));
 
-  // ── Drive all animations from voice state ───────────────────────────────────
-  useEffect(() => {
-    if (voice === "listening") {
-      dotScale.value   = withRepeat(withSequence(withTiming(1.65,{duration:760}), withTiming(1,{duration:760})), -1, true);
-      dotOpacity.value = withRepeat(withSequence(withTiming(0.95,{duration:760}), withTiming(0.25,{duration:760})), -1, true);
-    } else if (voice === "speaking") {
-      dotScale.value   = withRepeat(withSequence(withTiming(1.35,{duration:360}), withTiming(0.88,{duration:360})), -1, true);
-      dotOpacity.value = withTiming(0.88, { duration: 300 });
-    } else {
-      dotScale.value   = withTiming(1,    { duration: 500 });
-      dotOpacity.value = withTiming(0.30, { duration: 500 });
-    }
-
-    const vals = [b0, b1, b2, b3, b4, b5, b6];
-    const dur  = voice === "speaking"  ? [265, 215, 175, 150, 175, 215, 265]
-               : voice === "listening" ? [500, 420, 365, 325, 365, 420, 500]
-               : [2000, 1750, 1550, 1350, 1550, 1750, 2000];
-    const peak = voice === "speaking"  ? [0.50, 0.70, 0.88, 1.00, 0.88, 0.70, 0.50]
-               : voice === "listening" ? [0.36, 0.54, 0.72, 0.90, 0.72, 0.54, 0.36]
-               : [0.16, 0.22, 0.28, 0.34, 0.28, 0.22, 0.16];
-    vals.forEach((v, i) => {
-      v.value = withRepeat(
-        withSequence(withTiming(peak[i], { duration: dur[i] }), withTiming(0.05, { duration: dur[i] })),
-        -1, true
-      );
+  // Send a message, navigate to chat
+  const handleSend = (text?: string) => {
+    const msg = (text ?? inputText).trim();
+    if (!msg) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    sendScale.value = withSpring(0.82, { duration: 80 }, () => {
+      sendScale.value = withSpring(1, { duration: 120 });
     });
-  }, [voice]);
-
-  const cycleVoice = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setVoice(s => s === "idle" ? "listening" : s === "listening" ? "speaking" : "idle");
+    startNewConversation();
+    sendMessage(msg);
+    setInputText("");
+    router.push("/chat");
   };
 
-  const statusText =
-    voice === "listening" ? "SENİ DİNLİYORUM" :
-    voice === "speaking"  ? "YANIT VERİYORUM"  : "";
-
-  const dotColor =
-    voice === "listening" ? "#4DB6FF" :
-    voice === "speaking"  ? "#FFAD50" :
-    "rgba(255,255,255,0.35)";
-
-  const micBg =
-    voice === "listening" ? "rgba(42,108,235,0.92)" :
-    voice === "speaking"  ? "rgba(225,120,40,0.88)"  :
-    "rgba(24,72,195,0.85)";
+  const hasText = inputText.trim().length > 0;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <Sidebar visible={sidebar} onClose={() => setSidebar(false)} />
 
-      {/* ── Globe fills the entire screen ──────────────────────────────────── */}
-      <Pressable style={StyleSheet.absoluteFillObject} onPress={cycleVoice}>
-        <CinematicEarth voiceState={voice} />
-      </Pressable>
-
-      {/* ── Top header ─────────────────────────────────────────────────────── */}
-      <View style={[styles.header, { paddingTop: topPad + 4 }]} pointerEvents="box-none">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: topPad + 8, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.glassBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSidebar(true); }}
-          hitSlop={14}
+          style={[styles.headerBtn, { backgroundColor: colors.card }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSidebar(true);
+          }}
+          hitSlop={12}
         >
-          <Feather name="menu" size={16} color="rgba(255,255,255,0.58)" />
+          <Feather name="menu" size={18} color={colors.foreground} />
         </TouchableOpacity>
 
-        <View style={styles.brandBlock} pointerEvents="none">
-          <Text style={styles.wordmark}>A K I L C E P</Text>
-          <Text style={styles.tagline}>Y A P A Y   Z E K A   A S İ S T A N I N</Text>
+        <View style={styles.brandRow}>
+          <Text style={[styles.brandName, { color: colors.foreground }]}>
+            AkılCEP
+          </Text>
+          <View style={styles.onlineBadge}>
+            <View style={styles.onlineDot} />
+            <Text style={[styles.onlineLabel, { color: colors.zinc400 }]}>
+              çevrimiçi
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity
-          style={styles.glassBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/chat"); }}
-          hitSlop={14}
+          style={[styles.headerBtn, { backgroundColor: colors.card }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            startNewConversation();
+            router.push("/chat");
+          }}
+          hitSlop={12}
         >
-          <Animated.View style={[styles.liveDot, { backgroundColor: dotColor }, dotStyle]} />
+          <Feather name="edit-2" size={15} color={colors.foreground} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Bottom panel ───────────────────────────────────────────────────── */}
-      <View style={[styles.bottomPanel, { paddingBottom: btmPad + 20 }]} pointerEvents="box-none">
+      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: btmPad + 28 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
 
-        {/* Status label — only visible when active */}
-        {voice !== "idle" && (
-          <Text style={styles.statusLabel}>{statusText}</Text>
-        )}
-
-        {/* Waveform — 7 bars only, no side dots */}
-        <View style={styles.waveRow}>
-          <Animated.View style={[styles.waveBar, s0]} />
-          <Animated.View style={[styles.waveBar, s1]} />
-          <Animated.View style={[styles.waveBar, s2]} />
-          <Animated.View style={[styles.waveBar, s3]} />
-          <Animated.View style={[styles.waveBar, s4]} />
-          <Animated.View style={[styles.waveBar, s5]} />
-          <Animated.View style={[styles.waveBar, s6]} />
+        {/* Greeting ───────────────────────────────────────────────────── */}
+        <View style={styles.greetingBlock}>
+          <Text style={[styles.greeting, { color: colors.foreground }]}>
+            Merhaba 👋
+          </Text>
+          <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>
+            Size nasıl yardımcı olabilirim?
+          </Text>
         </View>
 
-        {/* Navigation row */}
-        <View style={styles.tabRow}>
+        {/* Input card ─────────────────────────────────────────────────── */}
+        <View style={[styles.inputCard, { backgroundColor: colors.card }]}>
+          <TextInput
+            style={[styles.textInput, { color: colors.foreground }]}
+            placeholder="Bir şey sorun..."
+            placeholderTextColor={colors.mutedForeground}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={2000}
+            returnKeyType="send"
+            onSubmitEditing={() => handleSend()}
+            blurOnSubmit={false}
+          />
+
+          <View style={styles.inputActions}>
+            <TouchableOpacity
+              style={[
+                styles.iconBtn,
+                { backgroundColor: colors.background },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/voice");
+              }}
+              hitSlop={8}
+            >
+              <Feather name="mic" size={15} color={colors.zinc500} />
+            </TouchableOpacity>
+
+            <Animated.View style={sendStyle}>
+              <TouchableOpacity
+                style={[
+                  styles.sendBtn,
+                  {
+                    backgroundColor: hasText
+                      ? colors.primary
+                      : colors.accent,
+                  },
+                ]}
+                onPress={() => handleSend()}
+                disabled={!hasText}
+                activeOpacity={0.80}
+              >
+                <Feather
+                  name="arrow-up"
+                  size={17}
+                  color={
+                    hasText
+                      ? colors.primaryForeground
+                      : colors.mutedForeground
+                  }
+                />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </View>
+
+        {/* Suggestions ────────────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { color: colors.zinc400 }]}>
+          ÖNERİLER
+        </Text>
+
+        <View style={styles.suggestionsGrid}>
+          {SUGGESTIONS.map((s) => (
+            <TouchableOpacity
+              key={s.label}
+              style={[styles.suggestionCard, { backgroundColor: colors.card }]}
+              onPress={() => handleSend(s.prompt)}
+              activeOpacity={0.72}
+            >
+              <View
+                style={[
+                  styles.suggestionIcon,
+                  { backgroundColor: colors.background },
+                ]}
+              >
+                <Feather
+                  name={s.icon as any}
+                  size={15}
+                  color={colors.foreground}
+                />
+              </View>
+              <View style={styles.suggestionText}>
+                <Text
+                  style={[
+                    styles.suggestionLabel,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  {s.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.suggestionSub,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  {s.sub}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Quick actions ──────────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { color: colors.zinc400 }]}>
+          HIZLI ERİŞİM
+        </Text>
+
+        <View style={styles.quickRow}>
+          {/* History */}
           <TouchableOpacity
-            style={styles.tabItem}
+            style={[styles.quickBtn, { backgroundColor: colors.card }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSidebar(true);
+            }}
+            activeOpacity={0.72}
+          >
+            <Feather name="clock" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.quickLabel, { color: colors.mutedForeground }]}>
+              Geçmiş
+            </Text>
+          </TouchableOpacity>
+
+          {/* Voice Mode — primary CTA */}
+          <TouchableOpacity
+            style={[styles.quickBtn, styles.quickBtnVoice]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/voice");
+            }}
+            activeOpacity={0.82}
+          >
+            <Feather name="mic" size={16} color="#fff" />
+            <Text style={[styles.quickLabel, styles.quickLabelVoice]}>
+              Sesli Mod
+            </Text>
+          </TouchableOpacity>
+
+          {/* New chat */}
+          <TouchableOpacity
+            style={[styles.quickBtn, { backgroundColor: colors.card }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               startNewConversation();
               router.push("/chat");
             }}
-            hitSlop={14}
+            activeOpacity={0.72}
           >
-            <Feather name="zap" size={18} color="rgba(255,255,255,0.40)" />
-            <Text style={styles.tabLabel}>Öneriler</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.micBtn, { backgroundColor: micBg }]}
-            onPress={cycleVoice}
-            activeOpacity={0.80}
-          >
-            <Feather
-              name={voice === "speaking" ? "volume-2" : "mic"}
-              size={20}
-              color="rgba(255,255,255,0.92)"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/chat"); }}
-            hitSlop={14}
-          >
-            <Feather name="message-circle" size={18} color="rgba(255,255,255,0.40)" />
-            <Text style={styles.tabLabel}>Geçmiş</Text>
+            <Feather name="message-circle" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.quickLabel, { color: colors.mutedForeground }]}>
+              Sohbet
+            </Text>
           </TouchableOpacity>
         </View>
 
-      </View>
-
-      <Sidebar visible={sidebar} onClose={() => setSidebar(false)} />
+      </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#00000c",
-  },
+  root:  { flex: 1 },
+  scroll: { flex: 1 },
 
   // ── Header
   header: {
-    position:          "absolute",
-    top:               0,
-    left:              0,
-    right:             0,
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
-    paddingHorizontal: 20,
-    paddingBottom:     12,
-    zIndex:            20,
+    paddingHorizontal: 18,
+    paddingBottom:     14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  glassBtn: {
-    width:           38,
-    height:          38,
-    borderRadius:    19,
-    backgroundColor: "rgba(255,255,255,0.065)",
-    borderWidth:     StyleSheet.hairlineWidth,
-    borderColor:     "rgba(255,255,255,0.09)",
-    alignItems:      "center",
-    justifyContent:  "center",
-  },
-  brandBlock: {
-    flex:       1,
-    alignItems: "center",
-    gap:        3,
-  },
-  wordmark: {
-    fontSize:      12.5,
-    fontFamily:    "Inter_700Bold",
-    color:         "rgba(255,255,255,0.86)",
-    letterSpacing: 4.8,
-  },
-  tagline: {
-    fontSize:      7,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.28)",
-    letterSpacing: 2.0,
-  },
-  liveDot: {
-    width:        7,
-    height:       7,
-    borderRadius: 3.5,
-  },
-
-  // ── Bottom
-  bottomPanel: {
-    position:          "absolute",
-    bottom:            0,
-    left:              0,
-    right:             0,
-    alignItems:        "center",
-    paddingHorizontal: 24,
-    gap:               16,
-    zIndex:            20,
-  },
-  statusLabel: {
-    fontSize:      9,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(90,178,255,0.72)",
-    letterSpacing: 3.8,
-    textTransform: "uppercase",
-  },
-
-  // Waveform — 7 bars, no decorative dots
-  waveRow: {
-    flexDirection: "row",
-    alignItems:    "flex-end",
-    justifyContent: "center",
-    gap:           4,
-    height:        28,
-  },
-  waveBar: {
-    width:           3,
-    borderRadius:    1.5,
-    backgroundColor: "rgba(148,208,255,0.55)",
-  },
-
-  // Tabs
-  tabRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    width:             "100%",
-    paddingHorizontal: 16,
-  },
-  tabItem: {
-    alignItems: "center",
-    gap:        5,
-    minWidth:   72,
-  },
-  tabLabel: {
-    fontSize:      9,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.34)",
-    letterSpacing: 0.5,
-  },
-  micBtn: {
-    width:          56,
-    height:         56,
-    borderRadius:   28,
+  headerBtn: {
+    width:          38,
+    height:         38,
+    borderRadius:   19,
     alignItems:     "center",
     justifyContent: "center",
-    shadowColor:    "#1a50cc",
-    shadowOffset:   { width: 0, height: 6 },
-    shadowOpacity:  0.50,
-    shadowRadius:   18,
-    elevation:      10,
-    borderWidth:    StyleSheet.hairlineWidth,
-    borderColor:    "rgba(100,165,255,0.28)",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 1 },
+    shadowOpacity:  0.05,
+    shadowRadius:   4,
+    elevation:      2,
+  },
+  brandRow: {
+    alignItems: "center",
+    gap:        4,
+  },
+  brandName: {
+    fontSize:      17,
+    fontFamily:    "Inter_700Bold",
+    letterSpacing: -0.4,
+  },
+  onlineBadge: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           4,
+  },
+  onlineDot: {
+    width:           5,
+    height:          5,
+    borderRadius:    2.5,
+    backgroundColor: "#22c55e",
+  },
+  onlineLabel: {
+    fontSize:      10,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: 0.2,
+  },
+
+  // ── Body scroll
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop:        28,
+  },
+
+  // ── Greeting
+  greetingBlock: {
+    marginBottom: 22,
+    gap:          5,
+  },
+  greeting: {
+    fontSize:      27,
+    fontFamily:    "Inter_700Bold",
+    letterSpacing: -0.6,
+  },
+  greetingSub: {
+    fontSize:      15,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: 0.1,
+    lineHeight:    22,
+  },
+
+  // ── Input card
+  inputCard: {
+    borderRadius:      20,
+    paddingHorizontal: 16,
+    paddingTop:        14,
+    paddingBottom:     10,
+    marginBottom:      30,
+    gap:               10,
+    shadowColor:       "#000",
+    shadowOffset:      { width: 0, height: 4 },
+    shadowOpacity:     0.07,
+    shadowRadius:      16,
+    elevation:         4,
+  },
+  textInput: {
+    fontSize:    15,
+    fontFamily:  "Inter_400Regular",
+    minHeight:   48,
+    maxHeight:   100,
+    lineHeight:  22,
+    paddingTop:  0,
+    paddingBottom: 0,
+  },
+  inputActions: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "flex-end",
+    gap:            6,
+  },
+  iconBtn: {
+    width:          34,
+    height:         34,
+    borderRadius:   17,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  sendBtn: {
+    width:          38,
+    height:         38,
+    borderRadius:   19,
+    alignItems:     "center",
+    justifyContent: "center",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.10,
+    shadowRadius:   6,
+    elevation:      3,
+  },
+
+  // ── Section labels
+  sectionLabel: {
+    fontSize:      10,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: 1.5,
+    marginBottom:  12,
+  },
+
+  // ── Suggestion cards
+  suggestionsGrid: {
+    gap:          10,
+    marginBottom: 30,
+  },
+  suggestionCard: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    borderRadius:      16,
+    paddingVertical:   14,
+    paddingHorizontal: 14,
+    gap:               12,
+    shadowColor:       "#000",
+    shadowOffset:      { width: 0, height: 2 },
+    shadowOpacity:     0.05,
+    shadowRadius:      8,
+    elevation:         2,
+  },
+  suggestionIcon: {
+    width:          36,
+    height:         36,
+    borderRadius:   11,
+    alignItems:     "center",
+    justifyContent: "center",
+    flexShrink:     0,
+  },
+  suggestionText: {
+    flex: 1,
+    gap:  2,
+  },
+  suggestionLabel: {
+    fontSize:      14,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.1,
+  },
+  suggestionSub: {
+    fontSize:   12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 16,
+  },
+
+  // ── Quick actions
+  quickRow: {
+    flexDirection: "row",
+    gap:           10,
+  },
+  quickBtn: {
+    flex:           1,
+    flexDirection:  "column",
+    alignItems:     "center",
+    justifyContent: "center",
+    gap:            6,
+    paddingVertical: 16,
+    borderRadius:   16,
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.05,
+    shadowRadius:   8,
+    elevation:      2,
+  },
+  quickBtnVoice: {
+    flex:            1.5,
+    backgroundColor: "#1848C5",
+    shadowColor:     "#1848C5",
+    shadowOpacity:   0.30,
+    shadowRadius:    14,
+    elevation:       6,
+  },
+  quickLabel: {
+    fontSize:   12,
+    fontFamily: "Inter_500Medium",
+  },
+  quickLabelVoice: {
+    color:      "#fff",
+    fontFamily: "Inter_600SemiBold",
   },
 });
