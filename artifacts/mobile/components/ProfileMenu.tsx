@@ -50,16 +50,13 @@ interface ProfileMenuProps {
 // ─── Menu sections ────────────────────────────────────────────────────────────
 const SECTIONS = [
   [
-    { icon: "user",     label: "Profil" },
-    { icon: "cpu",      label: "Hafıza" },
-    { icon: "mic",      label: "Voice Mode",   action: "voice" },
+    { icon: "user",     label: "Profil",     action: "profile" },
+    { icon: "cpu",      label: "Hafıza",     action: "" },
+    { icon: "mic",      label: "Voice Mode", action: "voice" },
   ],
   [
-    { icon: "sun",      label: "Görünüm" },
-    { icon: "globe",    label: "Dil" },
-    { icon: "bell",     label: "Bildirimler" },
-    { icon: "lock",     label: "Gizlilik" },
-    { icon: "settings", label: "Ayarlar" },
+    { icon: "star",     label: "Premium",    action: "" },
+    { icon: "settings", label: "Ayarlar",    action: "" },
   ],
 ];
 
@@ -92,9 +89,8 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
   const handleItem = (action?: string) => {
     Haptics.selectionAsync();
     onClose();
-    if (action === "voice") {
-      setTimeout(() => router.push("/voice"), 300);
-    }
+    if (action === "voice")   setTimeout(() => router.push("/voice"),   300);
+    if (action === "profile") setTimeout(() => router.push("/profile"), 300);
   };
 
   return (

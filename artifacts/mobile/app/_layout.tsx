@@ -25,8 +25,9 @@ function RootLayoutNav() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="chat" options={{ headerShown: false, animation: "slide_from_bottom" }} />
-      <Stack.Screen name="voice" options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
+      <Stack.Screen name="chat"    options={{ headerShown: false, animation: "slide_from_bottom" }} />
+      <Stack.Screen name="voice"   options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
+      <Stack.Screen name="profile" options={{ headerShown: false, animation: "slide_from_bottom" }} />
     </Stack>
   );
 }
