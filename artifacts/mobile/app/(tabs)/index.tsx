@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Sidebar from "@/components/Sidebar";
+import ProfileMenu from "@/components/ProfileMenu";
 import { useChat } from "@/context/ChatContext";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
@@ -27,8 +28,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { startNewConversation, sendMessage } = useChat();
 
-  const [inputText, setInputText] = useState("");
-  const [sidebar, setSidebar]     = useState(false);
+  const [inputText, setInputText]       = useState("");
+  const [sidebar, setSidebar]           = useState(false);
+  const [profileMenu, setProfileMenu]   = useState(false);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 36 : insets.bottom;
@@ -67,10 +69,13 @@ export default function HomeScreen() {
         {/* Center — brand title */}
         <Text style={styles.topTitle}>C E B İ N D E K İ  A K I L</Text>
 
-        {/* Right — avatar */}
+        {/* Right — avatar → opens ProfileMenu */}
         <TouchableOpacity
           style={styles.avatarWrap}
-          onPress={() => router.push("/chat")}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setProfileMenu(true);
+          }}
           hitSlop={14}
           activeOpacity={0.80}
         >
@@ -159,7 +164,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Sidebar visible={sidebar} onClose={() => setSidebar(false)} />
+      <Sidebar      visible={sidebar}      onClose={() => setSidebar(false)} />
+      <ProfileMenu  visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>
   );
 }
