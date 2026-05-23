@@ -49,43 +49,43 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Silk waves ────────────────────────────────────────────────── */}
+      {/* ── Silk lines ────────────────────────────────────────────────── */}
       <Svg
         style={StyleSheet.absoluteFillObject}
         viewBox="0 0 390 845"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* ── Right-edge S-curve — starts just below top buttons ── */}
+        {/* Right-edge S-curve — from just below top buttons, graceful S */}
         <Path
-          d="M 382,152 C 372,192 362,236 368,278 C 374,320 382,352 374,392"
-          stroke="#FFFFFF" strokeWidth="1.1" fill="none" opacity="0.75"
+          d="M 388,168 C 378,210 360,250 362,292 C 364,334 376,364 370,402"
+          stroke="#FFFFFF" strokeWidth="1.0" fill="none" opacity="0.80"
         />
 
-        {/* ── Left-edge whisper — mirrors right, much softer ── */}
+        {/* Left-edge whisper — faint counter-curve */}
         <Path
-          d="M 8,620 C 16,594 28,566 30,538 C 32,510 24,488 28,462"
-          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.42"
+          d="M 2,636 C 14,610 24,582 26,554 C 28,526 20,502 24,476"
+          stroke="#FFFFFF" strokeWidth="0.65" fill="none" opacity="0.38"
         />
 
-        {/* ── Ribbon 1 — primary wave, gently undulating horizontal ── */}
+        {/* Ribbon 1 — first wave, 16px band, sits at ~y=650 centre */}
         <Path
-          d="M -20,692 C 55,658 160,644 278,662 C 396,680 450,722 560,706
-             L 560,730 C 450,746 396,704 278,686 C 160,668 55,682 -20,716 Z"
-          fill="#FFFFFF" opacity="0.52"
+          d="M -20,666 C 60,636 168,624 288,640 C 408,656 462,694 560,678
+             L 560,694 C 462,710 408,672 288,656 C 168,640 60,652 -20,682 Z"
+          fill="#FFFFFF" opacity="0.50"
         />
 
-        {/* ── Ribbon 2 — second layer, slightly lower ── */}
+        {/* Ribbon 2 — second wave, 14px band, ~y=708 centre */}
         <Path
-          d="M -20,738 C 65,708 172,696 292,712 C 412,728 465,766 570,750
-             L 570,774 C 465,790 412,752 292,736 C 172,720 65,732 -20,762 Z"
-          fill="#FFFFFF" opacity="0.40"
+          d="M -20,712 C 66,684 172,672 294,688 C 416,704 468,740 568,724
+             L 568,738 C 468,754 416,718 294,702 C 172,686 66,698 -20,726 Z"
+          fill="#FFFFFF" opacity="0.38"
         />
 
-        {/* ── Ribbon 3 — lowest, merges into bottom edge ── */}
+        {/* Ribbon 3 — lowest, fills bottom corner */}
         <Path
-          d="M -20,784 C 70,760 178,748 298,762 C 418,776 472,808 580,792
-             L 580,845 L -20,845 Z"
-          fill="#FFFFFF" opacity="0.30"
+          d="M -20,756 C 68,732 176,720 300,734 C 424,748 476,778 576,762
+             L 576,845 L -20,845 Z"
+          fill="#FFFFFF" opacity="0.26"
         />
       </Svg>
 
