@@ -17,8 +17,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Svg, { Path } from "react-native-svg";
-
 import Sidebar from "@/components/Sidebar";
 import { useChat } from "@/context/ChatContext";
 
@@ -49,45 +47,10 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      {/* ── Hairline silk accents ─────────────────────────────────────── */}
-      <Svg
-        style={StyleSheet.absoluteFillObject}
-        viewBox="0 0 390 845"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        {/* Right-edge S — hugs the right, starts below top buttons */}
-        <Path
-          d="M 390,172 C 378,214 362,256 364,298 C 366,340 378,368 372,408"
-          stroke="#FFFFFF" strokeWidth="0.9" fill="none" opacity="0.60"
-        />
-
-        {/* Bottom sweep 1 — thin arc from left edge, lower third */}
-        <Path
-          d="M -10,668 C 72,638 176,626 296,642 C 416,658 468,696 560,680"
-          stroke="#FFFFFF" strokeWidth="0.8" fill="none" opacity="0.45"
-        />
-
-        {/* Bottom sweep 2 — slightly below, softer */}
-        <Path
-          d="M -10,710 C 76,682 178,670 300,686 C 422,702 472,736 565,720"
-          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.32"
-        />
-
-        {/* Bottom sweep 3 — lowest, barely there */}
-        <Path
-          d="M -10,750 C 80,726 182,714 306,728 C 430,742 480,772 568,758"
-          stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.22"
-        />
-
-        {/* Left-edge whisper — faint counter-accent */}
-        <Path
-          d="M 0,648 C 14,620 26,590 28,560 C 30,530 22,506 26,480"
-          stroke="#FFFFFF" strokeWidth="0.6" fill="none" opacity="0.30"
-        />
-      </Svg>
-
       {/* ── Top bar ───────────────────────────────────────────────────── */}
       <View style={[styles.topBar, { paddingTop: topPad + 14 }]}>
+
+        {/* Left — menu */}
         <TouchableOpacity
           style={styles.circleBtn}
           onPress={() => {
@@ -100,6 +63,10 @@ export default function HomeScreen() {
           <Feather name="menu" size={16} color="#1C1C1E" />
         </TouchableOpacity>
 
+        {/* Center — brand title */}
+        <Text style={styles.topTitle}>C E B İ N D E K İ  A K I L</Text>
+
+        {/* Right — profile */}
         <TouchableOpacity
           style={styles.circleBtn}
           onPress={() => router.push("/chat")}
@@ -108,31 +75,24 @@ export default function HomeScreen() {
         >
           <Feather name="user" size={16} color="#1C1C1E" />
         </TouchableOpacity>
+
       </View>
 
       {/* ── Center ────────────────────────────────────────────────────── */}
       <View style={styles.center}>
 
-        {/* Embossed logo circle */}
-        <View style={styles.logoCircleOuter}>
-          <View style={styles.logoCircleInner}>
-            <Image
-              source={leafLogo}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
+        {/* Logo — bare on background, no circle */}
+        <Image
+          source={leafLogo}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
 
         {/* Wordmark */}
         <Text style={styles.wordmark}>A K I L C E P</Text>
 
-        {/* Tagline */}
-        <View style={styles.taglineRow}>
-          <View style={styles.taglineLine} />
-          <Text style={styles.tagline}>cebindeki akıl</Text>
-          <View style={styles.taglineLine} />
-        </View>
+        {/* Subtitle */}
+        <Text style={styles.subtitle}>size nasıl yardımcı olabilirim?</Text>
 
       </View>
 
@@ -157,7 +117,7 @@ export default function HomeScreen() {
           {/* Text field */}
           <TextInput
             style={styles.textInput}
-            placeholder="Cepe sor"
+            placeholder="AkılCEPE yanıt ver"
             placeholderTextColor="#AEAEB2"
             value={inputText}
             onChangeText={setInputText}
@@ -219,22 +179,30 @@ const styles = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     zIndex:            20,
   },
+
+  topTitle: {
+    fontSize:      10,
+    fontFamily:    "Inter_400Regular",
+    color:         "#1C1C1E",
+    letterSpacing: 2.2,
+    textAlign:     "center",
+    flexShrink:    1,
+  },
+
   circleBtn: {
-    width:           42,
-    height:          42,
-    borderRadius:    21,
-    backgroundColor: "rgba(255,255,255,0.88)",
+    width:           44,
+    height:          44,
+    borderRadius:    22,
+    backgroundColor: "rgba(255,255,255,0.90)",
     alignItems:      "center",
     justifyContent:  "center",
-    // iOS shadow
     shadowColor:     "#9A9A9A",
     shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.22,
+    shadowOpacity:   0.18,
     shadowRadius:    8,
-    // Android
     elevation:       4,
   },
 
@@ -243,67 +211,29 @@ const styles = StyleSheet.create({
     flex:           1,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            18,
+    gap:            16,
   },
 
-  // Outer ring — very light border for depth
-  logoCircleOuter: {
-    width:           204,
-    height:          204,
-    borderRadius:    102,
-    backgroundColor: "#ECECEC",
-    alignItems:      "center",
-    justifyContent:  "center",
-    shadowColor:     "#A0A0A0",
-    shadowOffset:    { width: 8, height: 12 },
-    shadowOpacity:   0.40,
-    shadowRadius:    28,
-    elevation:       14,
-    marginBottom:    10,
-  },
-  // Inner circle — slightly lighter for emboss effect
-  logoCircleInner: {
-    width:           188,
-    height:          188,
-    borderRadius:    94,
-    backgroundColor: "#F2F2F2",
-    alignItems:      "center",
-    justifyContent:  "center",
-    shadowColor:     "#FFFFFF",
-    shadowOffset:    { width: -5, height: -5 },
-    shadowOpacity:   0.90,
-    shadowRadius:    8,
-    elevation:       0,
-  },
   logoImage: {
-    width:  116,
-    height: 116,
+    width:        152,
+    height:       152,
+    marginBottom: 8,
   },
 
-  // Wordmark
   wordmark: {
-    fontSize:      17,
+    fontSize:      18,
     fontFamily:    "Inter_400Regular",
     color:         "#1C1C1E",
     letterSpacing: 8,
   },
 
-  // Tagline
-  taglineRow: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           10,
-  },
-  taglineLine: {
-    width:           24,
-    height:          StyleSheet.hairlineWidth,
-    backgroundColor: "#AEAEB2",
-  },
-  tagline: {
-    fontSize:      11,
+  subtitle: {
+    fontSize:      13,
     fontFamily:    "Inter_400Regular",
     color:         "#AEAEB2",
-    letterSpacing: 2.8,
+    letterSpacing: 0.8,
+    textAlign:     "center",
+    marginTop:     2,
   },
 
   // ── Input bar
@@ -318,17 +248,16 @@ const styles = StyleSheet.create({
     paddingVertical:   8,
     paddingHorizontal: 8,
     gap:               2,
-    // Premium depth shadow
     shadowColor:       "#000000",
-    shadowOffset:      { width: 0, height: 8 },
-    shadowOpacity:     0.09,
-    shadowRadius:      28,
-    elevation:         10,
+    shadowOffset:      { width: 0, height: 6 },
+    shadowOpacity:     0.08,
+    shadowRadius:      24,
+    elevation:         9,
   },
   inputIconBtn: {
-    width:          40,
-    height:         40,
-    borderRadius:   20,
+    width:          42,
+    height:         42,
+    borderRadius:   21,
     alignItems:     "center",
     justifyContent: "center",
   },
