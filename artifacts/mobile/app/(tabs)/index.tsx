@@ -55,40 +55,37 @@ export default function HomeScreen() {
         viewBox="0 0 390 845"
         preserveAspectRatio="xMidYMid slice"
       >
-        {/* ── Broad ribbon wave 1 — main sweep, lower third ── */}
+        {/* ── Right-edge S-curve — starts just below top buttons ── */}
         <Path
-          d="M -20,698 C 70,660 185,648 295,672 C 405,696 468,742 560,724
-             L 560,750 C 468,768 405,722 295,698 C 185,674 70,686 -20,724 Z"
-          fill="#FFFFFF" opacity="0.48"
-        />
-        {/* ── Broad ribbon wave 2 — slightly below, wider ── */}
-        <Path
-          d="M -20,748 C 85,716 195,702 308,724 C 421,746 480,788 570,770
-             L 570,796 C 480,814 421,772 308,750 C 195,728 85,742 -20,774 Z"
-          fill="#FFFFFF" opacity="0.38"
-        />
-        {/* ── Broad ribbon wave 3 — lowest, anchors bottom ── */}
-        <Path
-          d="M -20,800 C 75,775 185,762 305,780 C 425,798 490,828 575,812
-             L 575,845 L -20,845 Z"
-          fill="#FFFFFF" opacity="0.30"
+          d="M 382,152 C 372,192 362,236 368,278 C 374,320 382,352 374,392"
+          stroke="#FFFFFF" strokeWidth="1.1" fill="none" opacity="0.75"
         />
 
-        {/* ── Thin whisper lines — edge accents ── */}
-        {/* Right edge, mid-screen — single elegant S */}
+        {/* ── Left-edge whisper — mirrors right, much softer ── */}
         <Path
-          d="M 390,148 C 370,188 365,232 375,276 C 385,320 390,348 378,385"
-          stroke="#FFFFFF" strokeWidth="1.2" fill="none" opacity="0.72"
+          d="M 8,620 C 16,594 28,566 30,538 C 32,510 24,488 28,462"
+          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.42"
         />
-        {/* Right edge, lower — parallels the ribbons */}
+
+        {/* ── Ribbon 1 — primary wave, gently undulating horizontal ── */}
         <Path
-          d="M 390,520 C 368,554 348,592 336,638 C 324,684 326,718 320,748"
-          stroke="#FFFFFF" strokeWidth="0.8" fill="none" opacity="0.55"
+          d="M -20,692 C 55,658 160,644 278,662 C 396,680 450,722 560,706
+             L 560,730 C 450,746 396,704 278,686 C 160,668 55,682 -20,716 Z"
+          fill="#FFFFFF" opacity="0.52"
         />
-        {/* Left edge whisper */}
+
+        {/* ── Ribbon 2 — second layer, slightly lower ── */}
         <Path
-          d="M 0,680 C 22,660 40,638 48,612 C 56,586 52,562 58,540"
-          stroke="#FFFFFF" strokeWidth="0.7" fill="none" opacity="0.45"
+          d="M -20,738 C 65,708 172,696 292,712 C 412,728 465,766 570,750
+             L 570,774 C 465,790 412,752 292,736 C 172,720 65,732 -20,762 Z"
+          fill="#FFFFFF" opacity="0.40"
+        />
+
+        {/* ── Ribbon 3 — lowest, merges into bottom edge ── */}
+        <Path
+          d="M -20,784 C 70,760 178,748 298,762 C 418,776 472,808 580,792
+             L 580,845 L -20,845 Z"
+          fill="#FFFFFF" opacity="0.30"
         />
       </Svg>
 
@@ -213,7 +210,7 @@ const styles = StyleSheet.create({
 
   root: {
     flex:            1,
-    backgroundColor: "#E9E9EB",
+    backgroundColor: "#EBEBEC",
   },
 
   // ── Top bar
