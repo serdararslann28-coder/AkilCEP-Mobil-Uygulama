@@ -12,7 +12,6 @@ import {
   Image,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -37,15 +36,12 @@ type VoiceState = "idle" | "listening" | "speaking";
 export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 48 : insets.bottom;
-
   const [state, setState] = React.useState<VoiceState>("listening");
 
   // ── Entrance values ──
   const topOpacity  = useSharedValue(0);
   const logoOpacity = useSharedValue(0);
   const logoScale   = useSharedValue(0.82);
-  const btmOpacity  = useSharedValue(0);
 
   // ── Ongoing breath ──
   const breathScale = useSharedValue(1);
@@ -54,14 +50,9 @@ export default function VoiceScreen() {
   const glowOpacity = useSharedValue(0.14);
   const glowScale   = useSharedValue(1);
 
-  // ── Label cross-fade ──
-  const labelA = useSharedValue(1);
-
-  // Entrance sequence — top & bottom appear immediately,
-  // logo waits for canvas formationDone callback
+  // Entrance sequence — top bar appears, logo waits for canvas formationDone
   useEffect(() => {
     topOpacity.value = withDelay(300, withTiming(1, { duration: 700 }));
-    btmOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
 
     // Start breathing loop (runs quietly, logo invisible at first)
     const t = setTimeout(() => {
@@ -91,33 +82,22 @@ export default function VoiceScreen() {
     glowScale.value   = withTiming(sc, { duration: 650, easing: Easing.out(Easing.ease) });
   }, [state]);
 
-  // Auto conversation loop — always listening, AI responds naturally
+  // Auto conversation loop — drives glow + canvas energy, no text
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
 
-    function crossFade(next: VoiceState) {
-      labelA.value = withSequence(
-        withTiming(0, { duration: 200 }),
-        withTiming(1, { duration: 450, easing: Easing.out(Easing.ease) })
-      );
-      setState(next);
-    }
-
     function scheduleSpeak() {
-      // AI responds after 4–7 s of "listening"
       const listenFor = 4000 + Math.random() * 3000;
       timer = setTimeout(() => {
-        crossFade("speaking");
-        // AI speaks for 2.5–5 s then goes back to listening
+        setState("speaking");
         const speakFor = 2500 + Math.random() * 2500;
         timer = setTimeout(() => {
-          crossFade("listening");
+          setState("listening");
           scheduleSpeak();
         }, speakFor);
       }, listenFor);
     }
 
-    // Start loop after logo formation (~7 s)
     timer = setTimeout(scheduleSpeak, 7500);
     return () => clearTimeout(timer);
   }, []);
@@ -131,16 +111,7 @@ export default function VoiceScreen() {
     opacity:   glowOpacity.value,
     transform: [{ scale: glowScale.value }],
   }));
-  const topStyle   = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
-  const btmStyle   = useAnimatedStyle(() => ({ opacity: btmOpacity.value }));
-  const labelStyle = useAnimatedStyle(() => ({ opacity: labelA.value }));
-
-  const statusLabel = state === "speaking" ? "Yanıt veriyorum..." : "Dinliyorum...";
-
-  const statusSub =
-    state === "speaking"
-      ? "AkılCEP sana yanıt üretiyor."
-      : "Seni duyuyorum, konuşabilirsin.";
+  const topStyle = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
 
   return (
     <View style={ss.root}>
@@ -184,17 +155,6 @@ export default function VoiceScreen() {
           />
         </Animated.View>
       </View>
-
-      {/* ── Status text ── */}
-      <Animated.View
-        style={[ss.bottomBlock, { paddingBottom: btmPad + 40 }, btmStyle]}
-        pointerEvents="none"
-      >
-        <Animated.View style={[ss.labelWrap, labelStyle]}>
-          <Text style={ss.label}>{statusLabel}</Text>
-          {statusSub ? <Text style={ss.sub}>{statusSub}</Text> : null}
-        </Animated.View>
-      </Animated.View>
 
     </View>
   );
@@ -252,31 +212,6 @@ const ss = StyleSheet.create({
     width:     LOGO_SIZE,
     height:    LOGO_SIZE,
     tintColor: "#FFFFFF",
-  },
-
-  // ── Bottom
-  bottomBlock: {
-    position:   "absolute",
-    bottom: 0, left: 0, right: 0,
-    zIndex:     20,
-    alignItems: "center",
-    gap:        16,
-  },
-  labelWrap: {
-    alignItems: "center",
-    gap:        9,
-  },
-  label: {
-    fontSize:      20,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.4,
-    color:         "rgba(255,255,255,0.78)",
-  },
-  sub: {
-    fontSize:      12,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.2,
-    color:         "rgba(255,255,255,0.24)",
   },
 
 });
