@@ -11,7 +11,6 @@ import {
   Dimensions,
   Image,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -86,23 +85,42 @@ export default function VoiceScreen() {
 
   // State-driven glow
   useEffect(() => {
-    const op = state === "speaking" ? 0.82 : state === "listening" ? 0.44 : 0.14;
-    const sc = state === "speaking" ? 1.22 : state === "listening" ? 1.06 : 0.94;
+    const op = state === "speaking" ? 0.82 : 0.44;
+    const sc = state === "speaking" ? 1.22 : 1.06;
     glowOpacity.value = withTiming(op, { duration: 650, easing: Easing.out(Easing.ease) });
     glowScale.value   = withTiming(sc, { duration: 650, easing: Easing.out(Easing.ease) });
   }, [state]);
 
-  const handleTap = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    labelA.value = withSequence(
-      withTiming(0, { duration: 150 }),
-      withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
-    );
-    setState(s =>
-      s === "idle"      ? "listening" :
-      s === "listening" ? "speaking"  : "idle"
-    );
-  };
+  // Auto conversation loop — always listening, AI responds naturally
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    function crossFade(next: VoiceState) {
+      labelA.value = withSequence(
+        withTiming(0, { duration: 200 }),
+        withTiming(1, { duration: 450, easing: Easing.out(Easing.ease) })
+      );
+      setState(next);
+    }
+
+    function scheduleSpeak() {
+      // AI responds after 4–7 s of "listening"
+      const listenFor = 4000 + Math.random() * 3000;
+      timer = setTimeout(() => {
+        crossFade("speaking");
+        // AI speaks for 2.5–5 s then goes back to listening
+        const speakFor = 2500 + Math.random() * 2500;
+        timer = setTimeout(() => {
+          crossFade("listening");
+          scheduleSpeak();
+        }, speakFor);
+      }, listenFor);
+    }
+
+    // Start loop after logo formation (~7 s)
+    timer = setTimeout(scheduleSpeak, 7500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ── Animated styles ──
   const logoContainerStyle = useAnimatedStyle(() => ({
@@ -117,22 +135,18 @@ export default function VoiceScreen() {
   const btmStyle   = useAnimatedStyle(() => ({ opacity: btmOpacity.value }));
   const labelStyle = useAnimatedStyle(() => ({ opacity: labelA.value }));
 
-  const statusLabel =
-    state === "listening" ? "Dinliyorum..."      :
-    state === "speaking"  ? "Yanıt veriyorum..." : "Hazır";
+  const statusLabel = state === "speaking" ? "Yanıt veriyorum..." : "Dinliyorum...";
 
   const statusSub =
-    state === "listening" ? "Net ve anlaşılır konuşabilirsin."  :
-    state === "speaking"  ? "AkılCEP sana yanıt üretiyor."      : "";
+    state === "speaking"
+      ? "AkılCEP sana yanıt üretiyor."
+      : "Seni duyuyorum, konuşabilirsin.";
 
   return (
     <View style={ss.root}>
 
       {/* ── Particle canvas — full-screen behind everything ── */}
       <VoiceCanvas voiceState={state} onFormationDone={handleFormationDone} />
-
-      {/* ── Tap surface ── */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleTap} />
 
       {/* ── Top bar ── */}
       <Animated.View
