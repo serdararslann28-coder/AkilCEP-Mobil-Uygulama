@@ -34,49 +34,6 @@ import VoiceCanvas from "@/components/VoiceCanvas";
 const { width: W, height: H } = Dimensions.get("window");
 type VoiceState = "idle" | "listening" | "speaking";
 
-// ─── Waveform bar ─────────────────────────────────────────────────────────────
-const N_BARS = 13;
-
-function WaveBar({ index, state }: { index: number; state: VoiceState }) {
-  const h = useSharedValue(2);
-
-  useEffect(() => {
-    if (state === "idle") {
-      h.value = withTiming(2, { duration: 600 });
-      return;
-    }
-    const maxH = state === "speaking" ? 32 : 20;
-    const dur  = state === "speaking"
-      ? 190 + (index % 5) * 42
-      : 380 + (index % 7) * 50;
-    const stagger = (index * 89) % 260;
-
-    h.value = withDelay(
-      stagger,
-      withRepeat(
-        withSequence(
-          withTiming(maxH * (0.4 + (index * 37 % 100) / 165), {
-            duration: dur,
-            easing: Easing.inOut(Easing.sin),
-          }),
-          withTiming(maxH * (0.08 + (index * 23 % 100) / 280), {
-            duration: dur * 0.85,
-            easing: Easing.inOut(Easing.sin),
-          }),
-        ),
-        -1, true
-      )
-    );
-  }, [state]);
-
-  const style = useAnimatedStyle(() => ({
-    height:  h.value,
-    opacity: state === "idle" ? 0.09 : state === "speaking" ? 0.62 : 0.38,
-  }));
-
-  return <Animated.View style={[ss.bar, style]} />;
-}
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
@@ -214,7 +171,7 @@ export default function VoiceScreen() {
         </Animated.View>
       </View>
 
-      {/* ── Status text + waveform ── */}
+      {/* ── Status text ── */}
       <Animated.View
         style={[ss.bottomBlock, { paddingBottom: btmPad + 40 }, btmStyle]}
         pointerEvents="none"
@@ -223,12 +180,6 @@ export default function VoiceScreen() {
           <Text style={ss.label}>{statusLabel}</Text>
           {statusSub ? <Text style={ss.sub}>{statusSub}</Text> : null}
         </Animated.View>
-
-        <View style={ss.waveform}>
-          {Array.from({ length: N_BARS }, (_, i) => (
-            <WaveBar key={i} index={i} state={state} />
-          ))}
-        </View>
       </Animated.View>
 
     </View>
@@ -312,20 +263,6 @@ const ss = StyleSheet.create({
     fontFamily:    "Inter_400Regular",
     letterSpacing: 0.2,
     color:         "rgba(255,255,255,0.24)",
-  },
-
-  // ── Waveform
-  waveform: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           4.5,
-    height:        42,
-  },
-  bar: {
-    width:           2.5,
-    borderRadius:    2,
-    backgroundColor: "#FFFFFF",
-    alignSelf:       "center",
   },
 
 });
