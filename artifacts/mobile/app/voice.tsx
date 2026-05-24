@@ -1,11 +1,12 @@
 /**
  * Voice Mode — living AI consciousness.
- * VoiceCanvas handles all particles/energy. RN layer: logo, text, waveform.
+ * VoiceCanvas owns particles + formation.
+ * Logo materialises exactly when particles reach their targets.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   Dimensions,
   Image,
@@ -33,39 +34,47 @@ import VoiceCanvas from "@/components/VoiceCanvas";
 const { width: W, height: H } = Dimensions.get("window");
 type VoiceState = "idle" | "listening" | "speaking";
 
-// ─── Single waveform bar ──────────────────────────────────────────────────────
-const BAR_COUNT = 13;
+// ─── Waveform bar ─────────────────────────────────────────────────────────────
+const N_BARS = 13;
 
 function WaveBar({ index, state }: { index: number; state: VoiceState }) {
-  const h = useSharedValue(2.5);
+  const h = useSharedValue(2);
 
   useEffect(() => {
     if (state === "idle") {
-      h.value = withTiming(2.5, { duration: 700 });
+      h.value = withTiming(2, { duration: 600 });
       return;
     }
-    const maxH  = state === "speaking" ? 34 : 22;
-    const dur   = state === "speaking"
-      ? 200 + (index % 5) * 44
-      : 360 + (index % 7) * 52;
-    // Each bar gets a unique offset so they don't move in sync
-    const delay = (index * 97) % 280;
+    const maxH = state === "speaking" ? 32 : 20;
+    const dur  = state === "speaking"
+      ? 190 + (index % 5) * 42
+      : 380 + (index % 7) * 50;
+    const stagger = (index * 89) % 260;
 
-    h.value = withDelay(delay, withRepeat(
-      withSequence(
-        withTiming(maxH * (0.35 + ((index * 31) % 100) / 150), { duration: dur,       easing: Easing.inOut(Easing.sin) }),
-        withTiming(maxH * (0.10 + ((index * 17) % 100) / 300), { duration: dur * 0.9, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1, true
-    ));
+    h.value = withDelay(
+      stagger,
+      withRepeat(
+        withSequence(
+          withTiming(maxH * (0.4 + (index * 37 % 100) / 165), {
+            duration: dur,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(maxH * (0.08 + (index * 23 % 100) / 280), {
+            duration: dur * 0.85,
+            easing: Easing.inOut(Easing.sin),
+          }),
+        ),
+        -1, true
+      )
+    );
   }, [state]);
 
   const style = useAnimatedStyle(() => ({
     height:  h.value,
-    opacity: state === "idle" ? 0.10 : state === "speaking" ? 0.60 : 0.40,
+    opacity: state === "idle" ? 0.09 : state === "speaking" ? 0.62 : 0.38,
   }));
 
-  return <Animated.View style={[styles.bar, style]} />;
+  return <Animated.View style={[ss.bar, style]} />;
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -76,64 +85,66 @@ export default function VoiceScreen() {
 
   const [state, setState] = React.useState<VoiceState>("listening");
 
-  // ── Opening entrance ──
-  const logoOpacity = useSharedValue(0);
-  const logoScale   = useSharedValue(0.55);
-  const logoBlur    = useSharedValue(10);   // simulated via opacity
-  const textOpacity = useSharedValue(0);
+  // ── Entrance values ──
   const topOpacity  = useSharedValue(0);
+  const logoOpacity = useSharedValue(0);
+  const logoScale   = useSharedValue(0.82);
+  const btmOpacity  = useSharedValue(0);
 
-  // ── Ongoing breathing ──
+  // ── Ongoing breath ──
   const breathScale = useSharedValue(1);
 
-  // ── State-driven glow ──
-  const glowOpacity = useSharedValue(0.18);
+  // ── State-driven glow behind logo ──
+  const glowOpacity = useSharedValue(0.14);
   const glowScale   = useSharedValue(1);
 
-  // ── Text cross-fade on state change ──
-  const labelOpacity = useSharedValue(1);
+  // ── Label cross-fade ──
+  const labelA = useSharedValue(1);
 
+  // Entrance sequence — top & bottom appear immediately,
+  // logo waits for canvas formationDone callback
   useEffect(() => {
-    // Entrance sequence
-    // 1. Canvas particles start immediately (inside WebView)
-    // 2. After 400ms: top buttons fade in
-    // 3. After 900ms: logo springs in
-    // 4. After 1400ms: text fades in
+    topOpacity.value = withDelay(300, withTiming(1, { duration: 700 }));
+    btmOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
 
-    topOpacity.value = withDelay(400,  withTiming(1, { duration: 600 }));
-    logoOpacity.value= withDelay(800,  withSpring(1,  { damping: 18, stiffness: 90 }));
-    logoScale.value  = withDelay(800,  withSpring(1,  { damping: 14, stiffness: 70 }));
-    textOpacity.value= withDelay(1500, withTiming(1, { duration: 700 }));
-
-    // Breathing — starts after entrance
+    // Start breathing loop (runs quietly, logo invisible at first)
     const t = setTimeout(() => {
       breathScale.value = withRepeat(
         withSequence(
-          withTiming(1.040, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
-          withTiming(1.000, { duration: 3000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1.038, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1.000, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
         ),
         -1, true
       );
-    }, 1400);
+    }, 100);
+
     return () => clearTimeout(t);
   }, []);
 
-  // State-driven glow intensity
+  // Called by canvas when particles have fully converged
+  const handleFormationDone = useCallback(() => {
+    logoOpacity.value = withSpring(1,   { damping: 22, stiffness: 60 });
+    logoScale.value   = withSpring(1.0, { damping: 18, stiffness: 55 });
+  }, []);
+
+  // State-driven glow
   useEffect(() => {
-    const targetOpacity = state === "speaking" ? 0.80 : state === "listening" ? 0.42 : 0.18;
-    const targetGlow    = state === "speaking" ? 1.20 : state === "listening" ? 1.05 : 0.90;
-    glowOpacity.value = withTiming(targetOpacity, { duration: 600, easing: Easing.out(Easing.ease) });
-    glowScale.value   = withTiming(targetGlow,    { duration: 600, easing: Easing.out(Easing.ease) });
+    const op = state === "speaking" ? 0.82 : state === "listening" ? 0.44 : 0.14;
+    const sc = state === "speaking" ? 1.22 : state === "listening" ? 1.06 : 0.94;
+    glowOpacity.value = withTiming(op, { duration: 650, easing: Easing.out(Easing.ease) });
+    glowScale.value   = withTiming(sc, { duration: 650, easing: Easing.out(Easing.ease) });
   }, [state]);
 
   const handleTap = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Cross-fade text
-    labelOpacity.value = withSequence(
-      withTiming(0, { duration: 160 }),
+    labelA.value = withSequence(
+      withTiming(0, { duration: 150 }),
       withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
     );
-    setState(s => s === "idle" ? "listening" : s === "listening" ? "speaking" : "idle");
+    setState(s =>
+      s === "idle"      ? "listening" :
+      s === "listening" ? "speaking"  : "idle"
+    );
   };
 
   // ── Animated styles ──
@@ -141,76 +152,80 @@ export default function VoiceScreen() {
     opacity:   logoOpacity.value,
     transform: [{ scale: logoScale.value * breathScale.value }],
   }));
-  const glowStyle = useAnimatedStyle(() => ({
+  const glowStyle  = useAnimatedStyle(() => ({
     opacity:   glowOpacity.value,
     transform: [{ scale: glowScale.value }],
   }));
-  const topBarStyle  = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
-  const bottomStyle  = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
-  const labelStyle   = useAnimatedStyle(() => ({ opacity: labelOpacity.value }));
+  const topStyle   = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
+  const btmStyle   = useAnimatedStyle(() => ({ opacity: btmOpacity.value }));
+  const labelStyle = useAnimatedStyle(() => ({ opacity: labelA.value }));
 
-  const statusLabel = state === "listening" ? "Dinliyorum..."
-    : state === "speaking" ? "Yanıt veriyorum..."
-    : "Hazır";
-  const statusSub = state === "listening" ? "Net ve anlaşılır konuşabilirsin."
-    : state === "speaking" ? "AkılCEP sana yanıt üretiyor."
-    : "";
+  const statusLabel =
+    state === "listening" ? "Dinliyorum..."      :
+    state === "speaking"  ? "Yanıt veriyorum..." : "Hazır";
+
+  const statusSub =
+    state === "listening" ? "Net ve anlaşılır konuşabilirsin."  :
+    state === "speaking"  ? "AkılCEP sana yanıt üretiyor."      : "";
 
   return (
-    <View style={styles.root}>
+    <View style={ss.root}>
 
-      {/* ── Full-screen canvas particle engine ── */}
-      <VoiceCanvas voiceState={state} />
+      {/* ── Particle canvas — full-screen behind everything ── */}
+      <VoiceCanvas voiceState={state} onFormationDone={handleFormationDone} />
 
-      {/* ── Full-screen tap surface ── */}
+      {/* ── Tap surface ── */}
       <Pressable style={StyleSheet.absoluteFill} onPress={handleTap} />
 
-      {/* ── Top bar (ghost buttons) ── */}
-      <Animated.View style={[styles.topBar, { paddingTop: topPad + 12 }, topBarStyle]} pointerEvents="box-none">
+      {/* ── Top bar ── */}
+      <Animated.View
+        style={[ss.topBar, { paddingTop: topPad + 14 }, topStyle]}
+        pointerEvents="box-none"
+      >
         <TouchableOpacity
-          style={styles.topBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
+          style={ss.topBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
           hitSlop={20}
           activeOpacity={0.6}
         >
-          <Feather name="chevron-left" size={17} color="rgba(255,255,255,0.45)" />
+          <Feather name="chevron-left" size={17} color="rgba(255,255,255,0.48)" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.topBtn} hitSlop={20} activeOpacity={0.6}>
+        <TouchableOpacity style={ss.topBtn} hitSlop={20} activeOpacity={0.6}>
           <Feather name="sliders" size={13} color="rgba(255,255,255,0.28)" />
         </TouchableOpacity>
       </Animated.View>
 
-      {/* ── Logo — centered ── */}
-      <View style={styles.logoArea} pointerEvents="none">
-
+      {/* ── Logo — centered, slightly above midpoint ── */}
+      <View style={ss.logoArea} pointerEvents="none">
         {/* Glow halo */}
-        <Animated.View style={[styles.glowHalo, glowStyle]} />
+        <Animated.View style={[ss.glowHalo, glowStyle]} />
 
-        {/* Logo image — large, white */}
+        {/* Logo image materialises after particle formation */}
         <Animated.View style={logoContainerStyle}>
           <Image
             source={require("@/assets/images/leaf-only-transparent.png")}
-            style={styles.logo}
+            style={ss.logo}
             resizeMode="contain"
           />
         </Animated.View>
-
       </View>
 
-      {/* ── Bottom: text + waveform ── */}
+      {/* ── Status text + waveform ── */}
       <Animated.View
-        style={[styles.bottomBlock, { paddingBottom: btmPad + 36 }, bottomStyle]}
+        style={[ss.bottomBlock, { paddingBottom: btmPad + 40 }, btmStyle]}
         pointerEvents="none"
       >
-        <Animated.View style={[styles.textWrap, labelStyle]}>
-          <Text style={styles.statusLabel}>{statusLabel}</Text>
-          {statusSub ? <Text style={styles.statusSub}>{statusSub}</Text> : null}
+        <Animated.View style={[ss.labelWrap, labelStyle]}>
+          <Text style={ss.label}>{statusLabel}</Text>
+          {statusSub ? <Text style={ss.sub}>{statusSub}</Text> : null}
         </Animated.View>
 
-        {/* Waveform */}
-        <View style={styles.waveform}>
-          {Array.from({ length: BAR_COUNT }, (_, i) => (
+        <View style={ss.waveform}>
+          {Array.from({ length: N_BARS }, (_, i) => (
             <WaveBar key={i} index={i} state={state} />
           ))}
         </View>
@@ -221,56 +236,53 @@ export default function VoiceScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const LOGO_SIZE = Math.round(W * 0.50);   // 50% of screen width — dominant
-const GLOW_SIZE = LOGO_SIZE * 2.4;
+const LOGO_SIZE = Math.round(Math.min(W, H) * 0.36);
+const GLOW_SIZE = LOGO_SIZE * 2.6;
 
-const styles = StyleSheet.create({
+const ss = StyleSheet.create({
 
   root: {
     flex:            1,
-    backgroundColor: "#020208",
+    backgroundColor: "#010108",
   },
 
   // ── Top bar
   topBar: {
     position:          "absolute",
-    top:               0, left: 0, right: 0,
+    top: 0, left: 0, right: 0,
     zIndex:            30,
     flexDirection:     "row",
     justifyContent:    "space-between",
-    paddingHorizontal: 26,
+    paddingHorizontal: 24,
   },
   topBtn: {
     width:           36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "rgba(255,255,255,0.045)",
     borderWidth:     StyleSheet.hairlineWidth,
-    borderColor:     "rgba(255,255,255,0.07)",
-    alignItems:      "center", justifyContent: "center",
+    borderColor:     "rgba(255,255,255,0.08)",
+    alignItems:      "center",
+    justifyContent:  "center",
   },
 
-  // ── Logo area — vertically centered, slightly above midpoint
+  // ── Logo area
   logoArea: {
     position:       "absolute",
-    top:            0, left: 0, right: 0, bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     alignItems:     "center",
     justifyContent: "center",
-    paddingBottom:  H * 0.18,
+    paddingBottom:  H * 0.20,
   },
-
-  // Ambient glow behind logo
   glowHalo: {
     position:        "absolute",
     width:           GLOW_SIZE,
     height:          GLOW_SIZE,
     borderRadius:    GLOW_SIZE / 2,
-    backgroundColor: "rgba(210,225,255,0.06)",
+    backgroundColor: "rgba(180,210,255,0.04)",
     shadowColor:     "#FFFFFF",
     shadowOffset:    { width: 0, height: 0 },
     shadowOpacity:   0.55,
-    shadowRadius:    LOGO_SIZE * 0.55,
+    shadowRadius:    LOGO_SIZE * 0.6,
   },
-
-  // Logo
   logo: {
     width:     LOGO_SIZE,
     height:    LOGO_SIZE,
@@ -280,22 +292,22 @@ const styles = StyleSheet.create({
   // ── Bottom
   bottomBlock: {
     position:   "absolute",
-    bottom:     0, left: 0, right: 0,
+    bottom: 0, left: 0, right: 0,
     zIndex:     20,
     alignItems: "center",
-    gap:        14,
+    gap:        16,
   },
-  textWrap: {
+  labelWrap: {
     alignItems: "center",
-    gap:        8,
+    gap:        9,
   },
-  statusLabel: {
+  label: {
     fontSize:      20,
     fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
     color:         "rgba(255,255,255,0.78)",
   },
-  statusSub: {
+  sub: {
     fontSize:      12,
     fontFamily:    "Inter_400Regular",
     letterSpacing: 0.2,
@@ -307,7 +319,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems:    "center",
     gap:           4.5,
-    height:        44,
+    height:        42,
   },
   bar: {
     width:           2.5,
