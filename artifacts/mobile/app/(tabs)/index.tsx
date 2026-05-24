@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Sidebar from "@/components/Sidebar";
+import FullscreenMenu from "@/components/FullscreenMenu";
 import ProfileMenu from "@/components/ProfileMenu";
 import { useChat } from "@/context/ChatContext";
 
@@ -164,7 +164,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Sidebar      visible={sidebar}      onClose={() => setSidebar(false)} />
+      <FullscreenMenu visible={sidebar} onClose={() => setSidebar(false)} />
       <ProfileMenu  visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>
   );
