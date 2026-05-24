@@ -136,9 +136,6 @@ export default function VoiceScreen() {
           <Feather name="chevron-left" size={17} color="rgba(255,255,255,0.48)" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={ss.topBtn} hitSlop={20} activeOpacity={0.6}>
-          <Feather name="sliders" size={13} color="rgba(255,255,255,0.28)" />
-        </TouchableOpacity>
       </Animated.View>
 
       {/* ── Logo — centered, slightly above midpoint ── */}
