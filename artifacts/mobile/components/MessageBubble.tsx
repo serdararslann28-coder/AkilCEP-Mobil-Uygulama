@@ -1,9 +1,9 @@
 /**
- * MessageBubble — floating glassmorphic chat bubbles.
- * User: smoke gray · AI: warm white · fade-up entrance · typewriter for latest AI.
+ * MessageBubble — warm neutral glassmorphic bubbles.
+ * User: soft medium gray · AI: warm gray-white · fade-up entrance · typewriter.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -15,7 +15,7 @@ import { Message } from "@/context/ChatContext";
 import { useTheme } from "@/context/ThemeContext";
 
 interface Props {
-  message:  Message;
+  message:   Message;
   isLatest?: boolean;
 }
 
@@ -27,58 +27,50 @@ export default function MessageBubble({ message, isLatest }: Props) {
   const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
-  // ── Typewriter effect for latest AI message ────────────────────────────
-  const [displayed, setDisplayed] = useState(
-    isLatest && !isUser ? "" : message.content,
-  );
-  const idxRef   = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── Typewriter for latest AI response ─────────────────────────────────
+  const [shown, setShown] = useState(isLatest && !isUser ? "" : message.content);
+  const idx   = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!isLatest || isUser) {
-      setDisplayed(message.content);
-      return;
-    }
-    idxRef.current = 0;
-    setDisplayed("");
+    if (!isLatest || isUser) { setShown(message.content); return; }
+    idx.current = 0;
+    setShown("");
     const tick = () => {
-      idxRef.current += 2;
-      if (idxRef.current <= message.content.length) {
-        setDisplayed(message.content.slice(0, idxRef.current));
-        timerRef.current = setTimeout(tick, 11);
+      idx.current += 2;
+      if (idx.current <= message.content.length) {
+        setShown(message.content.slice(0, idx.current));
+        timer.current = setTimeout(tick, 11);
       } else {
-        setDisplayed(message.content);
+        setShown(message.content);
       }
     };
-    timerRef.current = setTimeout(tick, 60);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    timer.current = setTimeout(tick, 60);
+    return () => { if (timer.current) clearTimeout(timer.current); };
   }, [message.content, isLatest, isUser]);
 
-  // ── Bubble colours ─────────────────────────────────────────────────────
-  const userBubbleBg   = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(60,60,67,0.09)";
-  const userTextClr    = T.fg;
-  const aiBubbleBg     = T.isDark ? "rgba(255,255,255,0.058)" : "rgba(255,255,255,0.92)";
-  const aiTextClr      = T.isDark ? T.fg : "#1C1C1E";
+  // ── Timestamp fades in softly ──────────────────────────────────────────
+  const tsOp  = useSharedValue(0);
+  const tsAnim = useAnimatedStyle(() => ({ opacity: tsOp.value }));
+  useEffect(() => { tsOp.value = withTiming(1, { duration: 700 }); }, []);
 
-  // ── Timestamp fade-in ──────────────────────────────────────────────────
-  const tsOpacity = useSharedValue(0);
-  useEffect(() => {
-    tsOpacity.value = withTiming(1, { duration: 600 });
-  }, []);
-  const tsStyle = useAnimatedStyle(() => ({ opacity: tsOpacity.value }));
+  // ── Bubble palette — warm neutral grays, no green ─────────────────────
+  // User: slightly darker medium gray
+  const userBg   = T.isDark ? "rgba(255,255,255,0.11)" : "rgba(80,80,80,0.11)";
+  // AI: lighter warm gray-white
+  const aiBg     = T.isDark ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.78)";
+  const aiShadow = T.isDark ? 0.03 : 0.06;
 
   if (isUser) {
     return (
       <Animated.View
         entering={FadeInDown.duration(300).springify().damping(18)}
-        style={ss.userWrapper}
+        style={ss.userWrap}
       >
-        <View style={[ss.userBubble, { backgroundColor: userBubbleBg }]}>
-          <Text style={[ss.userText, { color: userTextClr }]}>
-            {message.content}
-          </Text>
-        </View>
-        <Animated.Text style={[ss.timestamp, { color: T.zinc }, tsStyle]}>
+        <Animated.View style={[ss.userBubble, { backgroundColor: userBg }]}>
+          <Text style={[ss.userText, { color: T.fg }]}>{message.content}</Text>
+        </Animated.View>
+        <Animated.Text style={[ss.ts, { color: T.zinc, marginRight: 4 }, tsAnim]}>
           {formatTime(message.timestamp)}
         </Animated.Text>
       </Animated.View>
@@ -88,14 +80,23 @@ export default function MessageBubble({ message, isLatest }: Props) {
   return (
     <Animated.View
       entering={FadeInDown.duration(340).springify().damping(18)}
-      style={ss.aiWrapper}
+      style={ss.aiWrap}
     >
-      <View style={[ss.aiBubble, { backgroundColor: aiBubbleBg, shadowColor: T.isDark ? "#39FF14" : "#000" }]}>
-        <Text style={[ss.aiText, { color: aiTextClr }]}>
-          {displayed}
+      <Animated.View
+        style={[
+          ss.aiBubble,
+          {
+            backgroundColor: aiBg,
+            shadowColor:     "#000",
+            shadowOpacity:   aiShadow,
+          },
+        ]}
+      >
+        <Text style={[ss.aiText, { color: T.isDark ? T.fg : "#2C2C2E" }]}>
+          {shown}
         </Text>
-      </View>
-      <Animated.Text style={[ss.aiTimestamp, { color: T.zinc }, tsStyle]}>
+      </Animated.View>
+      <Animated.Text style={[ss.ts, { color: T.zinc, marginLeft: 4 }, tsAnim]}>
         AkılCEP · {formatTime(message.timestamp)}
       </Animated.Text>
     </Animated.View>
@@ -104,61 +105,54 @@ export default function MessageBubble({ message, isLatest }: Props) {
 
 const ss = StyleSheet.create({
   // User
-  userWrapper: {
-    alignItems:       "flex-end",
-    marginBottom:     16,
+  userWrap: {
+    alignItems:        "flex-end",
+    marginBottom:      14,
     paddingHorizontal: 16,
   },
   userBubble: {
-    maxWidth:              "76%",
-    borderRadius:          22,
+    maxWidth:                "76%",
+    borderRadius:            22,
     borderBottomRightRadius: 6,
-    paddingHorizontal:     16,
-    paddingVertical:       12,
-    shadowColor:           "#000",
-    shadowOffset:          { width: 0, height: 2 },
-    shadowOpacity:         0.08,
-    shadowRadius:          10,
+    paddingHorizontal:       16,
+    paddingVertical:         12,
+    shadowColor:             "#000",
+    shadowOffset:            { width: 0, height: 2 },
+    shadowOpacity:           0.07,
+    shadowRadius:            10,
   },
   userText: {
     fontSize:   15,
     fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
-  timestamp: {
-    fontSize:   10,
-    fontFamily: "Inter_400Regular",
-    marginTop:  5,
-    marginRight: 4,
-    letterSpacing: 0.1,
-  },
 
   // AI
-  aiWrapper: {
-    marginBottom:     16,
+  aiWrap: {
+    marginBottom:      14,
     paddingHorizontal: 16,
   },
   aiBubble: {
-    alignSelf:           "flex-start",
-    maxWidth:            "82%",
-    borderRadius:        22,
+    alignSelf:              "flex-start",
+    maxWidth:               "82%",
+    borderRadius:           22,
     borderBottomLeftRadius: 6,
-    paddingHorizontal:   16,
-    paddingVertical:     13,
-    shadowOffset:        { width: 0, height: 2 },
-    shadowOpacity:       0.06,
-    shadowRadius:        14,
+    paddingHorizontal:      16,
+    paddingVertical:        13,
+    shadowOffset:           { width: 0, height: 2 },
+    shadowRadius:           14,
   },
   aiText: {
     fontSize:   15,
     fontFamily: "Inter_400Regular",
     lineHeight: 23,
   },
-  aiTimestamp: {
-    fontSize:   10,
-    fontFamily: "Inter_400Regular",
-    marginTop:  6,
-    marginLeft: 4,
+
+  // Shared timestamp
+  ts: {
+    fontSize:      10,
+    fontFamily:    "Inter_400Regular",
+    marginTop:     5,
     letterSpacing: 0.1,
   },
 });

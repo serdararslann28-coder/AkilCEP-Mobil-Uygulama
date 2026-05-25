@@ -1,6 +1,6 @@
 /**
- * ChatScreen — ultra-premium AKILCEP AI chat interface.
- * Living logo presence · floating glassmorphic bubbles · cinematic input bar.
+ * ChatScreen — AKILCEP premium AI chat.
+ * Watermark logo · floating neutral bubbles · glassmorphic input.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList,
-  Image,
   Platform,
   StyleSheet,
   Text,
@@ -49,77 +48,73 @@ export default function ChatScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const hasText   = inputText.trim().length > 0;
 
-  // ── Send button scale spring ─────────────────────────────────────────────
+  // ── Send spring ──────────────────────────────────────────────────────────
   const sendScale = useSharedValue(1);
   const sendStyle = useAnimatedStyle(() => ({ transform: [{ scale: sendScale.value }] }));
 
   const handleSend = () => {
     if (!inputText.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    sendScale.value = withSpring(0.78, { duration: 70 }, () => {
+    sendScale.value = withSpring(0.80, { duration: 70 }, () => {
       sendScale.value = withSpring(1, { damping: 12, stiffness: 200 });
     });
     sendMessage(inputText.trim());
     setInputText("");
   };
 
-  // ── Living logo — breathing pulse ────────────────────────────────────────
-  const breatheScale   = useSharedValue(1);
-  const breatheOpacity = useSharedValue(T.isDark ? 0.055 : 0.082);
+  // ── Watermark logo — slow breathing, pure watermark ──────────────────────
+  const loScale = useSharedValue(1);
+  const loOp    = useSharedValue(T.isDark ? 0.05 : 0.07);
 
   useEffect(() => {
-    breatheScale.value = withRepeat(
+    loScale.value = withRepeat(
       withSequence(
-        withTiming(1.065, { duration: 4200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0,   { duration: 4200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.055, { duration: 4600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,   { duration: 4600, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
       false,
     );
-    breatheOpacity.value = withRepeat(
+    loOp.value = withRepeat(
       withSequence(
-        withTiming(T.isDark ? 0.09  : 0.13, { duration: 4200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(T.isDark ? 0.055 : 0.08, { duration: 4200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(T.isDark ? 0.075 : 0.10, { duration: 4600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(T.isDark ? 0.045 : 0.065,{ duration: 4600, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
       false,
     );
   }, [T.isDark]);
 
+  // Smoke-gray tint — no green, blends into bg naturally
+  const logoTint = T.isDark ? "#888888" : "#5A5A5A";
+
   const logoStyle = useAnimatedStyle(() => ({
-    transform:  [{ scale: breatheScale.value }],
-    opacity:    breatheOpacity.value,
+    transform: [{ scale: loScale.value }],
+    opacity:   loOp.value,
   }));
 
-  // ── Theme-driven colours ──────────────────────────────────────────────────
-  const headerBg      = T.isDark ? "rgba(5,5,5,0.88)"   : "rgba(246,246,243,0.88)";
-  const inputBg       = T.isDark ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.88)";
-  const inputBorder   = T.isDark ? "rgba(255,255,255,0.09)"  : "rgba(0,0,0,0.07)";
-  const hBtnBg        = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.05)";
-  const hBtnBorder    = T.isDark ? "rgba(255,255,255,0.10)"  : "transparent";
-  const micBg         = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.04)";
+  // ── Colour tokens ─────────────────────────────────────────────────────────
+  // Header — very light translucent, no hard edge
+  const headerBg    = T.isDark ? "rgba(5,5,5,0.82)"       : "rgba(246,246,243,0.82)";
+  // Input — warm light gray, not pure white
+  const inputBg     = T.isDark ? "rgba(255,255,255,0.055)" : "rgba(232,232,228,0.90)";
+  const inputBorder = T.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.055)";
+  // Button glass
+  const btnBg       = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.045)";
+  const btnBorder   = T.isDark ? StyleSheet.hairlineWidth  : 0;
+  const btnBorderClr= T.isDark ? "rgba(255,255,255,0.09)"  : "transparent";
+  // Mic bg
+  const micBg       = T.isDark ? "rgba(255,255,255,0.06)"  : "rgba(0,0,0,0.04)";
 
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
       <FullscreenMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
 
-      {/* ════════ LIVING LOGO — always behind everything ════════ */}
+      {/* ════════ WATERMARK LOGO — no container, no glow box ════════ */}
       <View style={ss.logoFrame} pointerEvents="none">
-        {/* Ambient glow aura */}
-        <Animated.View
-          style={[
-            ss.logoAura,
-            {
-              backgroundColor: T.green,
-              opacity: T.isDark ? 0.055 : 0.09,
-            },
-            useAnimatedStyle(() => ({ transform: [{ scale: breatheScale.value }] })),
-          ]}
-        />
-        {/* Leaf icon */}
         <Animated.Image
           source={leafOnly}
-          style={[ss.logoImg, { tintColor: T.green }, logoStyle]}
+          style={[ss.logoImg, { tintColor: logoTint }, logoStyle]}
           resizeMode="contain"
         />
       </View>
@@ -127,34 +122,29 @@ export default function ChatScreen() {
       {/* ════════ HEADER ════════ */}
       <View style={[ss.header, { paddingTop: topPad + 10, backgroundColor: headerBg }]}>
 
-        {/* Menu button — top-left */}
         <TouchableOpacity
-          style={[ss.hBtn, { backgroundColor: hBtnBg, borderColor: hBtnBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}
+          style={[ss.hBtn, { backgroundColor: btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
-          hitSlop={12}
-          activeOpacity={0.65}
+          hitSlop={12} activeOpacity={0.62}
         >
           <Feather name="menu" size={16} color={T.fgSoft} />
         </TouchableOpacity>
 
-        {/* Title — centered */}
         <Text style={[ss.headerTitle, { color: T.fgSoft }]}>
           C E B İ N D E K İ {"  "} A K I L
         </Text>
 
-        {/* Compose button — top-right */}
         <TouchableOpacity
-          style={[ss.hBtn, { backgroundColor: hBtnBg, borderColor: hBtnBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}
+          style={[ss.hBtn, { backgroundColor: btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startNewConversation(); }}
-          hitSlop={12}
-          activeOpacity={0.65}
+          hitSlop={12} activeOpacity={0.62}
         >
           <Feather name="edit-3" size={16} color={T.fgSoft} />
         </TouchableOpacity>
 
       </View>
 
-      {/* ════════ MESSAGE LIST ════════ */}
+      {/* ════════ MESSAGES ════════ */}
       <KeyboardAvoidingView style={ss.flex} behavior="padding">
         <FlatList
           ref={flatListRef}
@@ -168,7 +158,7 @@ export default function ChatScreen() {
           )}
           inverted
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={ss.messageList}
+          contentContainerStyle={ss.msgList}
           ListHeaderComponent={isTyping ? <TypingIndicator /> : null}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
@@ -180,19 +170,15 @@ export default function ChatScreen() {
           <View
             style={[
               ss.inputRow,
-              {
-                backgroundColor: inputBg,
-                borderColor:     inputBorder,
-                shadowColor:     "#000",
-              },
+              { backgroundColor: inputBg, borderColor: inputBorder },
             ]}
           >
             {/* Attachment */}
-            <TouchableOpacity style={ss.attachBtn} hitSlop={8} activeOpacity={0.65}>
+            <TouchableOpacity style={ss.attachBtn} hitSlop={8} activeOpacity={0.62}>
               <Feather name="plus" size={18} color={T.muted} />
             </TouchableOpacity>
 
-            {/* Text field */}
+            {/* Text */}
             <TextInput
               style={[ss.textInput, { color: T.fg }]}
               placeholder="AkılCEP'e yanıt ver..."
@@ -205,30 +191,27 @@ export default function ChatScreen() {
               blurOnSubmit={false}
             />
 
-            {/* Right actions */}
+            {/* Right: mic + send */}
             <View style={ss.rightRow}>
-              {/* Mic — fades out when typing */}
               {!hasText && (
                 <TouchableOpacity
                   style={[ss.micBtn, { backgroundColor: micBg }]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voice"); }}
-                  hitSlop={8}
-                  activeOpacity={0.65}
+                  hitSlop={8} activeOpacity={0.62}
                 >
                   <Feather name="mic" size={15} color={T.muted} />
                 </TouchableOpacity>
               )}
 
-              {/* Send — green glowing pill */}
               <Animated.View style={sendStyle}>
                 <TouchableOpacity
                   style={[
                     ss.sendBtn,
                     {
                       backgroundColor: hasText ? T.green : "transparent",
-                      borderColor:     hasText ? "transparent" : T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.09)",
+                      borderColor:     hasText ? "transparent" : T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
                       shadowColor:     T.green,
-                      shadowOpacity:   hasText ? 0.45 : 0,
+                      shadowOpacity:   hasText ? 0.40 : 0,
                     },
                   ]}
                   onPress={handleSend}
@@ -254,31 +237,25 @@ const ss = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
 
-  // ── Living logo
+  // Watermark — absoluteFill, icon only, no container
   logoFrame: {
     ...StyleSheet.absoluteFillObject,
     alignItems:     "center",
     justifyContent: "center",
     pointerEvents:  "none",
   },
-  logoAura: {
-    position:     "absolute",
-    width:        280,
-    height:       280,
-    borderRadius: 140,
-  },
   logoImg: {
-    width:  190,
-    height: 190,
+    width:  300,
+    height: 300,
   },
 
-  // ── Header
+  // Header
   header: {
-    flexDirection:    "row",
-    alignItems:       "center",
-    justifyContent:   "space-between",
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
     paddingHorizontal: 18,
-    paddingBottom:    14,
+    paddingBottom:     14,
   },
   hBtn: {
     width:          36,
@@ -289,37 +266,38 @@ const ss = StyleSheet.create({
     shadowColor:    "#000",
     shadowOffset:   { width: 0, height: 2 },
     shadowOpacity:  0.06,
-    shadowRadius:   6,
+    shadowRadius:   8,
   },
   headerTitle: {
+    flex:          1,
+    textAlign:     "center",
     fontSize:      11,
     fontFamily:    "Inter_400Regular",
     letterSpacing: 1.8,
-    flex:          1,
-    textAlign:     "center",
     paddingHorizontal: 6,
   },
 
-  // ── Message list
-  messageList: { paddingTop: 20, paddingBottom: 8 },
+  // List
+  msgList: { paddingTop: 20, paddingBottom: 8 },
 
-  // ── Input bar
+  // Input
   inputOuter: {
     paddingHorizontal: 14,
     paddingTop:        8,
   },
   inputRow: {
-    flexDirection:  "row",
-    alignItems:     "flex-end",
-    borderRadius:   28,
-    borderWidth:    StyleSheet.hairlineWidth,
+    flexDirection:     "row",
+    alignItems:        "flex-end",
+    borderRadius:      28,
+    borderWidth:       StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
     paddingVertical:   7,
-    gap:            4,
-    shadowOffset:   { width: 0, height: 8 },
-    shadowOpacity:  0.10,
-    shadowRadius:   24,
-    elevation:      6,
+    gap:               4,
+    shadowColor:       "#000",
+    shadowOffset:      { width: 0, height: 8 },
+    shadowOpacity:     0.09,
+    shadowRadius:      22,
+    elevation:         5,
   },
   attachBtn: {
     width:          36,
@@ -329,13 +307,13 @@ const ss = StyleSheet.create({
     marginBottom:   1,
   },
   textInput: {
-    flex:        1,
-    fontSize:    15,
-    fontFamily:  "Inter_400Regular",
-    maxHeight:   130,
-    paddingVertical:  8,
+    flex:              1,
+    fontSize:          15,
+    fontFamily:        "Inter_400Regular",
+    maxHeight:         130,
+    paddingVertical:   8,
     paddingHorizontal: 2,
-    lineHeight:  22,
+    lineHeight:        22,
   },
   rightRow: {
     flexDirection: "row",
