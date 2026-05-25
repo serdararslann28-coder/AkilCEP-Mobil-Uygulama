@@ -24,10 +24,10 @@ export interface Conversation {
 }
 
 export const AI_MODELS = [
-  { id: "gpt-4o", name: "GPT-4o", badge: "En güçlü" },
-  { id: "gpt-4-turbo", name: "GPT-4 Turbo", badge: "Hızlı" },
-  { id: "gpt-3.5-turbo", name: "GPT-3.5", badge: "Ekonomik" },
-  { id: "claude-3-opus", name: "Claude 3", badge: "Analitik" },
+  { id: "gpt-4o",         name: "GPT-4o",      badge: "En güçlü" },
+  { id: "gpt-4-turbo",    name: "GPT-4 Turbo", badge: "Hızlı"    },
+  { id: "gpt-3.5-turbo",  name: "GPT-3.5",     badge: "Ekonomik" },
+  { id: "claude-3-opus",  name: "Claude 3",    badge: "Analitik" },
 ];
 
 const AI_RESPONSES = [
@@ -46,20 +46,22 @@ function generateId(): string {
 }
 
 function getAIResponse(): string {
-  return AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
+  return AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)]!;
 }
 
 interface ChatContextType {
-  conversations: Conversation[];
+  conversations:       Conversation[];
   currentConversation: Conversation | null;
-  isTyping: boolean;
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
-  sendMessage: (content: string) => void;
+  isTyping:            boolean;
+  selectedModel:       string;
+  setSelectedModel:    (model: string) => void;
+  sendMessage:         (content: string) => void;
+  /** Inject a real voice exchange (user + AI) directly — no fake delay. */
+  injectMessages:      (userText: string, aiText: string) => void;
   startNewConversation: () => void;
-  loadConversation: (id: string) => void;
-  deleteConversation: (id: string) => void;
-  currentMessages: Message[];
+  loadConversation:    (id: string) => void;
+  deleteConversation:  (id: string) => void;
+  currentMessages:     Message[];
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -67,11 +69,10 @@ const ChatContext = createContext<ChatContextType | null>(null);
 const STORAGE_KEY = "@akilcep_conversations";
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversation, setCurrentConversation] =
-    useState<Conversation | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [conversations,       setConversations]       = useState<Conversation[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [isTyping,            setIsTyping]            = useState(false);
+  const [selectedModel,       setSelectedModel]       = useState("gpt-4o");
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -96,11 +97,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const startNewConversation = useCallback(() => {
     const newConv: Conversation = {
-      id: generateId(),
-      title: "Yeni Sohbet",
-      messages: [],
+      id:        generateId(),
+      title:     "Yeni Sohbet",
+      messages:  [],
       createdAt: Date.now(),
-      model: selectedModel,
+      model:     selectedModel,
     };
     setCurrentConversation(newConv);
   }, [selectedModel]);
@@ -118,9 +119,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const updated = conversations.filter((c) => c.id !== id);
       setConversations(updated);
       saveConversations(updated);
-      if (currentConversation?.id === id) {
-        setCurrentConversation(null);
-      }
+      if (currentConversation?.id === id) setCurrentConversation(null);
     },
     [conversations, currentConversation]
   );
@@ -130,22 +129,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!content.trim()) return;
 
       const userMsg: Message = {
-        id: generateId(),
-        role: "user",
-        content: content.trim(),
+        id:        generateId(),
+        role:      "user",
+        content:   content.trim(),
         timestamp: Date.now(),
       };
 
       let conv = currentConversation;
       if (!conv) {
         conv = {
-          id: generateId(),
-          title:
-            content.trim().slice(0, 40) +
-            (content.trim().length > 40 ? "..." : ""),
-          messages: [],
+          id:        generateId(),
+          title:     content.trim().slice(0, 40) + (content.trim().length > 40 ? "..." : ""),
+          messages:  [],
           createdAt: Date.now(),
-          model: selectedModel,
+          model:     selectedModel,
         };
       }
 
@@ -154,8 +151,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         messages: [...conv.messages, userMsg],
         title:
           conv.messages.length === 0
-            ? content.trim().slice(0, 40) +
-              (content.trim().length > 40 ? "..." : "")
+            ? content.trim().slice(0, 40) + (content.trim().length > 40 ? "..." : "")
             : conv.title,
       };
 
@@ -165,9 +161,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const delay = 800 + Math.random() * 1200;
       typingTimer.current = setTimeout(() => {
         const aiMsg: Message = {
-          id: generateId(),
-          role: "assistant",
-          content: getAIResponse(),
+          id:        generateId(),
+          role:      "assistant",
+          content:   getAIResponse(),
           timestamp: Date.now(),
         };
 
@@ -180,7 +176,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsTyping(false);
 
         setConversations((prev) => {
-          const exists = prev.find((c) => c.id === finalConv.id);
+          const exists  = prev.find((c) => c.id === finalConv.id);
           const updated = exists
             ? prev.map((c) => (c.id === finalConv.id ? finalConv : c))
             : [finalConv, ...prev];
@@ -190,6 +186,65 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }, delay);
     },
     [currentConversation, selectedModel]
+  );
+
+  /**
+   * Inject a voice exchange (Whisper user text + GPT reply) directly into
+   * the current conversation without triggering the fake typing delay.
+   */
+  const injectMessages = useCallback(
+    (userText: string, aiText: string) => {
+      if (!userText.trim() && !aiText.trim()) return;
+
+      // Cancel any pending fake-AI timer
+      if (typingTimer.current) {
+        clearTimeout(typingTimer.current);
+        typingTimer.current = null;
+      }
+      setIsTyping(false);
+
+      const now = Date.now();
+      const userMsg: Message = {
+        id:        generateId(),
+        role:      "user",
+        content:   userText.trim(),
+        timestamp: now,
+      };
+      const aiMsg: Message = {
+        id:        generateId(),
+        role:      "assistant",
+        content:   aiText.trim(),
+        timestamp: now + 1,
+      };
+
+      setCurrentConversation((prev) => {
+        const base: Conversation = prev ?? {
+          id:        generateId(),
+          title:     userText.trim().slice(0, 40) + (userText.trim().length > 40 ? "..." : ""),
+          messages:  [],
+          createdAt: now,
+          model:     "gpt-4o",
+        };
+
+        const updated: Conversation = {
+          ...base,
+          title:    base.messages.length === 0 ? userMsg.content.slice(0, 40) : base.title,
+          messages: [...base.messages, userMsg, aiMsg],
+        };
+
+        setConversations((convs) => {
+          const exists  = convs.find((c) => c.id === updated.id);
+          const next    = exists
+            ? convs.map((c) => (c.id === updated.id ? updated : c))
+            : [updated, ...convs];
+          saveConversations(next);
+          return next;
+        });
+
+        return updated;
+      });
+    },
+    []
   );
 
   const currentMessages = currentConversation
@@ -205,6 +260,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         selectedModel,
         setSelectedModel,
         sendMessage,
+        injectMessages,
         startNewConversation,
         loadConversation,
         deleteConversation,
