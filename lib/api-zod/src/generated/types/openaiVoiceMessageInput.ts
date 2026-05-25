@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface OpenaiVoiceMessageInput {
+  /** Base64-encoded audio data */
+  audio: string;
 }

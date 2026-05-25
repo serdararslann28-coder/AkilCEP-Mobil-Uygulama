@@ -56,7 +56,10 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo-audio": "^56.0.10",
+    "expo-av": "^16.0.8",
     "expo-clipboard": "^56.0.3",
+    "expo-file-system": "^56.0.7",
     "expo-speech": "^56.0.3",
     "react-native-webview": "^13.15.0"
   }
