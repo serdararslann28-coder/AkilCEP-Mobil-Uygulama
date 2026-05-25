@@ -1,12 +1,20 @@
 /**
- * Voice Mode — AI Voice Playback.
- * Receives the last AI message text via router params.
- * Reads it aloud with expo-speech. No microphone. No recording.
+ * Voice Mode — Conversational AI presence.
+ *
+ * Flow:  idle → [tap] → listening (expo-av record)
+ *        → [tap / auto-stop] → thinking (Whisper + GPT via backend)
+ *        → speaking (expo-speech TTS)
+ *        → idle
+ *
+ * Stack: expo-av (recording) · expo-file-system (base64) · expo-speech (TTS)
+ * No native SpeechRecognizer. No WebSockets. Fully Expo Go compatible.
  * Always dark #010108 — never adapts to global theme.
  */
 import { Feather } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import * as Speech from "expo-speech";
 import React, {
   useCallback,
@@ -15,6 +23,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
   Dimensions,
   Image,
   Platform,
@@ -39,167 +48,196 @@ import VoiceCanvas from "@/components/VoiceCanvas";
 
 const { width: W, height: H } = Dimensions.get("window");
 
-type PlayPhase = "idle" | "playing" | "paused" | "done";
+const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 
-const STATUS: Record<PlayPhase, string> = {
-  idle:   "Ses hazır",
-  playing:"AkılCEP sizi dinliyor",
-  paused: "Duraklatıldı",
-  done:   "Tamamlandı",
+// ── Phase machine ──────────────────────────────────────────────────────────────
+type Phase = "init" | "idle" | "listening" | "thinking" | "speaking" | "unavailable";
+
+const STATUS: Record<Phase, string> = {
+  init:        "Hazırlanıyor...",
+  idle:        "Konuşmak için dokunun",
+  listening:   "Sizi dinliyorum",
+  thinking:    "Düşünüyorum...",
+  speaking:    "AkılCEP yanıtlıyor",
+  unavailable: "Mikrofon kullanılamıyor",
 };
 
+const canvasState = (p: Phase): "idle" | "listening" | "speaking" =>
+  p === "listening" ? "listening" : p === "speaking" ? "speaking" : "idle";
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function VoiceScreen() {
-  const params  = useLocalSearchParams<{ text?: string }>();
-  const text    = params.text ?? "";
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 20 : insets.top;
+  const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
-  const insets  = useSafeAreaInsets();
-  const topPad  = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad  = Platform.OS === "web" ? 20 : insets.bottom;
+  const [phase, setPhase]           = useState<Phase>("init");
+  const [userText, setUserText]     = useState("");
+  const [aiText, setAiText]         = useState("");
+  const [convId, setConvId]         = useState<number>(0);
 
-  const [phase, setPhase] = useState<PlayPhase>("idle");
-  const hasText = text.trim().length > 0;
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const abortRef     = useRef<AbortController | null>(null);
+  const phaseRef     = useRef<Phase>("init");
 
-  // guard against re-speaking on re-render
-  const speakingRef = useRef(false);
+  // Keep phaseRef in sync so callbacks don't close over stale phase
+  const applyPhase = (p: Phase) => { phaseRef.current = p; setPhase(p); };
 
-  // ── Animation shared values ────────────────────────────────────────────────
-  const topOp     = useSharedValue(0);
-  const logoOp    = useSharedValue(0);
-  const logoSc    = useSharedValue(0.84);
-  const breathSc  = useSharedValue(1);
-  const glowOp    = useSharedValue(0.12);
-  const glowSc    = useSharedValue(1);
-  const btnSc     = useSharedValue(1);
-  const statusOp  = useSharedValue(0);
-  const textOp    = useSharedValue(0);
+  // ── Shared animation values ────────────────────────────────────────────────
+  const topOp    = useSharedValue(0);
+  const logoOp   = useSharedValue(0);
+  const logoSc   = useSharedValue(0.84);
+  const breathSc = useSharedValue(1);
+  const glowOp   = useSharedValue(0.10);
+  const glowSc   = useSharedValue(1.0);
+  const btnSc    = useSharedValue(1);
+  const statusOp = useSharedValue(0);
+  const transOp  = useSharedValue(0);
 
-  // waveform bars (7 bars)
-  const b0 = useSharedValue(0.15);
-  const b1 = useSharedValue(0.15);
-  const b2 = useSharedValue(0.15);
-  const b3 = useSharedValue(0.15);
-  const b4 = useSharedValue(0.15);
-  const b5 = useSharedValue(0.15);
-  const b6 = useSharedValue(0.15);
-  const bars = [b0, b1, b2, b3, b4, b5, b6];
+  // 7 waveform bars
+  const bars = [
+    useSharedValue(0.12), useSharedValue(0.12), useSharedValue(0.12),
+    useSharedValue(0.12), useSharedValue(0.12), useSharedValue(0.12),
+    useSharedValue(0.12),
+  ] as const;
 
-  // ── Entrance animation ─────────────────────────────────────────────────────
+  // Thinking dots
+  const d0 = useSharedValue(0.25);
+  const d1 = useSharedValue(0.25);
+  const d2 = useSharedValue(0.25);
+
+  // ── Entrance ───────────────────────────────────────────────────────────────
   useEffect(() => {
     topOp.value    = withDelay(200, withTiming(1, { duration: 700 }));
     statusOp.value = withDelay(900, withTiming(1, { duration: 600 }));
-
-    const t = setTimeout(() => {
-      breathSc.value = withRepeat(
-        withSequence(
-          withTiming(1.036, { duration: 3400, easing: Easing.inOut(Easing.sin) }),
-          withTiming(1.000, { duration: 3400, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1, true
-      );
-    }, 120);
-    return () => clearTimeout(t);
+    breathSc.value = withRepeat(
+      withSequence(
+        withTiming(1.036, { duration: 3500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1.000, { duration: 3500, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1, true
+    );
   }, []);
 
   const handleFormationDone = useCallback(() => {
     logoOp.value = withSpring(1,   { damping: 24, stiffness: 58 });
     logoSc.value = withSpring(1.0, { damping: 20, stiffness: 52 });
-    // If text was passed, auto-start after logo appears
-    if (hasText) {
-      setTimeout(() => startSpeaking(), 600);
-    } else {
-      textOp.value = withTiming(1, { duration: 500 });
-    }
-  }, [hasText]);
+  }, []);
 
-  // ── Phase-driven glow + waveform ───────────────────────────────────────────
+  // ── Phase-driven animations ────────────────────────────────────────────────
   useEffect(() => {
-    const on = phase === "playing";
+    const isActive = phase === "listening" || phase === "speaking";
+    glowOp.value   = withTiming(isActive ? 0.52 : 0.10, { duration: 700 });
+    glowSc.value   = withTiming(isActive ? 1.18 : 1.00, { duration: 700 });
 
-    glowOp.value = withTiming(on ? 0.46 : 0.12, { duration: 700 });
-    glowSc.value = withTiming(on ? 1.14 : 1.00, { duration: 700 });
-
-    if (on) {
-      // Animate waveform bars with staggered breathing
-      const heights = [0.30, 0.75, 0.55, 0.95, 0.50, 0.80, 0.35];
+    // Waveform
+    if (phase === "listening" || phase === "speaking") {
+      const peaks = phase === "listening"
+        ? [0.45, 0.80, 0.60, 1.00, 0.55, 0.85, 0.40]
+        : [0.30, 0.70, 0.50, 0.90, 0.45, 0.75, 0.35];
       bars.forEach((b, i) => {
-        b.value = withDelay(i * 60, withRepeat(
+        b.value = withDelay(i * 55, withRepeat(
           withSequence(
-            withTiming(heights[i]!, { duration: 380 + i * 30, easing: Easing.inOut(Easing.sin) }),
-            withTiming(0.12,         { duration: 380 + i * 30, easing: Easing.inOut(Easing.sin) }),
+            withTiming(peaks[i]!, { duration: 360 + i * 28, easing: Easing.inOut(Easing.sin) }),
+            withTiming(0.10,       { duration: 360 + i * 28, easing: Easing.inOut(Easing.sin) }),
           ),
           -1, true
         ));
       });
     } else {
-      // Calm bars back down
       bars.forEach((b) => {
-        b.value = withTiming(0.15, { duration: 500, easing: Easing.out(Easing.ease) });
+        b.value = withTiming(0.12, { duration: 600, easing: Easing.out(Easing.ease) });
       });
     }
+
+    // Thinking dots
+    if (phase === "thinking") {
+      [[d0, 0], [d1, 200], [d2, 400]].forEach(([sv, delay]) => {
+        (sv as typeof d0).value = withDelay(delay as number, withRepeat(
+          withSequence(
+            withTiming(1,    { duration: 380, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.20, { duration: 380, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1, false
+        ));
+      });
+    } else {
+      d0.value = withTiming(0.25, { duration: 300 });
+      d1.value = withTiming(0.25, { duration: 300 });
+      d2.value = withTiming(0.25, { duration: 300 });
+    }
+
+    // Transcript fade
+    const hasText = !!userText || !!aiText;
+    transOp.value = withTiming(hasText && phase !== "init" ? 1 : 0, { duration: 400 });
   }, [phase]);
 
   useEffect(() => {
-    if (hasText || phase === "done") {
-      textOp.value = withTiming(1, { duration: 500 });
-    }
-  }, [phase, hasText]);
+    const hasText = !!userText || !!aiText;
+    transOp.value = withTiming(hasText ? 1 : 0, { duration: 400 });
+  }, [userText, aiText]);
 
-  // ── Unmount cleanup ────────────────────────────────────────────────────────
+  // ── Mount: permissions + conversation ─────────────────────────────────────
   useEffect(() => {
+    initVoice();
     return () => {
+      abortRef.current?.abort();
+      safeStopRecording();
       try { Speech.stop(); } catch {}
-      speakingRef.current = false;
     };
   }, []);
 
-  // ── Speech ─────────────────────────────────────────────────────────────────
-  const startSpeaking = async () => {
-    if (!hasText || speakingRef.current) return;
-    try {
-      speakingRef.current = true;
-      setPhase("playing");
-      textOp.value = withTiming(1, { duration: 400 });
-
-      Speech.speak(text, {
-        language: "tr-TR",
-        rate:     0.88,
-        pitch:    1.0,
-        onStart:  () => setPhase("playing"),
-        onDone:   () => { speakingRef.current = false; setPhase("done"); },
-        onStopped:() => { speakingRef.current = false; },
-        onError:  () => { speakingRef.current = false; setPhase("idle"); },
-      });
-    } catch {
-      speakingRef.current = false;
-      setPhase("idle");
+  const initVoice = async () => {
+    if (Platform.OS === "web") {
+      applyPhase("unavailable");
+      return;
     }
-  };
-
-  const pauseSpeaking = async () => {
     try {
-      const available = await Speech.isSpeakingAsync();
-      if (available) {
-        Speech.pause?.();
-        speakingRef.current = false;
-        setPhase("paused");
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        applyPhase("unavailable");
+        return;
       }
-    } catch {
-      setPhase("idle");
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS:   true,
+        playsInSilentModeIOS: true,
+      });
+      // Create or reuse a conversation
+      const id = await createConversation();
+      setConvId(id);
+      applyPhase("idle");
+    } catch (err) {
+      console.warn("[voice] init error:", err);
+      applyPhase("unavailable");
     }
   };
 
-  const resumeSpeaking = async () => {
+  const createConversation = async (): Promise<number> => {
     try {
-      Speech.resume?.();
-      speakingRef.current = true;
-      setPhase("playing");
-    } catch {
-      // Fallback: restart from beginning
-      speakingRef.current = false;
-      startSpeaking();
+      const res = await fetch(`${API_BASE}/openai/conversations`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ title: "Sesli Sohbet" }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { id: number };
+        return data.id;
+      }
+    } catch (err) {
+      console.warn("[voice] createConversation:", err);
     }
+    return 0;
   };
 
+  // ── Safe recording cleanup ─────────────────────────────────────────────────
+  const safeStopRecording = async () => {
+    const rec = recordingRef.current;
+    recordingRef.current = null;
+    if (!rec) return;
+    try { await rec.stopAndUnloadAsync(); } catch {}
+  };
+
+  // ── Button handler ─────────────────────────────────────────────────────────
   const handleBtn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     btnSc.value = withSequence(
@@ -207,84 +245,259 @@ export default function VoiceScreen() {
       withSpring(1.00, { damping: 14, stiffness: 220 }),
     );
 
-    if (phase === "playing") {
-      await pauseSpeaking();
-    } else if (phase === "paused") {
-      await resumeSpeaking();
-    } else if (phase === "done") {
-      // Replay
-      speakingRef.current = false;
-      await startSpeaking();
-    } else {
-      // idle
-      await startSpeaking();
+    const p = phaseRef.current;
+
+    if (p === "idle") {
+      await startListening();
+    } else if (p === "listening") {
+      await stopAndProcess();
+    } else if (p === "thinking" || p === "speaking") {
+      // Cancel current turn
+      abortRef.current?.abort();
+      try { Speech.stop(); } catch {}
+      await safeStopRecording();
+      setUserText("");
+      setAiText("");
+      applyPhase("idle");
     }
   };
 
-  const handleBack = () => {
-    try { Speech.stop(); } catch {}
-    speakingRef.current = false;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+  // ── Start recording ────────────────────────────────────────────────────────
+  const startListening = async () => {
+    try {
+      setUserText("");
+      setAiText("");
+
+      const { recording } = await Audio.Recording.createAsync(
+        {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+          isMeteringEnabled: true,
+        },
+        undefined,
+        80
+      );
+      recordingRef.current = recording;
+      applyPhase("listening");
+    } catch (err) {
+      console.warn("[voice] startListening:", err);
+      Alert.alert(
+        "Kayıt Başlatılamadı",
+        "Mikrofon kullanılamıyor. Lütfen tekrar deneyin.",
+        [{ text: "Tamam" }]
+      );
+      applyPhase("idle");
+    }
+  };
+
+  // ── Stop recording → send to backend ──────────────────────────────────────
+  const stopAndProcess = async () => {
+    applyPhase("thinking");
+
+    const rec = recordingRef.current;
+    recordingRef.current = null;
+
+    if (!rec) { applyPhase("idle"); return; }
+
+    try {
+      await rec.stopAndUnloadAsync();
+
+      // Restore audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS:   false,
+        playsInSilentModeIOS: true,
+      });
+
+      const uri = rec.getURI();
+      if (!uri) { applyPhase("idle"); return; }
+
+      // Read as base64 — most reliable on Expo Go native
+      let base64: string;
+      try {
+        base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } catch {
+        // Fallback: fetch blob → FileReader
+        const resp = await fetch(uri);
+        const blob = await resp.blob();
+        base64 = await blobToBase64(blob);
+      }
+
+      await sendToBackend(base64);
+    } catch (err) {
+      console.warn("[voice] stopAndProcess:", err);
+      applyPhase("idle");
+    }
+  };
+
+  // ── Send to backend (Whisper + GPT) ───────────────────────────────────────
+  const sendToBackend = async (audioBase64: string) => {
+    const abort = new AbortController();
+    abortRef.current = abort;
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/openai/conversations/${convId}/voice-messages`,
+        {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          signal:  abort.signal,
+          body:    JSON.stringify({ audio: audioBase64 }),
+        }
+      );
+
+      if (abort.signal.aborted) return;
+
+      if (!res.ok) {
+        showErrorAlert("Sunucu yanıt vermedi. Tekrar deneyin.");
+        applyPhase("idle");
+        return;
+      }
+
+      const data = await res.json() as {
+        userText?: string;
+        assistantText?: string;
+        error?: string;
+      };
+
+      if (abort.signal.aborted) return;
+
+      if (data.error || !data.assistantText) {
+        // Empty transcription → silently go back to idle
+        applyPhase("idle");
+        return;
+      }
+
+      setUserText(data.userText ?? "");
+      setAiText(data.assistantText ?? "");
+      await speakReply(data.assistantText, abort);
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === "AbortError") return;
+      console.warn("[voice] sendToBackend:", err);
+      applyPhase("idle");
+    }
+  };
+
+  // ── Speak the AI reply ─────────────────────────────────────────────────────
+  const speakReply = async (text: string, abort: AbortController) => {
+    if (abort.signal.aborted) return;
+
+    applyPhase("speaking");
+
+    // Re-enable recording mode after playback (for the next turn)
+    const restoreRecordingMode = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS:   true,
+          playsInSilentModeIOS: true,
+        });
+      } catch {}
+    };
+
+    try {
+      Speech.speak(text, {
+        language:  "tr-TR",
+        rate:      0.88,
+        pitch:     1.0,
+        onDone:    () => {
+          void restoreRecordingMode().then(() => {
+            if (!abort.signal.aborted) applyPhase("idle");
+          });
+        },
+        onStopped: () => {
+          void restoreRecordingMode();
+        },
+        onError:   () => {
+          void restoreRecordingMode().then(() => {
+            if (!abort.signal.aborted) applyPhase("idle");
+          });
+        },
+      });
+    } catch (err) {
+      console.warn("[voice] speakReply:", err);
+      await restoreRecordingMode();
+      applyPhase("idle");
+    }
+  };
+
+  const showErrorAlert = (msg: string) => {
+    Alert.alert("Ses Modu", msg, [{ text: "Tamam" }]);
   };
 
   // ── Animated styles ────────────────────────────────────────────────────────
-  const logoContStyle = useAnimatedStyle(() => ({
+  const topStyle  = useAnimatedStyle(() => ({ opacity: topOp.value }));
+  const logoStyle = useAnimatedStyle(() => ({
     opacity:   logoOp.value,
     transform: [{ scale: logoSc.value * breathSc.value }],
   }));
-  const glowStyle   = useAnimatedStyle(() => ({
+  const glowStyle = useAnimatedStyle(() => ({
     opacity:   glowOp.value,
     transform: [{ scale: glowSc.value }],
   }));
-  const topStyle    = useAnimatedStyle(() => ({ opacity: topOp.value }));
-  const btnStyle    = useAnimatedStyle(() => ({ transform: [{ scale: btnSc.value }] }));
-  const statusStyle = useAnimatedStyle(() => ({ opacity: statusOp.value }));
-  const textStyle   = useAnimatedStyle(() => ({ opacity: textOp.value }));
+  const btnAnim   = useAnimatedStyle(() => ({ transform: [{ scale: btnSc.value }] }));
+  const stOp      = useAnimatedStyle(() => ({ opacity: statusOp.value }));
+  const trOp      = useAnimatedStyle(() => ({ opacity: transOp.value }));
 
-  const b0s = useAnimatedStyle(() => ({ transform: [{ scaleY: b0.value }] }));
-  const b1s = useAnimatedStyle(() => ({ transform: [{ scaleY: b1.value }] }));
-  const b2s = useAnimatedStyle(() => ({ transform: [{ scaleY: b2.value }] }));
-  const b3s = useAnimatedStyle(() => ({ transform: [{ scaleY: b3.value }] }));
-  const b4s = useAnimatedStyle(() => ({ transform: [{ scaleY: b4.value }] }));
-  const b5s = useAnimatedStyle(() => ({ transform: [{ scaleY: b5.value }] }));
-  const b6s = useAnimatedStyle(() => ({ transform: [{ scaleY: b6.value }] }));
-  const barStyles = [b0s, b1s, b2s, b3s, b4s, b5s, b6s];
+  const barStyles = bars.map((b) =>
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useAnimatedStyle(() => ({ transform: [{ scaleY: b.value }] }))
+  );
+  const dot0 = useAnimatedStyle(() => ({ opacity: d0.value }));
+  const dot1 = useAnimatedStyle(() => ({ opacity: d1.value }));
+  const dot2 = useAnimatedStyle(() => ({ opacity: d2.value }));
 
-  const canvasState = phase === "playing" ? "speaking" : "idle";
-  const isPlaying   = phase === "playing";
+  // Button appearance per phase
+  const btnIcon: string =
+    phase === "listening" ? "square"    :
+    phase === "thinking"  ? "more-horizontal" :
+    phase === "speaking"  ? "volume-2"  : "mic";
 
-  // Button appearance
-  const btnBg = isPlaying
-    ? "rgba(255,255,255,0.10)"
-    : "rgba(255,255,255,0.065)";
-  const btnIconColor = isPlaying
-    ? "rgba(255,255,255,0.90)"
-    : "rgba(255,255,255,0.55)";
-  const btnIcon = isPlaying ? "pause" : phase === "done" ? "rotate-ccw" : "play";
+  const btnBg =
+    phase === "listening" ? "rgba(255,255,255,0.13)" :
+    phase === "speaking"  ? "rgba(255,255,255,0.10)" :
+    "rgba(255,255,255,0.065)";
+
+  const btnColor =
+    phase === "listening" ? "rgba(255,255,255,0.95)" :
+    phase === "speaking"  ? "rgba(255,255,255,0.90)" :
+    phase === "unavailable" ? "rgba(255,255,255,0.20)" :
+    "rgba(255,255,255,0.60)";
+
+  const isInteractive = phase !== "init" && phase !== "unavailable";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={ss.root}>
 
       {/* Particle canvas */}
-      <VoiceCanvas voiceState={canvasState} onFormationDone={handleFormationDone} />
+      <VoiceCanvas voiceState={canvasState(phase)} onFormationDone={handleFormationDone} />
 
       {/* Top bar */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 14 }, topStyle]} pointerEvents="box-none">
-        <TouchableOpacity style={ss.topBtn} onPress={handleBack} hitSlop={20} activeOpacity={0.6}>
+        <TouchableOpacity
+          style={ss.backBtn}
+          onPress={() => {
+            abortRef.current?.abort();
+            try { Speech.stop(); } catch {}
+            safeStopRecording();
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+          hitSlop={20}
+          activeOpacity={0.6}
+        >
           <Feather name="chevron-left" size={17} color="rgba(255,255,255,0.48)" />
         </TouchableOpacity>
 
-        <View style={ss.topRight} pointerEvents="none">
+        <View style={ss.topCenter} pointerEvents="none">
           <Text style={ss.topLabel}>SES MODU</Text>
         </View>
       </Animated.View>
 
-      {/* Logo + soft glow */}
+      {/* Logo + glow */}
       <View style={ss.logoArea} pointerEvents="none">
-        <Animated.View style={[ss.glowHalo, glowStyle]} />
-        <Animated.View style={logoContStyle}>
+        <Animated.View style={[ss.glow, glowStyle]} />
+        <Animated.View style={logoStyle}>
           <Image
             source={require("@/assets/images/leaf-only-transparent.png")}
             style={ss.logo}
@@ -293,67 +506,84 @@ export default function VoiceScreen() {
         </Animated.View>
       </View>
 
-      {/* AI response text */}
-      {hasText && (
-        <Animated.View style={[ss.textArea, textStyle]} pointerEvents="none">
-          <Text style={ss.responseText} numberOfLines={6}>{text}</Text>
-        </Animated.View>
-      )}
+      {/* Transcript */}
+      <Animated.View style={[ss.transcript, trOp]} pointerEvents="none">
+        {!!userText && (
+          <Text style={ss.userLine} numberOfLines={2}>{userText}</Text>
+        )}
+        {!!aiText && (
+          <Text style={ss.aiLine} numberOfLines={5}>{aiText}</Text>
+        )}
+      </Animated.View>
 
-      {/* No-text fallback */}
-      {!hasText && (
-        <Animated.View style={[ss.textArea, textStyle]} pointerEvents="none">
-          <Feather name="message-circle" size={18} color="rgba(255,255,255,0.20)" />
-          <Text style={ss.emptyText}>Sohbetten bir yanıt seçin{"\n"}ve buradan dinleyin</Text>
-        </Animated.View>
+      {/* Unavailable message */}
+      {phase === "unavailable" && (
+        <View style={ss.unavailBox} pointerEvents="none">
+          <Feather name="mic-off" size={20} color="rgba(255,255,255,0.22)" />
+          <Text style={ss.unavailTitle}>Mikrofon Kullanılamıyor</Text>
+          <Text style={ss.unavailBody}>
+            {Platform.OS === "web"
+              ? "Ses modu yalnızca mobil cihazlarda çalışır."
+              : "Mikrofon izni verilmedi. Lütfen ayarlardan izin verin."}
+          </Text>
+        </View>
       )}
 
       {/* Bottom controls */}
-      <View style={[ss.bottomArea, { paddingBottom: btmPad + 32 }]}>
+      <View style={[ss.bottom, { paddingBottom: btmPad + 30 }]}>
 
-        {/* Status */}
-        <Animated.Text style={[ss.statusLabel, statusStyle]}>
+        {/* Status label */}
+        <Animated.Text style={[ss.status, stOp]}>
           {STATUS[phase]}
         </Animated.Text>
 
         {/* Waveform + button row */}
         <View style={ss.controlRow}>
 
-          {/* Waveform (left) */}
-          <View style={ss.waveRow}>
-            {barStyles.map((s, i) => (
-              <Animated.View key={i} style={[ss.waveBar, s]} />
+          {/* Left waveform */}
+          <View style={ss.wave}>
+            {barStyles.map((anim, i) => (
+              <Animated.View key={i} style={[ss.bar, anim]} />
             ))}
           </View>
 
-          {/* Play/Pause button */}
-          <Animated.View style={btnStyle}>
+          {/* Central button */}
+          <Animated.View style={btnAnim}>
             <TouchableOpacity
-              style={[ss.playBtn, { backgroundColor: btnBg }]}
+              style={[ss.btn, { backgroundColor: btnBg }]}
               onPress={handleBtn}
-              disabled={!hasText}
+              disabled={!isInteractive}
               activeOpacity={0.80}
-              hitSlop={10}
+              hitSlop={12}
             >
-              <Feather name={btnIcon} size={22} color={hasText ? btnIconColor : "rgba(255,255,255,0.18)"} />
+              {phase === "thinking" ? (
+                <View style={ss.dotsRow}>
+                  <Animated.View style={[ss.dot, dot0]} />
+                  <Animated.View style={[ss.dot, dot1]} />
+                  <Animated.View style={[ss.dot, dot2]} />
+                </View>
+              ) : (
+                <Feather name={btnIcon as any} size={22} color={btnColor} />
+              )}
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Mirror waveform (right) — mirrored for symmetry */}
-          <View style={[ss.waveRow, ss.waveRowMirror]}>
-            {[...barStyles].reverse().map((s, i) => (
-              <Animated.View key={i} style={[ss.waveBar, s]} />
+          {/* Right waveform (mirrored) */}
+          <View style={[ss.wave, ss.waveMirror]}>
+            {barStyles.map((anim, i) => (
+              <Animated.View key={i} style={[ss.bar, anim]} />
             ))}
           </View>
 
         </View>
 
-        {/* Replay/skip hint */}
-        {phase === "done" && (
-          <Text style={ss.hint}>Tekrar dinlemek için dokunun</Text>
-        )}
-        {phase === "playing" && (
-          <Text style={ss.hint}>Duraklatmak için dokunun</Text>
+        {/* Hint */}
+        {(phase === "listening" || phase === "thinking" || phase === "speaking") && (
+          <Text style={ss.hint}>
+            {phase === "listening"
+              ? "Durdurmak için dokunun"
+              : "İptal etmek için dokunun"}
+          </Text>
         )}
 
       </View>
@@ -362,116 +592,136 @@ export default function VoiceScreen() {
   );
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ── Styles ─────────────────────────────────────────────────────────────────────
-const LOGO_SIZE = Math.round(Math.min(W, H) * 0.34);
-const GLOW_SIZE = LOGO_SIZE * 2.8;
-const BTN_SIZE  = 68;
-const BAR_H     = 42;
-const BAR_W     = 3;
+const LOGO  = Math.round(Math.min(W, H) * 0.34);
+const GLOW  = LOGO * 2.9;
+const BTN   = 70;
+const BAR_H = 44;
+const BAR_W = 3;
 
 const ss = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#010108" },
 
-  // ── Top bar
+  // Top
   topBar: {
     position: "absolute", top: 0, left: 0, right: 0, zIndex: 30,
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 22,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 22,
   },
-  topBtn: {
+  backBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.07)",
     alignItems: "center", justifyContent: "center",
   },
-  topRight: { flex: 1, alignItems: "center", paddingRight: 36 },
-  topLabel: {
+  topCenter: { flex: 1, alignItems: "center", paddingRight: 36 },
+  topLabel:  {
     fontFamily: "Inter_400Regular", fontSize: 10,
-    color: "rgba(255,255,255,0.22)", letterSpacing: 2.6,
+    color: "rgba(255,255,255,0.22)", letterSpacing: 2.8,
   },
 
-  // ── Logo
+  // Logo
   logoArea: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     alignItems: "center", justifyContent: "center",
-    paddingBottom: H * 0.30,
+    paddingBottom: H * 0.28,
   },
-  glowHalo: {
+  glow: {
     position: "absolute",
-    width: GLOW_SIZE, height: GLOW_SIZE, borderRadius: GLOW_SIZE / 2,
-    // Soft milky white — not neon
-    backgroundColor: "rgba(220,228,242,0.028)",
-    shadowColor: "#D0D8F0",
+    width: GLOW, height: GLOW, borderRadius: GLOW / 2,
+    backgroundColor: "rgba(210,222,245,0.022)",
+    shadowColor: "#C8D4EE",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.38,
-    shadowRadius: LOGO_SIZE * 0.72,
+    shadowOpacity: 0.34,
+    shadowRadius: LOGO * 0.75,
   },
-  logo: { width: LOGO_SIZE, height: LOGO_SIZE, tintColor: "#FFFFFF" },
+  logo: { width: LOGO, height: LOGO, tintColor: "#FFFFFF" },
 
-  // ── Text overlay
-  textArea: {
-    position: "absolute",
-    bottom: H * 0.32,
-    left: 36, right: 36,
-    alignItems: "center", gap: 10,
+  // Transcript
+  transcript: {
+    position: "absolute", bottom: H * 0.31, left: 34, right: 34,
+    alignItems: "center", gap: 8,
   },
-  responseText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    color: "rgba(255,255,255,0.72)",
-    textAlign: "center",
-    lineHeight: 26,
-    letterSpacing: -0.3,
+  userLine: {
+    fontFamily: "Inter_400Regular", fontSize: 13,
+    color: "rgba(255,255,255,0.34)", textAlign: "center",
+    letterSpacing: -0.1,
   },
-  emptyText: {
-    fontFamily: "Inter_400Regular", fontSize: 14,
-    color: "rgba(255,255,255,0.25)", textAlign: "center",
-    lineHeight: 22, marginTop: 8,
+  aiLine: {
+    fontFamily: "Inter_400Regular", fontSize: 16,
+    color: "rgba(255,255,255,0.78)", textAlign: "center",
+    lineHeight: 25, letterSpacing: -0.25,
   },
 
-  // ── Bottom
-  bottomArea: {
+  // Unavailable
+  unavailBox: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: H * 0.30,
+    alignItems: "center", justifyContent: "center",
+    gap: 10, paddingHorizontal: 44,
+  },
+  unavailTitle: {
+    fontFamily: "Inter_500Medium", fontSize: 15,
+    color: "rgba(255,255,255,0.40)", textAlign: "center",
+  },
+  unavailBody: {
+    fontFamily: "Inter_400Regular", fontSize: 13,
+    color: "rgba(255,255,255,0.22)", textAlign: "center", lineHeight: 20,
+  },
+
+  // Bottom
+  bottom: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    alignItems: "center", gap: 18,
+    alignItems: "center", gap: 16,
   },
-  statusLabel: {
+  status: {
     fontFamily: "Inter_400Regular", fontSize: 12,
-    color: "rgba(255,255,255,0.28)",
-    letterSpacing: 1.8, textTransform: "uppercase",
+    color: "rgba(255,255,255,0.28)", letterSpacing: 1.8, textTransform: "uppercase",
   },
 
-  // ── Control row
-  controlRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
+  // Controls
+  controlRow: { flexDirection: "row", alignItems: "center", gap: 18 },
+
+  // Waveform
+  wave: {
+    flexDirection: "row", alignItems: "center", gap: 4, height: BAR_H,
+  },
+  waveMirror: { transform: [{ scaleX: -1 }] },
+  bar: {
+    width: BAR_W, height: BAR_H, borderRadius: BAR_W / 2,
+    backgroundColor: "rgba(255,255,255,0.28)",
   },
 
-  // ── Waveform
-  waveRow: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    height: BAR_H,
-  },
-  waveRowMirror: { transform: [{ scaleX: -1 }] },
-  waveBar: {
-    width: BAR_W,
-    height: BAR_H,
-    borderRadius: BAR_W / 2,
-    backgroundColor: "rgba(255,255,255,0.30)",
-    // scaleY transform origin is centre
-  },
-
-  // ── Play button
-  playBtn: {
-    width: BTN_SIZE, height: BTN_SIZE, borderRadius: BTN_SIZE / 2,
+  // Button
+  btn: {
+    width: BTN, height: BTN, borderRadius: BTN / 2,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.09)",
     alignItems: "center", justifyContent: "center",
   },
 
+  // Thinking dots
+  dotsRow: { flexDirection: "row", gap: 5, alignItems: "center" },
+  dot: {
+    width: 5, height: 5, borderRadius: 2.5,
+    backgroundColor: "rgba(255,255,255,0.82)",
+  },
+
   hint: {
     fontFamily: "Inter_400Regular", fontSize: 11,
-    color: "rgba(255,255,255,0.20)", letterSpacing: 0.3,
+    color: "rgba(255,255,255,0.20)", letterSpacing: 0.2,
   },
 });
