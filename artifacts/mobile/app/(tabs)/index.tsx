@@ -47,9 +47,9 @@ const avatar   = require("@/assets/images/avatar.png");
 
 const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 
-// ── Waveform bar geometry (home orb — 6 bars per side, more ambient than chat) ─
-const L_MAX = [4,  8, 14, 19, 15,  9];
-const R_MAX = [9, 15, 19, 14,  8,  4];
+// ── Waveform bar geometry (6 bars per side — ambient & minimal) ───────────────
+const L_MAX = [4,  9, 15, 21, 16, 10];
+const R_MAX = [10, 16, 21, 15,  9,  4];
 const L_DEL = [0,  70, 140, 60, 120, 200];
 const R_DEL = [120, 60,  0, 140, 70, 200];
 const L_DUR = [380, 320, 360, 300, 340, 380];
@@ -57,10 +57,15 @@ const R_DUR = [340, 380, 300, 360, 320, 340];
 
 type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
-const HOME_ORB_D = 82;  // smaller than VoiceOrbPanel's 88 — ambient feel
-const BAR_W      = 1.8;
-const BAR_GAP    = 3;
-const VOICE_LAYER_H = 108; // collapsed height for the animated voice section
+const HOME_ORB_D    = 94;   // 14% larger than before — more cinematic presence
+const BAR_W         = 1.5;  // thinner, softer
+const BAR_GAP       = 2.5;
+const VOICE_LAYER_H = 130;  // taller to accommodate bigger orb
+
+// Logo halo ring geometry: each ring is absolutely positioned inside a 320×320 wrap
+const LOGO_WRAP_D = 320;
+const RING_D = [LOGO_WRAP_D, 268, 218, 174, 138] as const;  // outermost → innermost
+const RING_TOP = RING_D.map((d) => (LOGO_WRAP_D - d) / 2)   as unknown as number[];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -381,14 +386,19 @@ export default function HomeScreen() {
   };
 
   // ── Animated styles ─────────────────────────────────────────────────────────
+  // Logo wrap breathes as one unit (scale only — opacity handled per layer)
   const logoAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value }],
-    opacity:   logoOp.value,
   }));
 
-  const logoGlowStyle = useAnimatedStyle(() => ({
-    opacity: 0.45 + logoGlowBoost.value * 0.35,
-    transform: [{ scale: 1 + logoGlowBoost.value * 0.08 }],
+  // Logo image opacity breathes independently
+  const logoImgOpStyle = useAnimatedStyle(() => ({
+    opacity: logoOp.value,
+  }));
+
+  // Boost overlay fades in when voice is active — softens the innermost ring
+  const glowBoostStyle = useAnimatedStyle(() => ({
+    opacity: logoGlowBoost.value * 0.55,
   }));
 
   const orbAnimStyle = useAnimatedStyle(() => ({
@@ -423,13 +433,21 @@ export default function HomeScreen() {
   const rStyles = [rS0, rS1, rS2, rS3, rS4, rS5];
 
   // ── Colour tokens ───────────────────────────────────────────────────────────
-  const barColor    = T.isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.14)";
-  const orbBg       = T.isDark ? "rgba(38,38,38,0.97)"   : "rgba(244,244,241,0.98)";
-  const orbGlowClr  = T.isDark ? "rgba(255,255,255,1)"   : "rgba(210,210,205,1)";
-  const logoTint    = T.isDark ? "rgba(200,200,200,0.70)" : "rgba(100,100,96,0.72)";
-  const logoGlowBg  = T.isDark ? "rgba(255,255,255,0.03)" : "rgba(248,244,236,0.80)";
-  const pillBg      = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
-  const pillText    = T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)";
+  const barColor    = T.isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.10)";  // softer
+  const orbBg       = T.isDark ? "rgba(40,40,40,0.97)"   : "rgba(246,243,238,0.98)";
+  const orbMidBg    = T.isDark ? "rgba(50,50,50,0.60)"   : "rgba(248,245,240,0.65)";
+  const orbGlowClr  = T.isDark ? "rgba(255,255,255,0.90)" : "rgba(235,230,218,0.90)"; // softer outer ring
+  const logoTint    = T.isDark ? "rgba(200,200,196,0.68)" : "rgba(104,100,96,0.70)";
+
+  // 5-layer radial halo colors — outermost (index 0) to innermost (index 4)
+  const ringColors = T.isDark
+    ? ["rgba(255,255,255,0.02)","rgba(255,255,255,0.04)","rgba(255,255,255,0.06)","rgba(255,255,255,0.08)","rgba(255,255,255,0.11)"]
+    : ["rgba(248,244,226,0.07)","rgba(248,244,226,0.13)","rgba(248,244,226,0.21)","rgba(248,244,226,0.32)","rgba(248,244,226,0.48)"];
+  const glowBoostBg = T.isDark ? "rgba(255,255,255,0.14)" : "rgba(248,244,220,0.60)";
+
+  const pillBg      = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(248,244,236,0.72)";
+  const pillBorder  = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(200,196,186,0.40)";
+  const pillText    = T.isDark ? "rgba(255,255,255,0.50)" : "rgba(80,76,70,0.70)";
   const inputBg     = T.isDark ? "rgba(255,255,255,0.06)" : T.card;
   const inputBorder = T.isDark ? StyleSheet.hairlineWidth  : 0;
   const inputBorderC= T.isDark ? "rgba(255,255,255,0.09)"  : "transparent";
@@ -488,20 +506,56 @@ export default function HomeScreen() {
       {/* ════ CENTER CONTENT ════ */}
       <View style={ss.center}>
 
-        {/* Logo + ambient glow cloud — wrapped so glow centers behind logo */}
-        <Animated.View style={[ss.logoWrap, logoAnimStyle]}>
-          {/* Soft glow cloud — wide diffuse circle, NOT a card/tile */}
+        {/*
+          ── LOGO HALO SYSTEM ──────────────────────────────────────────────────
+          5 concentric rings create a soft radial gradient effect — NO hard
+          edges, NO card/tile/container. The logo floats inside them freely.
+          The whole area breathes via logoAnimStyle (scale).
+        */}
+        <Animated.View style={[ss.logoWrap, logoAnimStyle]} pointerEvents="none">
+
+          {/* Base halo rings — fixed opacities, outermost→innermost */}
+          {RING_D.map((d, i) => (
+            <View
+              key={i}
+              style={{
+                position:     "absolute",
+                top:          RING_TOP[i],
+                left:         RING_TOP[i],
+                width:        d,
+                height:       d,
+                borderRadius: d / 2,
+                backgroundColor: ringColors[i],
+              }}
+            />
+          ))}
+
+          {/* Voice-active boost overlay — same position as innermost ring */}
           <Animated.View
-            pointerEvents="none"
-            style={[ss.logoGlowCloud, { backgroundColor: logoGlowBg }, logoGlowStyle]}
+            style={[
+              {
+                position:     "absolute",
+                top:          RING_TOP[4],
+                left:         RING_TOP[4],
+                width:        RING_D[4],
+                height:       RING_D[4],
+                borderRadius: RING_D[4] / 2,
+                backgroundColor: glowBoostBg,
+              },
+              glowBoostStyle,
+            ]}
           />
-          {/* The logo itself — free-floating, no container shape */}
-          <Image
-            source={leafLogo}
-            style={ss.logoImage}
-            tintColor={logoTint}
-            resizeMode="contain"
-          />
+
+          {/* Logo image — floats above all rings, no border/background */}
+          <Animated.View style={[ss.logoImgWrap, logoImgOpStyle]}>
+            <Image
+              source={leafLogo}
+              style={ss.logoImage}
+              tintColor={logoTint}
+              resizeMode="contain"
+            />
+          </Animated.View>
+
         </Animated.View>
 
         {/* Brand wordmark */}
@@ -520,8 +574,8 @@ export default function HomeScreen() {
         {/* ════ INLINE VOICE LAYER ════ */}
         <Animated.View style={[ss.voiceLayer, voiceLayerStyle]} pointerEvents="none">
 
-          {/* Status pill badge */}
-          <View style={[ss.statusPill, { backgroundColor: pillBg }]}>
+          {/* Status pill — glassmorphic with subtle border */}
+          <View style={[ss.statusPill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
             <Text style={[ss.statusText, { color: pillText }]}>{statusText}</Text>
           </View>
 
@@ -541,7 +595,7 @@ export default function HomeScreen() {
             {/* Mini orb — pure circle, logo inside, no square */}
             <Animated.View style={[ss.orbWrap, orbAnimStyle]}>
               <Animated.View style={[ss.orbGlow, { backgroundColor: orbGlowClr }, orbGlowStyle]} />
-              <View style={[ss.orbMid, { backgroundColor: orbBg }]} />
+              <View style={[ss.orbMid, { backgroundColor: orbMidBg }]} />
               <View style={[ss.orb, { backgroundColor: orbBg }]}>
                 <Image
                   source={leafLogo}
@@ -698,24 +752,25 @@ const ss = StyleSheet.create({
     flex:           1,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            14,
+    gap:            10,         // tighter — voice layer sits closer to wordmark
   },
 
-  // Wrapper centers the glow behind the logo — no visible border or shape
+  // 320×320 container for the 5-ring halo system — no visible shape of its own
   logoWrap: {
-    width:          200,
-    height:         200,
+    width:  LOGO_WRAP_D,
+    height: LOGO_WRAP_D,
+  },
+  // Absolutely centered wrapper for the logo image inside the halo
+  logoImgWrap: {
+    position:       "absolute",
+    top:            (LOGO_WRAP_D - 148) / 2,
+    left:           (LOGO_WRAP_D - 148) / 2,
+    width:          148,
+    height:         148,
     alignItems:     "center",
     justifyContent: "center",
   },
-  // Ambient glow — large diffuse blob, NOT a card or container
-  logoGlowCloud: {
-    position:     "absolute",
-    width:        270,
-    height:       270,
-    borderRadius: 135,
-  },
-  // Large floating logo — free, no background, no border
+  // The logo image itself — no background, no border
   logoImage: {
     width:  148,
     height: 148,
@@ -725,32 +780,34 @@ const ss = StyleSheet.create({
     fontSize:      18,
     fontFamily:    "Inter_400Regular",
     letterSpacing: 8,
+    marginTop:     -8,   // pull up slightly — halo wrap has extra visual space below
   },
   subtitle: {
     fontSize:      13,
     fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
     textAlign:     "center",
   },
 
-  // Inline voice layer — animates height from 0 to VOICE_LAYER_H
+  // Inline voice layer — slides in from height 0
   voiceLayer: {
     width:          "100%",
     alignItems:     "center",
     gap:            10,
-    paddingTop:     2,
+    paddingTop:     0,
   },
 
-  // Status pill badge
+  // Glassmorphic status pill — elegant, airy
   statusPill: {
-    paddingHorizontal: 18,
-    paddingVertical:   7,
-    borderRadius:      20,
+    paddingHorizontal: 22,
+    paddingVertical:   9,
+    borderRadius:      24,
+    borderWidth:       StyleSheet.hairlineWidth,
   },
   statusText: {
     fontFamily:    "Inter_400Regular",
-    fontSize:      11,
-    letterSpacing: 1.4,
+    fontSize:      11.5,
+    letterSpacing: 1.8,
   },
 
   // Mini orb row
@@ -796,10 +853,10 @@ const ss = StyleSheet.create({
   },
   orbMid: {
     position:     "absolute",
-    width:        HOME_ORB_D + 8,
-    height:       HOME_ORB_D + 8,
-    borderRadius: (HOME_ORB_D + 8) / 2,
-    opacity:      0.38,
+    width:        HOME_ORB_D + 12,
+    height:       HOME_ORB_D + 12,
+    borderRadius: (HOME_ORB_D + 12) / 2,
+    opacity:      0.45,
   },
   orb: {
     width:          HOME_ORB_D,
@@ -808,12 +865,12 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 3 },
-    shadowOpacity:  0.055,
-    shadowRadius:   12,
-    elevation:      5,
+    shadowOffset:   { width: 0, height: 4 },
+    shadowOpacity:  0.065,
+    shadowRadius:   16,
+    elevation:      6,
   },
-  orbLogo: { width: 38, height: 38 },
+  orbLogo: { width: 44, height: 44 },
 
   // Thin vertical indicator
   vBar: {
