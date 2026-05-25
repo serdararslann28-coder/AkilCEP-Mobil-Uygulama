@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FullscreenMenu from "@/components/FullscreenMenu";
 import ProfileMenu   from "@/components/ProfileMenu";
-import ThemeToggle   from "@/components/ThemeToggle";
 import { useChat }   from "@/context/ChatContext";
 import { useTheme }  from "@/context/ThemeContext";
 
@@ -146,9 +145,6 @@ export default function HomeScreen() {
 
         </View>
       </View>
-
-      {/* ── Theme toggle — floating bottom-left ── */}
-      <ThemeToggle bottomOffset={btmPad + 6} />
 
       <FullscreenMenu visible={sidebar}      onClose={() => setSidebar(false)} />
       <ProfileMenu    visible={profileMenu}  onClose={() => setProfileMenu(false)} />
