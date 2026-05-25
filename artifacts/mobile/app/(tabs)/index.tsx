@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
@@ -474,6 +475,17 @@ export default function HomeScreen() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
+      {/*
+        KeyboardAvoidingView wraps all interactive content so the input bar
+        rises smoothly above the keyboard on both iOS and Android.
+        Modals (FullscreenMenu, ProfileMenu) live outside KAV — they are
+        native overlays and must not be constrained by keyboard offset logic.
+      */}
+      <KeyboardAvoidingView
+        style={ss.kav}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? topPad : 0}
+      >
 
       {/* ════ HEADER ════ */}
       <View style={[ss.header, { paddingTop: topPad + 10 }]}>
@@ -685,6 +697,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      </KeyboardAvoidingView>
+
       <FullscreenMenu visible={sidebar}     onClose={() => setSidebar(false)} />
       <ProfileMenu   visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>
@@ -707,6 +721,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   root: { flex: 1 },
+  kav:  { flex: 1 },   // KeyboardAvoidingView — fills root, pushes input above keyboard
 
   // Header
   header: {
