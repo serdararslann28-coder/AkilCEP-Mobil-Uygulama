@@ -87,7 +87,7 @@ export default function HomeScreen() {
   const permGrantedRef  = useRef<boolean | null>(null);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 36 : insets.bottom;
+  const btmPad = Platform.OS === "web" ? 16 : insets.bottom;
   const hasText = inputText.trim().length > 0;
 
   const applyVoice = (p: VoicePhase) => {
@@ -641,7 +641,7 @@ export default function HomeScreen() {
       </View>
 
       {/* ════ INPUT BAR ════ */}
-      <View style={[ss.inputWrap, { paddingBottom: btmPad + 6 }]}>
+      <View style={[ss.inputWrap, { paddingBottom: btmPad }]}>
         <View style={[
           ss.inputBar,
           {
