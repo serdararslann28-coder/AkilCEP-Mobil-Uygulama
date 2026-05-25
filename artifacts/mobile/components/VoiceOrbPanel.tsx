@@ -1,14 +1,14 @@
 /**
- * VoiceOrbPanel — cinematic inline voice interaction layer.
+ * VoiceOrbPanel — refined ambient voice layer.
  *
- * Layout (appears between chat FlatList and input bar):
+ * Design intent: 70% conversation / 30% AI ambience.
+ * The orb and waveforms support the chat — they don't dominate it.
  *
- *   [←bars ] [  logo orb  ] [bars→]
- *          "AkılCEP yanıtlıyor..."
- *         · · · ||||||||||| · · ·
+ * Layout (slides in between FlatList and input bar):
  *
- * Appearance driven by voicePhase prop — panel handles all
- * its own animation internally.
+ *   [←bars] [ orb ] [bars→]
+ *       "AkılCEP yanıtlıyor…"
+ *         · · ||||||||| · ·
  */
 import React, { useEffect } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
@@ -31,26 +31,27 @@ interface Props {
   isDark: boolean;
 }
 
-// ── Bar geometry ─────────────────────────────────────────────────────────────
-// Left bars: outer→inner (bar[0] is outermost, bar[7] is closest to orb)
-const L_MAX = [6,  10, 18, 28, 36, 32, 24, 16];
+// ── Constants ────────────────────────────────────────────────────────────────
+const ORB_D   = 88;    // ~24% smaller than before (was 116)
+const PANEL_H = 152;   // tighter total height (was 194)
+const BAR_W   = 2.0;   // thinner bars (was 2.5)
+const BAR_GAP = 3;     // tighter gap (was 4)
+
+// Left bars max heights — outer→inner, scaled down ~28% from original
+// (closer to orb = tallest)
+const L_MAX = [4,  7, 13, 20, 26, 22, 16, 11];
 const L_DEL = [200,160,120, 80, 40,  0, 60,140];
-const L_DUR = [380,320,360,300,340,280,360,320];
+const L_DUR = [430,370,410,350,390,330,410,370]; // slower = more cinematic
 
-// Right bars: inner→outer (mirror of left)
-const R_MAX = [16, 24, 32, 36, 28, 18, 10,  6];
+// Right bars — mirror
+const R_MAX = [11, 16, 22, 26, 20, 13,  7,  4];
 const R_DEL = [140, 60,  0, 40, 80,120,160,200];
-const R_DUR = [320,360,280,340,300,360,320,380];
+const R_DUR = [370,410,330,390,350,410,370,430];
 
-// Bottom cluster: bell-curve heights, center is tallest
-const B_MAX = [4,  8, 14, 22, 32, 38, 32, 22, 14,  8,  4];
+// Bottom cluster — bell-curve, scaled down ~28%
+const B_MAX = [3,  6, 10, 16, 23, 27, 23, 16, 10,  6,  3];
 const B_DEL = [0, 60,120, 40, 80, 20, 80, 40,120, 60,  0];
-const B_DUR = [340,280,360,300,320,360,300,360,280,340,320];
-
-const BAR_W  = 2.5;
-const BAR_GAP = 4;
-const ORB_D  = 116;                         // orb diameter
-const PANEL_H = 194;                        // total panel height
+const B_DUR = [390,330,410,350,370,410,350,410,330,390,370];
 
 export default function VoiceOrbPanel({ phase, isDark }: Props) {
   // ── Left bar heights ───────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const lH5 = useSharedValue(2);
   const lH6 = useSharedValue(2);
   const lH7 = useSharedValue(2);
-  const leftBars  = [lH0, lH1, lH2, lH3, lH4, lH5, lH6, lH7] as const;
+  const leftBars = [lH0, lH1, lH2, lH3, lH4, lH5, lH6, lH7] as const;
 
   // ── Right bar heights ──────────────────────────────────────────────────────
   const rH0 = useSharedValue(2);
@@ -75,7 +76,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const rH7 = useSharedValue(2);
   const rightBars = [rH0, rH1, rH2, rH3, rH4, rH5, rH6, rH7] as const;
 
-  // ── Bottom cluster bar heights ─────────────────────────────────────────────
+  // ── Bottom cluster heights ─────────────────────────────────────────────────
   const bH0  = useSharedValue(2);
   const bH1  = useSharedValue(2);
   const bH2  = useSharedValue(2);
@@ -90,70 +91,76 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const botBars = [bH0, bH1, bH2, bH3, bH4, bH5, bH6, bH7, bH8, bH9, bH10] as const;
 
   // ── Orb ───────────────────────────────────────────────────────────────────
-  const orbScale   = useSharedValue(1);
-  const orbGlowOp  = useSharedValue(0.14);
+  const orbScale  = useSharedValue(1);
+  const orbGlowOp = useSharedValue(0.10);
 
   // ── Panel entry/exit ───────────────────────────────────────────────────────
   const panelOp = useSharedValue(0);
-  const panelTY = useSharedValue(24);
+  const panelTY = useSharedValue(16);
   const panelH  = useSharedValue(0);
 
-  // ── Animate ───────────────────────────────────────────────────────────────
+  // ── Drive all animations from phase ───────────────────────────────────────
   useEffect(() => {
     const active = phase !== "idle";
 
-    // Panel slide-in / slide-out + height collapse
+    // Panel expand/collapse
     panelOp.value = withTiming(active ? 1 : 0, {
-      duration: active ? 420 : 280,
-      easing: Easing.out(Easing.ease),
+      duration: active ? 440 : 300,
+      easing:   Easing.out(Easing.ease),
     });
-    panelTY.value = withTiming(active ? 0 : 20, {
-      duration: active ? 420 : 280,
-      easing: Easing.out(Easing.ease),
+    panelTY.value = withTiming(active ? 0 : 16, {
+      duration: active ? 440 : 300,
+      easing:   Easing.out(Easing.ease),
     });
     panelH.value = withTiming(active ? PANEL_H : 0, {
-      duration: active ? 380 : 260,
-      easing: Easing.out(Easing.ease),
+      duration: active ? 400 : 280,
+      easing:   Easing.out(Easing.ease),
     });
 
     if (!active) {
-      // Collapse bars
       [...leftBars, ...rightBars, ...botBars].forEach((v) => {
-        v.value = withTiming(2, { duration: 300 });
+        v.value = withTiming(2, { duration: 280 });
       });
-      orbScale.value  = withTiming(1, { duration: 300 });
-      orbGlowOp.value = withTiming(0.14, { duration: 300 });
+      orbScale.value  = withTiming(1,    { duration: 280 });
+      orbGlowOp.value = withTiming(0.10, { duration: 280 });
       return;
     }
 
-    // Orb: continuous breathing
+    // Orb breathing — very subtle (was 1.028, now 1.016)
     orbScale.value = withRepeat(
       withSequence(
-        withTiming(1.028, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0,   { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.016, { duration: 2600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,   { duration: 2600, easing: Easing.inOut(Easing.ease) }),
       ),
       -1, false
     );
 
-    // Orb glow: brighter when speaking
+    // Glow intensity — reduced across all phases (was 0.38/0.24/0.14)
     orbGlowOp.value = withTiming(
-      phase === "speaking" ? 0.38 : phase === "listening" ? 0.24 : 0.14,
-      { duration: 600 }
+      phase === "speaking"  ? 0.26 :
+      phase === "listening" ? 0.16 :
+      0.10,                                // thinking
+      { duration: 700 }
     );
 
-    // Animate a group of bars
+    // Bar animation — softer scale factors than before
     const animGroup = (
-      bars:     readonly typeof lH0[],
-      maxH:     number[],
-      delays:   number[],
-      durations:number[],
+      bars:      readonly typeof lH0[],
+      maxH:      number[],
+      delays:    number[],
+      durations: number[],
     ) => {
-      const minFraction = phase === "thinking"  ? 0.10
-                        : phase === "listening" ? 0.25
-                        : 0.12;                         // speaking
-      const scaleFactor = phase === "thinking"  ? 0.25
-                        : phase === "listening" ? 0.72
-                        : 1.0;                          // speaking = full
+      // Scale factor: how tall bars grow per phase
+      const scaleFactor =
+        phase === "thinking"  ? 0.20 :
+        phase === "listening" ? 0.65 :
+        0.88;                              // speaking (was 1.0 — slightly soft)
+
+      // Min height fraction: how far bars fall between peaks
+      const minFraction =
+        phase === "thinking"  ? 0.15 :
+        phase === "listening" ? 0.28 :
+        0.14;
 
       bars.forEach((bar, i) => {
         const max = (maxH[i]!) * scaleFactor;
@@ -186,7 +193,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
     transform: [{ translateY: panelTY.value }],
   }));
 
-  const orbStyle = useAnimatedStyle(() => ({
+  const orbAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: orbScale.value }],
   }));
 
@@ -194,7 +201,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
     opacity: orbGlowOp.value,
   }));
 
-  // Per-bar animated styles — left
+  // Per-bar styles — left
   const lS0 = useAnimatedStyle(() => ({ height: lH0.value }));
   const lS1 = useAnimatedStyle(() => ({ height: lH1.value }));
   const lS2 = useAnimatedStyle(() => ({ height: lH2.value }));
@@ -205,7 +212,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const lS7 = useAnimatedStyle(() => ({ height: lH7.value }));
   const lStyles = [lS0, lS1, lS2, lS3, lS4, lS5, lS6, lS7];
 
-  // Per-bar animated styles — right
+  // Per-bar styles — right
   const rS0 = useAnimatedStyle(() => ({ height: rH0.value }));
   const rS1 = useAnimatedStyle(() => ({ height: rH1.value }));
   const rS2 = useAnimatedStyle(() => ({ height: rH2.value }));
@@ -216,7 +223,7 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const rS7 = useAnimatedStyle(() => ({ height: rH7.value }));
   const rStyles = [rS0, rS1, rS2, rS3, rS4, rS5, rS6, rS7];
 
-  // Per-bar animated styles — bottom
+  // Per-bar styles — bottom
   const bS0  = useAnimatedStyle(() => ({ height: bH0.value  }));
   const bS1  = useAnimatedStyle(() => ({ height: bH1.value  }));
   const bS2  = useAnimatedStyle(() => ({ height: bH2.value  }));
@@ -231,27 +238,26 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
   const bStyles = [bS0, bS1, bS2, bS3, bS4, bS5, bS6, bS7, bS8, bS9, bS10];
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
-  const barColor   = isDark ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.18)";
-  const textColor  = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.28)";
-  const orbBg      = isDark ? "rgba(38,38,38,0.95)"    : "rgba(244,244,241,0.98)";
-  const orbGlowClr = isDark ? "rgba(255,255,255,1)"    : "rgba(210,210,205,1)";
-  const logoTint   = isDark ? "#CCCCCC"                : "#8A8A84";
+  // Bar opacity reduced (was 0.28/0.18)
+  const barColor   = isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.13)";
+  const textColor  = isDark ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)";
+  const orbBg      = isDark ? "rgba(36,36,36,0.96)"    : "rgba(244,244,241,0.98)";
+  const orbGlowClr = isDark ? "rgba(255,255,255,1)"    : "rgba(208,208,203,1)";
+  const logoTint   = isDark ? "#BBBBBB"                : "#9A9A94";
 
-  // Status text per phase
   const statusText =
-    phase === "listening" ? "D İ N L İ Y O R U M" :
-    phase === "thinking"  ? "D Ü Ş Ü N Ü Y O R …" :
-    phase === "speaking"  ? "A K I L C E P   Y A N I T L I Y O R …" :
+    phase === "listening" ? "d i n l i y o r u m" :
+    phase === "thinking"  ? "d ü ş ü n ü y o r …" :
+    phase === "speaking"  ? "a k ı l c e p   y a n ı t l ı y o r …" :
     "";
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Animated.View style={[ss.panel, panelStyle]} pointerEvents="none">
 
-      {/* ── Row: [left bars] [orb] [right bars] ── */}
+      {/* [left bars] [orb] [right bars] */}
       <View style={ss.orbRow}>
 
-        {/* Left bars — outer on left, inner on right edge */}
         <View style={ss.barWing}>
           {lStyles.map((style, i) => (
             <Animated.View
@@ -261,19 +267,12 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
           ))}
         </View>
 
-        {/* Logo orb */}
-        <Animated.View style={[ss.orbWrap, orbStyle]}>
-          {/* Outer glow ring */}
-          <Animated.View
-            style={[
-              ss.glowRing,
-              { backgroundColor: orbGlowClr },
-              glowStyle,
-            ]}
-          />
-          {/* Middle soft ring */}
+        <Animated.View style={[ss.orbWrap, orbAnimStyle]}>
+          {/* Outer glow */}
+          <Animated.View style={[ss.glowRing, { backgroundColor: orbGlowClr }, glowStyle]} />
+          {/* Mid haze */}
           <View style={[ss.midRing, { backgroundColor: orbBg }]} />
-          {/* Core orb */}
+          {/* Core */}
           <View style={[ss.orb, { backgroundColor: orbBg }]}>
             <Image
               source={leafOnly}
@@ -283,7 +282,6 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
           </View>
         </Animated.View>
 
-        {/* Right bars — inner on left edge, outer on right */}
         <View style={[ss.barWing, ss.barWingRight]}>
           {rStyles.map((style, i) => (
             <Animated.View
@@ -295,10 +293,10 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
 
       </View>
 
-      {/* ── Status text ── */}
+      {/* Status text */}
       <Text style={[ss.statusText, { color: textColor }]}>{statusText}</Text>
 
-      {/* ── Bottom waveform cluster ── */}
+      {/* Bottom waveform cluster */}
       <View style={ss.bottomCluster}>
         {bStyles.map((style, i) => (
           <Animated.View
@@ -315,35 +313,33 @@ export default function VoiceOrbPanel({ phase, isDark }: Props) {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   panel: {
-    height:         PANEL_H,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            10,
-    paddingBottom:  8,
+    gap:            7,          // tighter vertical rhythm (was 10)
+    paddingBottom:  4,
   },
 
-  // Orb row
   orbRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    width:             "100%",
+    paddingHorizontal: 18,
+  },
+
+  barWing: {
+    flex:           1,
     flexDirection:  "row",
     alignItems:     "center",
-    width:          "100%",
-    paddingHorizontal: 16,
-  },
-
-  // Bar wings
-  barWing: {
-    flex:          1,
-    flexDirection: "row",
-    alignItems:    "center",
-    justifyContent:"flex-end",   // bars cluster near orb on left
-    gap:           BAR_GAP,
-    paddingRight:  12,
+    justifyContent: "flex-end",
+    gap:            BAR_GAP,
+    paddingRight:   8,          // tighter gap to orb (was 12)
   },
   barWingRight: {
     justifyContent: "flex-start",
     paddingRight:   0,
-    paddingLeft:    12,
+    paddingLeft:    8,
   },
+
   bar: {
     width:        BAR_W,
     borderRadius: BAR_W / 2,
@@ -351,25 +347,25 @@ const ss = StyleSheet.create({
     minHeight:    2,
   },
 
-  // Orb layers
+  // Orb — 24% smaller overall
   orbWrap: {
-    width:          ORB_D + 40,  // includes glow ring space
-    height:         ORB_D + 40,
+    width:          ORB_D + 30,   // was ORB_D + 40
+    height:         ORB_D + 30,
     alignItems:     "center",
     justifyContent: "center",
   },
   glowRing: {
     position:     "absolute",
-    width:        ORB_D + 40,
-    height:       ORB_D + 40,
-    borderRadius: (ORB_D + 40) / 2,
+    width:        ORB_D + 30,
+    height:       ORB_D + 30,
+    borderRadius: (ORB_D + 30) / 2,
   },
   midRing: {
     position:     "absolute",
-    width:        ORB_D + 14,
-    height:       ORB_D + 14,
-    borderRadius: (ORB_D + 14) / 2,
-    opacity:      0.55,
+    width:        ORB_D + 10,    // was ORB_D + 14
+    height:       ORB_D + 10,
+    borderRadius: (ORB_D + 10) / 2,
+    opacity:      0.40,           // was 0.55 — softer mid layer
   },
   orb: {
     width:          ORB_D,
@@ -378,29 +374,27 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 6 },
-    shadowOpacity:  0.08,
-    shadowRadius:   20,
-    elevation:      10,
+    shadowOffset:   { width: 0, height: 4 },  // was 6
+    shadowOpacity:  0.06,                      // was 0.08
+    shadowRadius:   14,                        // was 20
+    elevation:      6,                         // was 10
   },
   orbLogo: {
-    width:  54,
-    height: 54,
+    width:  42,   // was 54 — proportionally smaller with orb
+    height: 42,
   },
 
-  // Status text
   statusText: {
     fontFamily:    "Inter_400Regular",
     fontSize:      10,
-    letterSpacing: 1.6,
+    letterSpacing: 1.2,     // was 1.6 — slightly tighter
     textAlign:     "center",
   },
 
-  // Bottom waveform cluster
   bottomCluster: {
-    flexDirection: "row",
-    alignItems:    "center",
-    justifyContent:"center",
-    gap:           BAR_GAP,
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "center",
+    gap:            BAR_GAP,
   },
 });
