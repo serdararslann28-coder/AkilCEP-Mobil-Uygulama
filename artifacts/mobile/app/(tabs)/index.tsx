@@ -729,38 +729,57 @@ export default function HomeScreen() {
             editable={voicePhase === "idle"}
           />
 
-          {/* Mic — stays visible as ambient indicator; dims slightly while typing */}
+          {/* Mic — always visible; dims while typing */}
           <TouchableOpacity
             style={[ss.inputIconBtn, { opacity: hasText ? 0.38 : 0.82 }]}
-            onPress={handleMicPress}
+            onPress={() => {
+              if (Platform.OS === "web") {
+                Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                return;
+              }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/voice");
+            }}
             hitSlop={10} activeOpacity={0.65}
           >
-            <Feather name={micIcon} size={17} color={micColor} />
+            <Feather name="mic" size={17} color={attachClr} />
           </TouchableOpacity>
 
-          {/* Smart arrow — send when typing, dark voice-orb trigger when empty */}
+          {/* Smart arrow — send when typing, dark AKILCEP-branded voice orb when empty */}
           <View style={ss.sendWrap}>
             {/* Outer warm amber bloom — pulses in voice mode */}
             <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
             {/* Inner glow ring */}
             <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
             {/* Dark graphite circle — voice mode bg */}
-            <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#1A1A1A" }, arrowVoiceBgAnim]} />
+            <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#161616" }, arrowVoiceBgAnim]} />
             {/* Primary-color circle — send mode bg */}
             <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
 
             <TouchableOpacity
               style={ss.sendBtnTouch}
-              onPress={hasText ? handleSend : handleMicPress}
+              onPress={hasText ? handleSend : () => {
+                if (Platform.OS === "web") {
+                  Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                  return;
+                }
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/voice");
+              }}
               hitSlop={12} activeOpacity={0.75}
             >
-              {/* Arrow icon — send mode (bright) */}
+              {/* Send arrow — visible when text exists */}
               <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
                 <Feather name="arrow-up" size={16} color={T.primaryForeground} />
               </Animated.View>
-              {/* Arrow icon — voice mode (dimmed on dark) */}
+              {/* AKILCEP leaf logo — visible when input is empty (voice mode) */}
               <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                <Feather name="arrow-up" size={16} color="rgba(255,255,255,0.55)" />
+                <Image
+                  source={leafLogo}
+                  style={ss.orbLeaf}
+                  tintColor="rgba(255,255,255,0.72)"
+                  resizeMode="contain"
+                />
               </Animated.View>
             </TouchableOpacity>
           </View>
@@ -1025,5 +1044,10 @@ const ss = StyleSheet.create({
     position:       "absolute",
     alignItems:     "center",
     justifyContent: "center",
+  },
+  // AKILCEP leaf logo inside voice orb
+  orbLeaf: {
+    width:  18,
+    height: 18,
   },
 });

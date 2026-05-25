@@ -45,6 +45,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import VoiceCanvas from "@/components/VoiceCanvas";
+import { useChat }  from "@/context/ChatContext";
 
 const { width: W, height: H } = Dimensions.get("window");
 
@@ -70,6 +71,8 @@ export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
+
+  const { injectMessages, startNewConversation } = useChat();
 
   const [phase, setPhase]           = useState<Phase>("init");
   const [userText, setUserText]     = useState("");
@@ -370,7 +373,7 @@ export default function VoiceScreen() {
 
       setUserText(data.userText ?? "");
       setAiText(data.assistantText ?? "");
-      await speakReply(data.assistantText, abort);
+      await speakReply(data.userText ?? "", data.assistantText, abort);
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === "AbortError") return;
       console.warn("[voice] sendToBackend:", err);
@@ -378,13 +381,12 @@ export default function VoiceScreen() {
     }
   };
 
-  // ── Speak the AI reply ─────────────────────────────────────────────────────
-  const speakReply = async (text: string, abort: AbortController) => {
+  // ── Speak the AI reply, then inject into chat and navigate ────────────────
+  const speakReply = async (userMsg: string, text: string, abort: AbortController) => {
     if (abort.signal.aborted) return;
 
     applyPhase("speaking");
 
-    // Re-enable recording mode after playback (for the next turn)
     const restoreRecordingMode = async () => {
       try {
         await Audio.setAudioModeAsync({
@@ -394,15 +396,21 @@ export default function VoiceScreen() {
       } catch {}
     };
 
+    // Inject conversation into chat context and navigate after speaking
+    const finishAndNavigate = () => {
+      if (abort.signal.aborted) return;
+      startNewConversation();
+      injectMessages(userMsg, text);
+      router.replace("/chat");
+    };
+
     try {
       Speech.speak(text, {
         language:  "tr-TR",
         rate:      0.88,
         pitch:     1.0,
         onDone:    () => {
-          void restoreRecordingMode().then(() => {
-            if (!abort.signal.aborted) applyPhase("idle");
-          });
+          void restoreRecordingMode().then(finishAndNavigate);
         },
         onStopped: () => {
           void restoreRecordingMode();

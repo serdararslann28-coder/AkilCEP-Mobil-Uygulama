@@ -22,6 +22,7 @@ import React, {
 import {
   Alert,
   FlatList,
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -571,58 +572,60 @@ export default function ChatScreen() {
             {/* Right controls */}
             <View style={ss.rightRow}>
 
-              {/* Mic — always visible; dims while typing, transforms per voice phase */}
+              {/* Mic — always visible; dims while typing, routes to full-screen voice */}
               <View style={[ss.micWrap, { opacity: hasText ? 0.38 : 0.82 }]}>
-                <Animated.View
-                  style={[
-                    ss.micHalo,
-                    {
-                      backgroundColor: T.isDark
-                        ? "rgba(255,255,255,0.08)"
-                        : "rgba(0,0,0,0.05)",
-                    },
-                    micGlowStyle,
-                  ]}
-                  pointerEvents="none"
-                />
                 <TouchableOpacity
-                  style={[ss.micBtn, { backgroundColor: micBg() }]}
-                  onPress={handleMicPress}
+                  style={[ss.micBtn]}
+                  onPress={() => {
+                    if (Platform.OS === "web") {
+                      Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                      return;
+                    }
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push("/voice");
+                  }}
                   activeOpacity={0.65}
                   hitSlop={8}
                 >
-                  {voicePhase === "thinking" ? (
-                    <ThinkingDots
-                      color={T.isDark ? "rgba(255,255,255,0.50)" : "rgba(0,0,0,0.35)"}
-                      size={3.5}
-                    />
-                  ) : (
-                    <Feather name={micIconName()} size={15} color={micIconColor()} />
-                  )}
+                  <Feather name="mic" size={15} color={attachClr} />
                 </TouchableOpacity>
               </View>
 
-              {/* Smart arrow — send when typing, dark voice-orb trigger when empty */}
+              {/* Smart arrow — send when typing, dark AKILCEP-branded voice orb when empty */}
               <Animated.View style={[ss.sendWrap, sendStyle]}>
                 {/* Outer warm amber bloom — pulses in voice mode */}
                 <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
                 {/* Inner glow ring */}
                 <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
                 {/* Dark graphite bg — voice mode */}
-                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#1A1A1A" }, arrowVoiceBgAnim]} />
+                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#161616" }, arrowVoiceBgAnim]} />
                 {/* Primary-color bg — send mode */}
                 <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
 
                 <TouchableOpacity
                   style={ss.sendBtnTouch}
-                  onPress={hasText ? handleSend : handleMicPress}
+                  onPress={hasText ? handleSend : () => {
+                    if (Platform.OS === "web") {
+                      Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                      return;
+                    }
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push("/voice");
+                  }}
                   hitSlop={12} activeOpacity={0.75}
                 >
+                  {/* Send arrow — visible when text exists */}
                   <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
                     <Feather name="arrow-up" size={16} color={T.primaryForeground} />
                   </Animated.View>
+                  {/* AKILCEP leaf logo — visible when input is empty (voice mode) */}
                   <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                    <Feather name="arrow-up" size={16} color="rgba(255,255,255,0.55)" />
+                    <Image
+                      source={leafOnly}
+                      style={ss.orbLeaf}
+                      tintColor="rgba(255,255,255,0.72)"
+                      resizeMode="contain"
+                    />
                   </Animated.View>
                 </TouchableOpacity>
               </Animated.View>
@@ -839,5 +842,9 @@ const ss = StyleSheet.create({
     position:       "absolute",
     alignItems:     "center",
     justifyContent: "center",
+  },
+  orbLeaf: {
+    width:  18,
+    height: 18,
   },
 });
