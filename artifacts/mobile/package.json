@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "expo-clipboard": "^56.0.3",
+    "expo-speech": "^56.0.3",
     "react-native-webview": "^13.15.0"
   }
 }

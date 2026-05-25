@@ -208,20 +208,23 @@ export default function ChatScreen() {
                   style={[
                     ss.sendBtn,
                     {
-                      backgroundColor: hasText ? T.green : "transparent",
-                      borderColor:     hasText ? "transparent" : T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)",
-                      shadowColor:     T.green,
-                      shadowOpacity:   hasText ? 0.40 : 0,
+                      backgroundColor: T.isDark
+                        ? hasText ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.07)"
+                        : hasText ? "rgba(0,0,0,0.13)"       : "rgba(0,0,0,0.05)",
+                      shadowColor:   "#000",
+                      shadowOpacity: hasText ? 0.10 : 0,
                     },
                   ]}
                   onPress={handleSend}
                   disabled={!hasText}
-                  activeOpacity={0.80}
+                  activeOpacity={0.72}
                 >
                   <Feather
                     name="arrow-up"
                     size={17}
-                    color={hasText ? (T.isDark ? "#050505" : "#FFFFFF") : T.muted}
+                    color={T.isDark
+                      ? hasText ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.28)"
+                      : hasText ? "rgba(0,0,0,0.75)"       : "rgba(0,0,0,0.22)"}
                   />
                 </TouchableOpacity>
               </Animated.View>

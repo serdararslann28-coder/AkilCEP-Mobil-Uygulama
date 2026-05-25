@@ -1,19 +1,23 @@
 /**
- * MessageBubble — premium AKILCEP chat bubbles.
+ * MessageBubble — AKILCEP premium chat bubbles.
  *
- * USER  → floating soft-gray glass bubble (slightly darker)
- * AI    → bare editorial text on background, NO container/card/box
- *          + minimal action row beneath (copy · like · dislike · share)
+ * USER → floating soft-gray glass bubble
+ * AI   → bare editorial text on background, NO container/card/box
+ *         + minimal action row: copy · like · dislike · read-aloud · share
  */
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
+import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
+  Easing,
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -30,20 +34,25 @@ function fmt(ts: number) {
   return new Date(ts).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// ─── Minimal action button ────────────────────────────────────────────────────
+// ─── Generic action button ─────────────────────────────────────────────────────
 function ActionBtn({
   icon,
+  active,
   onPress,
-  tintOnPress,
 }: {
-  icon:        string;
-  onPress?:    () => void;
-  tintOnPress?: string;
+  icon:     string;
+  active?:  boolean;
+  onPress?: () => void;
 }) {
   const { theme: T } = useTheme();
-  const scale = useSharedValue(1);
-  const op    = useSharedValue(0.40);
-  const clrOv = useSharedValue(0); // 0 = neutral, 1 = tinted
+
+  const scale  = useSharedValue(1);
+  const op     = useSharedValue(active ? 0.80 : 0.40);
+
+  // sync opacity when active state changes
+  useEffect(() => {
+    op.value = withTiming(active ? 0.82 : 0.40, { duration: 250 });
+  }, [active]);
 
   const aStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -56,28 +65,97 @@ function ActionBtn({
       scale.value = withSpring(1, { damping: 14, stiffness: 200 });
     });
     op.value = withTiming(1, { duration: 80 }, () => {
-      op.value = withTiming(0.40, { duration: 500 });
+      op.value = withTiming(active ? 0.82 : 0.40, { duration: 500 });
     });
     onPress?.();
   };
 
-  const iconClr = T.isDark ? "rgba(255,255,255,0.70)" : "rgba(40,40,40,0.70)";
+  const clr = T.isDark ? "rgba(255,255,255,0.80)" : "rgba(40,40,40,0.80)";
 
   return (
     <TouchableOpacity onPress={press} hitSlop={12} activeOpacity={1}>
       <Animated.View style={aStyle}>
-        <Feather name={icon as any} size={13} color={iconClr} />
+        <Feather name={icon as any} size={13} color={clr} />
       </Animated.View>
     </TouchableOpacity>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Read-aloud button with pulse while speaking ───────────────────────────────
+function SpeakBtn({ text }: { text: string }) {
+  const { theme: T } = useTheme();
+  const [speaking, setSpeaking] = useState(false);
+
+  const scale = useSharedValue(1);
+  const op    = useSharedValue(0.40);
+
+  // Gentle pulse while speaking
+  useEffect(() => {
+    if (speaking) {
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.30, { duration: 550, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.0,  { duration: 550, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        false,
+      );
+      op.value = withRepeat(
+        withSequence(
+          withTiming(0.95, { duration: 550 }),
+          withTiming(0.60, { duration: 550 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      scale.value = withSpring(1, { damping: 12, stiffness: 180 });
+      op.value    = withTiming(0.40, { duration: 300 });
+    }
+  }, [speaking]);
+
+  const aStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity:   op.value,
+  }));
+
+  const toggle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (speaking) {
+      await Speech.stop();
+      setSpeaking(false);
+    } else {
+      setSpeaking(true);
+      Speech.speak(text, {
+        language:   "tr-TR",
+        pitch:      1.0,
+        rate:       0.92,
+        onDone:     () => setSpeaking(false),
+        onStopped:  () => setSpeaking(false),
+        onError:    () => setSpeaking(false),
+      });
+    }
+  };
+
+  const clr = speaking
+    ? T.green
+    : T.isDark ? "rgba(255,255,255,0.80)" : "rgba(40,40,40,0.80)";
+
+  return (
+    <TouchableOpacity onPress={toggle} hitSlop={12} activeOpacity={1}>
+      <Animated.View style={aStyle}>
+        <Feather name="volume-2" size={13} color={clr} />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export default function MessageBubble({ message, isLatest }: Props) {
   const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
-  // Typewriter for the latest AI message
+  // Typewriter for latest AI message
   const [shown, setShown] = useState(isLatest && !isUser ? "" : message.content);
   const idxR  = useRef(0);
   const tmrR  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -104,21 +182,17 @@ export default function MessageBubble({ message, isLatest }: Props) {
   const tsAnim = useAnimatedStyle(() => ({ opacity: tsOp.value }));
   useEffect(() => { tsOp.value = withTiming(1, { duration: 700 }); }, []);
 
-  // ── USER BUBBLE ──────────────────────────────────────────────────────────
+  // ── USER BUBBLE ────────────────────────────────────────────────────────────
   if (isUser) {
-    const bubbleBg = T.isDark
-      ? "rgba(255,255,255,0.10)"
-      : "rgba(70,70,70,0.10)";
+    const bg = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(70,70,70,0.10)";
 
     return (
       <Animated.View
         entering={FadeInDown.duration(280).springify().damping(18)}
         style={ss.userWrap}
       >
-        <View style={[ss.userBubble, { backgroundColor: bubbleBg }]}>
-          <Text style={[ss.userText, { color: T.fg }]}>
-            {message.content}
-          </Text>
+        <View style={[ss.userBubble, { backgroundColor: bg }]}>
+          <Text style={[ss.userText, { color: T.fg }]}>{message.content}</Text>
         </View>
         <Animated.Text style={[ss.ts, { color: T.zinc, marginRight: 4 }, tsAnim]}>
           {fmt(message.timestamp)}
@@ -127,7 +201,7 @@ export default function MessageBubble({ message, isLatest }: Props) {
     );
   }
 
-  // ── AI RESPONSE — editorial text, no container ───────────────────────────
+  // ── AI RESPONSE — no container ─────────────────────────────────────────────
   const textClr = T.isDark ? "rgba(235,235,235,0.90)" : "#3A3A3C";
 
   return (
@@ -135,12 +209,10 @@ export default function MessageBubble({ message, isLatest }: Props) {
       entering={FadeInDown.duration(340).springify().damping(18)}
       style={ss.aiWrap}
     >
-      {/* Raw text — sits directly on the background */}
-      <Text style={[ss.aiText, { color: textClr }]}>
-        {shown}
-      </Text>
+      {/* Editorial text — no wrapping view, no background */}
+      <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
 
-      {/* Action row — appears after text */}
+      {/* Action row */}
       <View style={ss.actionRow}>
         <ActionBtn
           icon="copy"
@@ -148,9 +220,9 @@ export default function MessageBubble({ message, isLatest }: Props) {
         />
         <ActionBtn icon="thumbs-up"   />
         <ActionBtn icon="thumbs-down" />
-        <ActionBtn icon="share-2"     />
+        <SpeakBtn  text={message.content} />
+        <ActionBtn icon="share-2" />
 
-        {/* Timestamp — far right */}
         <Animated.Text style={[ss.aiTs, { color: T.zinc }, tsAnim]}>
           {fmt(message.timestamp)}
         </Animated.Text>
@@ -159,8 +231,9 @@ export default function MessageBubble({ message, isLatest }: Props) {
   );
 }
 
+// ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-  // ── User
+  // User
   userWrap: {
     alignItems:        "flex-end",
     marginBottom:      20,
@@ -183,24 +256,24 @@ const ss = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // ── AI — no bubble
+  // AI — bare text
   aiWrap: {
-    marginBottom:      24,
+    marginBottom:      26,
     paddingHorizontal: 24,
   },
   aiText: {
-    fontSize:   15.5,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 26,
+    fontSize:      15.5,
+    fontFamily:    "Inter_400Regular",
+    lineHeight:    26,
     letterSpacing: -0.1,
   },
 
-  // Action icons row
+  // Action icons
   actionRow: {
-    flexDirection:  "row",
-    alignItems:     "center",
-    marginTop:      12,
-    gap:            20,
+    flexDirection: "row",
+    alignItems:    "center",
+    marginTop:     12,
+    gap:           20,
   },
   aiTs: {
     marginLeft:    "auto" as any,
