@@ -194,7 +194,14 @@ export default function ChatScreen() {
               {!hasText && (
                 <TouchableOpacity
                   style={ss.micBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voice"); }}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const lastAI = currentMessages.find((m) => m.role === "assistant");
+                    router.push({
+                      pathname: "/voice",
+                      params: lastAI ? { text: lastAI.content } : {},
+                    });
+                  }}
                   hitSlop={8} activeOpacity={0.60}
                 >
                   <Feather name="mic" size={15} color={attachClr} />
