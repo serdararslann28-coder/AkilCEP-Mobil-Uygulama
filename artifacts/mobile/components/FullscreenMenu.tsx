@@ -130,7 +130,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
   const groupBorder = T.isDark ? "rgba(255,255,255,0.08)"  : "transparent";
   const divider     = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.055)";
   const iconBg      = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.04)";
-  const accentIconBg= T.isDark ? "rgba(255,255,255,0.08)"   : "rgba(107,203,142,0.10)";
+  const accentIconBg= T.isDark ? "rgba(255,255,255,0.08)"   : "rgba(198,169,105,0.13)";
   const groupShadow = T.isDark ? 0 : 0.04;
   const separatorML = 46; // dividers start after icon
 
@@ -241,7 +241,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               return (
                 <React.Fragment key={item.id}>
                   <TouchableOpacity
-                    style={[ss.histRow, active && { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(107,203,142,0.07)" }]}
+                    style={[ss.histRow, active && { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.042)" }]}
                     activeOpacity={0.62}
                     onPress={() => {
                       if (item.real) {
@@ -254,10 +254,10 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                       }
                     }}
                   >
-                    <View style={[ss.histIcon, { backgroundColor: active ? (T.isDark ? "rgba(255,255,255,0.10)" : T.greenTint) : iconBg }]}>
-                      <Feather name="message-square" size={11} color={active ? (T.isDark ? "rgba(255,255,255,0.65)" : T.green) : T.muted} />
+                    <View style={[ss.histIcon, { backgroundColor: active ? (T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)") : iconBg }]}>
+                      <Feather name="message-square" size={11} color={active ? (T.isDark ? "rgba(255,255,255,0.65)" : "rgba(60,60,67,0.62)") : T.muted} />
                     </View>
-                    <Text style={[ss.histTitle, { color: active ? (T.isDark ? T.fg : T.green) : T.fg, flex: 1 }]} numberOfLines={1}>
+                    <Text style={[ss.histTitle, { color: T.fg, flex: 1 }]} numberOfLines={1}>
                       {item.title}
                     </Text>
                     <Text style={[ss.histTime, { color: T.zinc }]}>{item.time}</Text>
@@ -351,7 +351,7 @@ function SectionHeader({ title, T, action }: { title: string; T: any; action?: s
       <Text style={[ss.sectionTitle, { color: T.zinc }]}>{title}</Text>
       {action && (
         <TouchableOpacity hitSlop={10} onPress={() => Haptics.selectionAsync()}>
-          <Text style={[ss.sectionAction, { color: T.green }]}>{action}</Text>
+          <Text style={[ss.sectionAction, { color: T.isDark ? "rgba(255,255,255,0.32)" : "rgba(60,60,67,0.52)" }]}>{action}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -367,12 +367,12 @@ function MenuItem({ item, T, iconBg, accentBg, dividerClr, onPress }: {
   return (
     <TouchableOpacity style={ss.menuRow} activeOpacity={0.60} onPress={onPress}>
       <View style={[ss.menuIcon, { backgroundColor: item.accent ? accentBg : iconBg }]}>
-        <Feather name={item.icon as any} size={13} color={item.accent ? T.green : T.fgSoft} />
+        <Feather name={item.icon as any} size={13} color={item.accent ? (T.isDark ? T.green : "#C6A969") : T.fgSoft} />
       </View>
-      <Text style={[ss.menuLabel, { color: item.accent ? T.green : T.fg }]}>{item.label}</Text>
+      <Text style={[ss.menuLabel, { color: item.accent ? (T.isDark ? T.green : "#B89B5E") : T.fg }]}>{item.label}</Text>
       {item.accent ? (
-        <View style={[ss.proBadge, { backgroundColor: T.greenTint }]}>
-          <Text style={[ss.proBadgeText, { color: T.greenEmphasis }]}>PRO</Text>
+        <View style={[ss.proBadge, { backgroundColor: T.isDark ? T.greenTint : "rgba(198,169,105,0.14)" }]}>
+          <Text style={[ss.proBadgeText, { color: T.isDark ? T.greenEmphasis : "#C6A969" }]}>PRO</Text>
         </View>
       ) : (
         <Feather name="chevron-right" size={12} color={chevronClr} />
