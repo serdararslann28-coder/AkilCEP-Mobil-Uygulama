@@ -18,8 +18,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -486,6 +488,8 @@ export default function HomeScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "padding"}
         keyboardVerticalOffset={Platform.OS === "ios" ? topPad : 0}
       >
+        {/* Tap anywhere outside the input to dismiss the keyboard smoothly */}
+        <Pressable style={ss.kav} onPress={Keyboard.dismiss} accessible={false}>
 
       {/* ════ HEADER ════ */}
       <View style={[ss.header, { paddingTop: topPad + 10 }]}>
@@ -637,7 +641,7 @@ export default function HomeScreen() {
       </View>
 
       {/* ════ INPUT BAR ════ */}
-      <View style={[ss.inputWrap, { paddingBottom: btmPad + 16 }]}>
+      <View style={[ss.inputWrap, { paddingBottom: btmPad + 6 }]}>
         <View style={[
           ss.inputBar,
           {
@@ -697,6 +701,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
+        </Pressable>
       </KeyboardAvoidingView>
 
       <FullscreenMenu visible={sidebar}     onClose={() => setSidebar(false)} />
