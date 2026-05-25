@@ -1,6 +1,6 @@
 /**
- * Home — ultra premium white minimalist AI assistant.
- * Apple-inspired luxury aesthetic. Voice Mode is a separate screen at /voice.
+ * Home — ultra premium AI assistant.
+ * Responds fully to PURE / VOID theme.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -18,8 +18,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FullscreenMenu from "@/components/FullscreenMenu";
-import ProfileMenu from "@/components/ProfileMenu";
-import { useChat } from "@/context/ChatContext";
+import ProfileMenu   from "@/components/ProfileMenu";
+import ThemeToggle   from "@/components/ThemeToggle";
+import { useChat }   from "@/context/ChatContext";
+import { useTheme }  from "@/context/ThemeContext";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 const avatar   = require("@/assets/images/avatar.png");
@@ -27,10 +29,11 @@ const avatar   = require("@/assets/images/avatar.png");
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { startNewConversation, sendMessage } = useChat();
+  const { theme } = useTheme();
 
-  const [inputText, setInputText]       = useState("");
-  const [sidebar, setSidebar]           = useState(false);
-  const [profileMenu, setProfileMenu]   = useState(false);
+  const [inputText, setInputText]     = useState("");
+  const [sidebar, setSidebar]         = useState(false);
+  const [profileMenu, setProfileMenu] = useState(false);
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 36 : insets.bottom;
@@ -47,85 +50,74 @@ export default function HomeScreen() {
 
   const hasText = inputText.trim().length > 0;
 
-  return (
-    <View style={styles.root}>
+  // ── Dynamic colour tokens ──
+  const T = theme;
 
-      {/* ── Top bar ───────────────────────────────────────────────────── */}
+  return (
+    <View style={[styles.root, { backgroundColor: T.bg }]}>
+
+      {/* ── Top bar ── */}
       <View style={[styles.topBar, { paddingTop: topPad + 14 }]}>
 
-        {/* Left — menu */}
         <TouchableOpacity
-          style={styles.circleBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSidebar(true);
-          }}
+          style={[styles.circleBtn, { backgroundColor: T.card, shadowColor: T.isDark ? "transparent" : "#9A9A9A" }]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSidebar(true); }}
           hitSlop={14}
           activeOpacity={0.65}
         >
-          <Feather name="menu" size={16} color="#1C1C1E" />
+          <Feather name="menu" size={16} color={T.fg} />
         </TouchableOpacity>
 
-        {/* Center — brand title */}
-        <Text style={styles.topTitle}>C E B İ N D E K İ  A K I L</Text>
+        <Text style={[styles.topTitle, { color: T.fg }]}>C E B İ N D E K İ  A K I L</Text>
 
-        {/* Right — avatar → opens ProfileMenu */}
         <TouchableOpacity
           style={styles.avatarWrap}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setProfileMenu(true);
-          }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setProfileMenu(true); }}
           hitSlop={14}
           activeOpacity={0.80}
         >
-          <Image source={avatar} style={styles.avatarImg} />
-          <View style={styles.onlineDot} />
+          <Image source={avatar} style={[styles.avatarImg, { borderColor: T.card }]} />
+          <View style={[styles.onlineDot, { backgroundColor: T.onlineDot, borderColor: T.bg }]} />
         </TouchableOpacity>
 
       </View>
 
-      {/* ── Center ────────────────────────────────────────────────────── */}
+      {/* ── Center ── */}
       <View style={styles.center}>
-
-        {/* Logo — bare on background, no circle */}
         <Image
           source={leafLogo}
-          style={styles.logoImage}
+          style={[styles.logoImage, { tintColor: T.logoTint }]}
           resizeMode="contain"
         />
-
-        {/* Wordmark */}
-        <Text style={styles.wordmark}>A K I L C E P</Text>
-
-        {/* Subtitle */}
-        <Text style={styles.subtitle}>size nasıl yardımcı olabilirim?</Text>
-
+        <Text style={[styles.wordmark, { color: T.fg }]}>A K I L C E P</Text>
+        <Text style={[styles.subtitle, { color: T.zinc }]}>size nasıl yardımcı olabilirim?</Text>
       </View>
 
-      {/* ── Floating input bar ─────────────────────────────────────────── */}
-      <View style={[styles.inputWrap, { paddingBottom: btmPad + 14 }]}>
-        <View style={styles.inputBar}>
+      {/* ── Input bar ── */}
+      <View style={[styles.inputWrap, { paddingBottom: btmPad + 64 }]}>
+        <View style={[
+          styles.inputBar,
+          {
+            backgroundColor: T.card,
+            borderColor:      T.border,
+            borderWidth:      T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:    T.isDark ? 0 : 0.08,
+          },
+        ]}>
 
-          {/* + */}
           <TouchableOpacity
             style={styles.inputIconBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              startNewConversation();
-              router.push("/chat");
-            }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startNewConversation(); router.push("/chat"); }}
             hitSlop={10}
             activeOpacity={0.65}
           >
-            <Feather name="plus" size={18} color="#1C1C1E" />
+            <Feather name="plus" size={18} color={T.fg} />
           </TouchableOpacity>
 
-          {/* Text field */}
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { color: T.fg }]}
             placeholder="AkılCEPE yanıt ver"
-            placeholderTextColor="#AEAEB2"
+            placeholderTextColor={T.zinc}
             value={inputText}
             onChangeText={setInputText}
             returnKeyType="send"
@@ -133,189 +125,104 @@ export default function HomeScreen() {
             blurOnSubmit={false}
           />
 
-          {/* Mic — opens Voice Mode */}
           <TouchableOpacity
             style={styles.inputIconBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/voice");
-            }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voice"); }}
             hitSlop={10}
             activeOpacity={0.65}
           >
-            <Feather name="mic" size={17} color="#1C1C1E" />
+            <Feather name="mic" size={17} color={T.fg} />
           </TouchableOpacity>
 
-          {/* Send */}
           <TouchableOpacity
-            style={[styles.sendBtn, hasText && styles.sendBtnActive]}
+            style={[styles.sendBtn, { backgroundColor: hasText ? T.primary : T.accent }]}
             onPress={handleSend}
             disabled={!hasText}
             hitSlop={10}
             activeOpacity={0.75}
           >
-            <Feather
-              name="arrow-up"
-              size={16}
-              color={hasText ? "#FFFFFF" : "#8E8E93"}
-            />
+            <Feather name="arrow-up" size={16} color={hasText ? T.primaryForeground : T.muted} />
           </TouchableOpacity>
 
         </View>
       </View>
 
-      <FullscreenMenu visible={sidebar} onClose={() => setSidebar(false)} />
-      <ProfileMenu  visible={profileMenu}  onClose={() => setProfileMenu(false)} />
+      {/* ── Theme toggle — floating bottom-left ── */}
+      <ThemeToggle bottomOffset={btmPad + 6} />
+
+      <FullscreenMenu visible={sidebar}      onClose={() => setSidebar(false)} />
+      <ProfileMenu    visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Layout-only styles (no colours) ─────────────────────────────────────────
 const styles = StyleSheet.create({
+  root: { flex: 1 },
 
-  root: {
-    flex:            1,
-    backgroundColor: "#EBEBEC",
-  },
-
-  // ── Top bar
   topBar: {
     position:          "absolute",
-    top:               0,
-    left:              0,
-    right:             0,
+    top: 0, left: 0, right: 0,
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
     paddingHorizontal: 20,
     zIndex:            20,
   },
-
   topTitle: {
     fontSize:      10,
     fontFamily:    "Inter_400Regular",
-    color:         "#1C1C1E",
     letterSpacing: 2.2,
     textAlign:     "center",
     flexShrink:    1,
   },
-
   circleBtn: {
-    width:           44,
-    height:          44,
-    borderRadius:    22,
-    backgroundColor: "rgba(255,255,255,0.90)",
-    alignItems:      "center",
-    justifyContent:  "center",
-    shadowColor:     "#9A9A9A",
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.18,
-    shadowRadius:    8,
-    elevation:       4,
-  },
-
-  avatarWrap: {
-    width:        44,
-    height:       44,
+    width:        44, height:       44,
     borderRadius: 22,
-    shadowColor:  "#9A9A9A",
+    alignItems:   "center", justifyContent: "center",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.20,
     shadowRadius: 8,
     elevation:    4,
   },
+  avatarWrap: {
+    width: 44, height: 44, borderRadius: 22,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.20, shadowRadius: 8, elevation: 4,
+  },
   avatarImg: {
-    width:        44,
-    height:       44,
-    borderRadius: 22,
-    borderWidth:  1.5,
-    borderColor:  "rgba(255,255,255,0.80)",
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1.5,
   },
   onlineDot: {
-    position:        "absolute",
-    bottom:          1,
-    right:           1,
-    width:           11,
-    height:          11,
-    borderRadius:    6,
-    backgroundColor: "#34C759",
-    borderWidth:     2,
-    borderColor:     "#EBEBEC",
+    position: "absolute", bottom: 1, right: 1,
+    width: 11, height: 11, borderRadius: 6,
+    borderWidth: 2,
   },
 
-  // ── Center
-  center: {
-    flex:           1,
-    alignItems:     "center",
-    justifyContent: "center",
-    gap:            16,
-  },
-
-  logoImage: {
-    width:        152,
-    height:       152,
-    marginBottom: 8,
-  },
-
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
+  logoImage:  { width: 152, height: 152, marginBottom: 8 },
   wordmark: {
-    fontSize:      18,
-    fontFamily:    "Inter_400Regular",
-    color:         "#1C1C1E",
-    letterSpacing: 8,
+    fontSize: 18, fontFamily: "Inter_400Regular", letterSpacing: 8,
   },
-
   subtitle: {
-    fontSize:      13,
-    fontFamily:    "Inter_400Regular",
-    color:         "#AEAEB2",
-    letterSpacing: 0.8,
-    textAlign:     "center",
-    marginTop:     2,
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    letterSpacing: 0.8, textAlign: "center", marginTop: 2,
   },
 
-  // ── Input bar
-  inputWrap: {
-    paddingHorizontal: 18,
-  },
+  inputWrap:      { paddingHorizontal: 18 },
   inputBar: {
     flexDirection:     "row",
     alignItems:        "center",
-    backgroundColor:   "#FFFFFF",
     borderRadius:      60,
     paddingVertical:   8,
     paddingHorizontal: 8,
     gap:               2,
-    shadowColor:       "#000000",
+    shadowColor:       "#000",
     shadowOffset:      { width: 0, height: 6 },
-    shadowOpacity:     0.08,
     shadowRadius:      24,
     elevation:         9,
   },
-  inputIconBtn: {
-    width:          42,
-    height:         42,
-    borderRadius:   21,
-    alignItems:     "center",
-    justifyContent: "center",
-  },
-  textInput: {
-    flex:              1,
-    fontSize:          15,
-    fontFamily:        "Inter_400Regular",
-    color:             "#1C1C1E",
-    paddingHorizontal: 4,
-    paddingVertical:   6,
-  },
-  sendBtn: {
-    width:           38,
-    height:          38,
-    borderRadius:    19,
-    alignItems:      "center",
-    justifyContent:  "center",
-    backgroundColor: "#E5E5EA",
-  },
-  sendBtnActive: {
-    backgroundColor: "#1C1C1E",
-  },
-
+  inputIconBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  textInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", paddingHorizontal: 4, paddingVertical: 6 },
+  sendBtn:   { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
 });

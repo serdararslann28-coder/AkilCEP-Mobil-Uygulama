@@ -57,9 +57,9 @@ export default function TypingIndicator() {
             },
           ]}
         >
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle1]} />
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle2]} />
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc400 }, dotStyle3]} />
+          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle1]} />
+          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle2]} />
+          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle3]} />
         </View>
       </View>
     </View>

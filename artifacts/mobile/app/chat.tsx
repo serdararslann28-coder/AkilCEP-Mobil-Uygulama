@@ -21,11 +21,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import MessageBubble from "@/components/MessageBubble";
-import Sidebar from "@/components/Sidebar";
+import FullscreenMenu  from "@/components/FullscreenMenu";
+import MessageBubble   from "@/components/MessageBubble";
 import TypingIndicator from "@/components/TypingIndicator";
-import { useChat } from "@/context/ChatContext";
-import { useColors } from "@/hooks/useColors";
+import { useChat }     from "@/context/ChatContext";
+import { useColors }   from "@/hooks/useColors";
 
 const logo = require("@/assets/images/logo-transparent.png");
 
@@ -33,8 +33,8 @@ export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { currentMessages, isTyping, sendMessage, selectedModel } = useChat();
-  const [inputText, setInputText] = useState("");
-  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [inputText, setInputText]       = useState("");
+  const [menuVisible, setMenuVisible]   = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const sendScale = useSharedValue(1);
@@ -56,23 +56,18 @@ export default function ChatScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const modelDisplay =
-    selectedModel === "gpt-4o"       ? "GPT-4o"      :
-    selectedModel === "gpt-4-turbo"  ? "GPT-4 Turbo" :
-    selectedModel === "gpt-3.5-turbo"? "GPT-3.5"     : "Claude 3";
+    selectedModel === "gpt-4o"        ? "GPT-4o"      :
+    selectedModel === "gpt-4-turbo"   ? "GPT-4 Turbo" :
+    selectedModel === "gpt-3.5-turbo" ? "GPT-3.5"     : "Claude 3";
 
   const hasText = inputText.trim().length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
+      <FullscreenMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
 
       {/* ── Header ── */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.background },
-        ]}
-      >
+      <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.card }]}
           onPress={() => router.back()}
@@ -81,11 +76,7 @@ export default function ChatScreen() {
           <Feather name="chevron-left" size={20} color={colors.foreground} />
         </TouchableOpacity>
 
-        {/* Center: small logo mark + model pill */}
-        <TouchableOpacity
-          style={[styles.modelPill, { backgroundColor: colors.card }]}
-          activeOpacity={0.75}
-        >
+        <TouchableOpacity style={[styles.modelPill, { backgroundColor: colors.card }]} activeOpacity={0.75}>
           <View style={[styles.modelDot, { backgroundColor: colors.foreground }]} />
           <Text style={[styles.modelName, { color: colors.foreground }]}>{modelDisplay}</Text>
           <Feather name="chevron-down" size={12} color={colors.mutedForeground} />
@@ -94,10 +85,7 @@ export default function ChatScreen() {
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.card }]}
           hitSlop={10}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSidebarVisible(true);
-          }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
         >
           <Feather name="menu" size={18} color={colors.foreground} />
         </TouchableOpacity>
@@ -106,7 +94,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {currentMessages.length === 0 ? (
           <Animated.View entering={FadeIn.duration(500)} style={styles.emptyState}>
-            <Image source={logo} style={styles.emptyLogo} resizeMode="contain" />
+            <Image source={logo} style={[styles.emptyLogo, { tintColor: colors.foreground, opacity: 0.18 }]} resizeMode="contain" />
             <Text style={[styles.emptyHint, { color: colors.mutedForeground }]}>
               Ne sormak istersiniz?
             </Text>
@@ -117,10 +105,7 @@ export default function ChatScreen() {
             data={currentMessages}
             keyExtractor={(item) => item.id}
             renderItem={({ item, index }) => (
-              <MessageBubble
-                message={item}
-                isLatest={index === 0 && item.role === "assistant"}
-              />
+              <MessageBubble message={item} isLatest={index === 0 && item.role === "assistant"} />
             )}
             inverted
             showsVerticalScrollIndicator={false}
@@ -132,13 +117,8 @@ export default function ChatScreen() {
         )}
 
         {/* ── Input bar ── */}
-        <View
-          style={[
-            styles.inputContainer,
-            { paddingBottom: bottomPad + 8, backgroundColor: colors.background },
-          ]}
-        >
-          <View style={[styles.inputRow, { backgroundColor: colors.card }]}>
+        <View style={[styles.inputContainer, { paddingBottom: bottomPad + 8, backgroundColor: colors.background }]}>
+          <View style={[styles.inputRow, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: colors.isDark ? StyleSheet.hairlineWidth : 0 }]}>
             <TouchableOpacity style={styles.attachBtn} hitSlop={6}>
               <Feather name="paperclip" size={17} color={colors.mutedForeground} />
             </TouchableOpacity>
@@ -158,10 +138,7 @@ export default function ChatScreen() {
             <View style={styles.rightActions}>
               <TouchableOpacity
                 style={[styles.voiceBtn, { backgroundColor: colors.background }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/voice");
-                }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voice"); }}
                 hitSlop={6}
               >
                 <Feather name="mic" size={15} color={colors.zinc500} />
@@ -169,18 +146,11 @@ export default function ChatScreen() {
 
               <Animated.View style={sendStyle}>
                 <TouchableOpacity
-                  style={[
-                    styles.sendBtn,
-                    { backgroundColor: hasText ? colors.primary : colors.accent },
-                  ]}
+                  style={[styles.sendBtn, { backgroundColor: hasText ? colors.primary : colors.accent }]}
                   onPress={handleSend}
                   disabled={!hasText}
                 >
-                  <Feather
-                    name="arrow-up"
-                    size={17}
-                    color={hasText ? colors.primaryForeground : colors.mutedForeground}
-                  />
+                  <Feather name="arrow-up" size={17} color={hasText ? colors.primaryForeground : colors.mutedForeground} />
                 </TouchableOpacity>
               </Animated.View>
             </View>
@@ -193,117 +163,38 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  flex: { flex: 1 },
+  flex:      { flex: 1 },
 
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6,
   },
   modelPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6,
   },
-  modelDot: { width: 6, height: 6, borderRadius: 3 },
+  modelDot:  { width: 6, height: 6, borderRadius: 3 },
   modelName: { fontSize: 14, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
 
   messageList: { paddingTop: 16 },
+  emptyState:  { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, gap: 16 },
+  emptyLogo:   { width: 200, height: 154 },
+  emptyHint:   { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center", letterSpacing: 0.1 },
 
-  emptyState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 40,
-    gap: 16,
-  },
-  emptyLogo: {
-    width: 200,
-    height: 154,
-    opacity: 0.85,
-  },
-  emptyHint: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    letterSpacing: 0.1,
-  },
-
-  inputContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-  },
+  inputContainer: { paddingHorizontal: 12, paddingTop: 10 },
   inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: 26,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    gap: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
+    flexDirection: "row", alignItems: "flex-end",
+    borderRadius: 26, paddingHorizontal: 6, paddingVertical: 6, gap: 4,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 16,
   },
-  attachBtn: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 1,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    maxHeight: 120,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    lineHeight: 22,
-  },
-  rightActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginBottom: 1,
-  },
-  voiceBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 6,
-  },
+  attachBtn:    { width: 36, height: 36, alignItems: "center", justifyContent: "center", marginBottom: 1 },
+  textInput:    { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", maxHeight: 120, paddingVertical: 8, paddingHorizontal: 4, lineHeight: 22 },
+  rightActions: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 1 },
+  voiceBtn:     { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  sendBtn:      { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6 },
 });
