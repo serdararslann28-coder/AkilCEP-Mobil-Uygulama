@@ -1,0 +1,140 @@
+Refine the AKILCEP sidebar into a cleaner and more premium minimal interface.
+
+IMPORTANT:
+Remove the icons from:
+
+- Görselleştirme
+- Voice Mode
+
+Also completely remove the Voice Mode menu item itself.
+
+The sidebar should feel:
+minimal,
+editorial,
+luxurious,
+and Apple-inspired.
+
+------------------------------------------------
+
+🎯 MAIN GOAL
+
+Create a simpler and calmer sidebar experience.
+
+Avoid:
+feature-panel aesthetics.
+
+The sidebar should feel like:
+a premium AI operating system menu.
+
+------------------------------------------------
+
+❌ REMOVE
+
+1. Remove:
+🎙 Voice Mode row completely
+
+Delete:
+- icon
+- row
+- separator spacing
+
+Do not leave empty gaps.
+
+------------------------------------------------
+
+2. Remove icons from:
+
+🖼 Görselleştirme
+and
+✏ Yeni Sohbet
+
+Keep only clean typography.
+
+------------------------------------------------
+
+🌱 NEW MENU STRUCTURE
+
+Top section:
+
+Yeni Sohbet             ›
+Görselleştirme         ›
+
+------------------------------------------------
+
+Middle section:
+
+Premium               PRO
+
+Ayarlar                ›
+Yardım & Destek        ›
+
+------------------------------------------------
+
+Bottom section:
+
+Çıkış Yap
+
+with subtle soft red styling.
+
+------------------------------------------------
+
+✨ VISUAL STYLE
+
+Design language:
+
+- ultra minimal
+- luxury spacing
+- calm typography
+- elegant alignment
+- soft shadows
+- glass-inspired cards
+- cinematic whitespace
+
+------------------------------------------------
+
+📐 SPACING
+
+After removing icons:
+
+- rebalance text alignment
+- increase left padding consistency
+- improve vertical rhythm
+- tighten unnecessary whitespace
+
+Everything should feel:
+clean and intentional.
+
+------------------------------------------------
+
+🎨 TYPOGRAPHY
+
+Use:
+- elegant medium-weight typography
+- smoke-gray text tones
+- subtle hierarchy
+- Apple-inspired spacing
+
+------------------------------------------------
+
+🌫 MENU FEELING
+
+The sidebar should no longer feel:
+like a settings drawer.
+
+It should feel:
+like a luxury AI workspace.
+
+------------------------------------------------
+
+📱 FINAL EXPERIENCE
+
+The menu should feel:
+
+quiet,
+minimal,
+premium,
+and emotionally intelligent.
+
+Less clutter.
+More atmosphere.
+More elegance.

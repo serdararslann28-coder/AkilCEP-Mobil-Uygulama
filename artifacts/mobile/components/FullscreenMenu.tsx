@@ -1,6 +1,6 @@
 /**
- * FullscreenMenu — ChatGPT iOS × Apple luxury.
- * Header · Profile card · Pinned · History · Menu items · Theme toggle · FAB.
+ * FullscreenMenu — premium ultra-minimal AI workspace menu.
+ * Icon-free menu rows, clean typography, luxury spacing.
  * PURE / VOID fully supported.
  */
 import { Feather } from "@expo/vector-icons";
@@ -26,17 +26,17 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useChat }   from "@/context/ChatContext";
-import { useTheme }  from "@/context/ThemeContext";
-import ThemeToggle   from "@/components/ThemeToggle";
+import { useChat }  from "@/context/ChatContext";
+import { useTheme } from "@/context/ThemeContext";
+import ThemeToggle  from "@/components/ThemeToggle";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 const avatar   = require("@/assets/images/avatar.png");
 
-// ─── Static example data ───────────────────────────────────────────────────────
+// ─── Static example data ────────────────────────────────────────────────────────
 const PINNED = [
   { id: "pin1", title: "AKILCEP UI Tasarımı" },
-  { id: "pin2", title: "Voice Mode Özellikleri" },
+  { id: "pin2", title: "Ses Asistanı Deneyimi" },
   { id: "pin3", title: "Premium Sistemi" },
 ];
 
@@ -48,20 +48,19 @@ const EXAMPLE_HISTORY = [
   { id: "h5", title: "Kullanıcı Deneyimi Analizi",  time: "3g" },
 ];
 
-// ─── Menu groups ───────────────────────────────────────────────────────────────
+// ─── Menu groups — icon-free, clean text only ───────────────────────────────────
 const GROUP_PRIMARY = [
-  { icon: "edit-3", label: "Yeni Sohbet",    route: "/chat",  accent: false },
-  { icon: "image",  label: "Görselleştirme", route: null,     accent: false },
-  { icon: "mic",    label: "Voice Mode",     route: "/voice", accent: false },
+  { label: "Yeni Sohbet",    route: "/chat", accent: false },
+  { label: "Görselleştirme", route: null,    accent: false },
 ] as const;
 
 const GROUP_SECONDARY = [
-  { icon: "star",        label: "Premium",        route: null, accent: true  },
-  { icon: "settings",    label: "Ayarlar",        route: null, accent: false },
-  { icon: "help-circle", label: "Yardım & Destek",route: null, accent: false },
+  { label: "Premium",        route: null, accent: true  },
+  { label: "Ayarlar",        route: null, accent: false },
+  { label: "Yardım & Destek",route: null, accent: false },
 ] as const;
 
-// ─── Component ─────────────────────────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────────────────────────
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -79,7 +78,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
     loadConversation, startNewConversation, deleteConversation,
   } = useChat();
 
-  // ── Entrance / exit ──────────────────────────────────────────────────────────
+  // ── Entrance / exit ────────────────────────────────────────────────────────
   const opacity    = useSharedValue(0);
   const translateY = useSharedValue(30);
 
@@ -95,15 +94,15 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const panelStyle    = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    opacity:   opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  // ── FAB scroll shrink ────────────────────────────────────────────────────────
+  // ── FAB scroll shrink ──────────────────────────────────────────────────────
   const scrollY  = useRef(new RNAnimated.Value(0)).current;
   const fabScale = scrollY.interpolate({ inputRange: [0, 80], outputRange: [1, 0.78], extrapolate: "clamp" });
 
-  // ── Navigation ───────────────────────────────────────────────────────────────
+  // ── Navigation ─────────────────────────────────────────────────────────────
   const go = (route: string) => {
     Haptics.selectionAsync();
     onClose();
@@ -117,7 +116,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
     router.push("/chat");
   };
 
-  // ── Merge real + example history ─────────────────────────────────────────────
+  // ── Merge real + example history ───────────────────────────────────────────
   const realConvs = conversations.slice(0, 5).map(c => ({
     id: c.id, title: c.title, time: "Az önce", real: true,
   }));
@@ -125,20 +124,22 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
     ? realConvs
     : EXAMPLE_HISTORY.map(h => ({ ...h, real: false }));
 
-  // ── Colour helpers ────────────────────────────────────────────────────────────
+  // ── Colour helpers ─────────────────────────────────────────────────────────
   const groupBg     = T.isDark ? "rgba(255,255,255,0.055)" : "#FFFFFF";
   const groupBorder = T.isDark ? "rgba(255,255,255,0.08)"  : "transparent";
   const divider     = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.055)";
   const iconBg      = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.04)";
-  const accentIconBg= T.isDark ? "rgba(255,255,255,0.08)"   : "rgba(198,169,105,0.13)";
   const groupShadow = T.isDark ? 0 : 0.04;
-  const separatorML = 46; // dividers start after icon
 
   return (
     <>
       {/* Backdrop */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: T.isDark ? "rgba(0,0,0,0.70)" : "rgba(0,0,0,0.14)", zIndex: 200 }, backdropStyle]}
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: T.isDark ? "rgba(0,0,0,0.70)" : "rgba(0,0,0,0.14)", zIndex: 200 },
+          backdropStyle,
+        ]}
         pointerEvents={visible ? "auto" : "none"}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -155,7 +156,11 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
 
           {/* Close — top-left */}
           <TouchableOpacity
-            style={[ss.hBtn, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}
+            style={[ss.hBtn, {
+              backgroundColor: groupBg,
+              borderColor:     groupBorder,
+              borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            }]}
             onPress={onClose} hitSlop={16} activeOpacity={0.60}
           >
             <Feather name="x" size={15} color={T.fgSoft} />
@@ -184,17 +189,23 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
 
           {/* ── Profile card ── */}
           <TouchableOpacity
-            style={[ss.profileCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}
+            style={[ss.profileCard, {
+              backgroundColor: groupBg,
+              borderColor:     groupBorder,
+              borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+              shadowOpacity:   groupShadow,
+            }]}
             onPress={() => go("/profile")}
             activeOpacity={0.82}
           >
             <View style={ss.profileLeft}>
-              {/* Avatar */}
               <View style={ss.avatarFrame}>
-                <Image source={avatar} style={[ss.avatarImg, { borderColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.95)" }]} />
+                <Image
+                  source={avatar}
+                  style={[ss.avatarImg, { borderColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.95)" }]}
+                />
                 <View style={[ss.onlineDot, { backgroundColor: T.onlineDot, borderColor: groupBg }]} />
               </View>
-              {/* Text */}
               <View style={ss.profileText}>
                 <Text style={[ss.profileName, { color: T.fg }]}>Kullanıcı</Text>
                 <View style={ss.profileSubRow}>
@@ -212,10 +223,17 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
 
           {/* ── SABİTLENENLER ── */}
           <SectionHeader title="SABİTLENENLER" T={T} />
-          <View style={[ss.listCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}>
+          <View style={[ss.listCard, {
+            backgroundColor: groupBg,
+            borderColor:     groupBorder,
+            borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:   groupShadow,
+          }]}>
             {PINNED.map((item, idx) => (
               <React.Fragment key={item.id}>
-                <TouchableOpacity style={ss.histRow} activeOpacity={0.62}
+                <TouchableOpacity
+                  style={ss.histRow}
+                  activeOpacity={0.62}
                   onPress={() => Haptics.selectionAsync()}
                 >
                   <View style={[ss.histIcon, { backgroundColor: iconBg }]}>
@@ -224,24 +242,36 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                   <Text style={[ss.histTitle, { color: T.fg }]} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  <TouchableOpacity hitSlop={14} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
+                  <TouchableOpacity
+                    hitSlop={14}
+                    onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                  >
                     <Feather name="more-horizontal" size={13} color={T.isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.16)"} />
                   </TouchableOpacity>
                 </TouchableOpacity>
-                {idx < PINNED.length - 1 && <View style={[ss.div, { backgroundColor: divider, marginLeft: separatorML }]} />}
+                {idx < PINNED.length - 1 && (
+                  <View style={[ss.div, { backgroundColor: divider, marginLeft: 16 }]} />
+                )}
               </React.Fragment>
             ))}
           </View>
 
           {/* ── GEÇMİŞ SOHBETLER ── */}
           <SectionHeader title="GEÇMİŞ SOHBETLER" T={T} action="Tümünü Gör" />
-          <View style={[ss.listCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}>
+          <View style={[ss.listCard, {
+            backgroundColor: groupBg,
+            borderColor:     groupBorder,
+            borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:   groupShadow,
+          }]}>
             {displayHistory.map((item, idx) => {
               const active = currentConversation?.id === item.id;
               return (
                 <React.Fragment key={item.id}>
                   <TouchableOpacity
-                    style={[ss.histRow, active && { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.042)" }]}
+                    style={[ss.histRow, active && {
+                      backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.042)",
+                    }]}
                     activeOpacity={0.62}
                     onPress={() => {
                       if (item.real) {
@@ -254,59 +284,98 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                       }
                     }}
                   >
-                    <View style={[ss.histIcon, { backgroundColor: active ? (T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)") : iconBg }]}>
-                      <Feather name="message-square" size={11} color={active ? (T.isDark ? "rgba(255,255,255,0.65)" : "rgba(60,60,67,0.62)") : T.muted} />
+                    <View style={[ss.histIcon, {
+                      backgroundColor: active
+                        ? (T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)")
+                        : iconBg,
+                    }]}>
+                      <Feather
+                        name="message-square"
+                        size={11}
+                        color={active ? (T.isDark ? "rgba(255,255,255,0.65)" : "rgba(60,60,67,0.62)") : T.muted}
+                      />
                     </View>
                     <Text style={[ss.histTitle, { color: T.fg, flex: 1 }]} numberOfLines={1}>
                       {item.title}
                     </Text>
                     <Text style={[ss.histTime, { color: T.zinc }]}>{item.time}</Text>
-                    <TouchableOpacity hitSlop={14} onPress={() => {
-                      if (item.real) deleteConversation(item.id);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}>
+                    <TouchableOpacity
+                      hitSlop={14}
+                      onPress={() => {
+                        if (item.real) deleteConversation(item.id);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
                       <Feather name="more-horizontal" size={13} color={T.isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.16)"} />
                     </TouchableOpacity>
                   </TouchableOpacity>
-                  {idx < displayHistory.length - 1 && <View style={[ss.div, { backgroundColor: divider, marginLeft: separatorML }]} />}
+                  {idx < displayHistory.length - 1 && (
+                    <View style={[ss.div, { backgroundColor: divider, marginLeft: 16 }]} />
+                  )}
                 </React.Fragment>
               );
             })}
           </View>
 
-          {/* ── Primary menu group ── */}
-          <View style={[ss.listCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}>
+          {/* ── Primary menu group — text only, no icons ── */}
+          <View style={[ss.listCard, {
+            backgroundColor: groupBg,
+            borderColor:     groupBorder,
+            borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:   groupShadow,
+          }]}>
             {GROUP_PRIMARY.map((item, idx) => (
               <React.Fragment key={item.label}>
-                <MenuItem item={item} T={T} iconBg={iconBg} accentBg={accentIconBg} dividerClr={divider}
+                <MenuItem
+                  item={item}
+                  T={T}
                   onPress={() => { Haptics.selectionAsync(); if (item.route) go(item.route); }}
                 />
-                {idx < GROUP_PRIMARY.length - 1 && <View style={[ss.div, { backgroundColor: divider, marginLeft: separatorML }]} />}
+                {idx < GROUP_PRIMARY.length - 1 && (
+                  <View style={[ss.div, { backgroundColor: divider, marginLeft: 16 }]} />
+                )}
               </React.Fragment>
             ))}
           </View>
 
-          {/* ── Secondary menu group ── */}
-          <View style={[ss.listCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}>
+          {/* ── Secondary menu group — text only, no icons ── */}
+          <View style={[ss.listCard, {
+            backgroundColor: groupBg,
+            borderColor:     groupBorder,
+            borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:   groupShadow,
+          }]}>
             {GROUP_SECONDARY.map((item, idx) => (
               <React.Fragment key={item.label}>
-                <MenuItem item={item} T={T} iconBg={iconBg} accentBg={accentIconBg} dividerClr={divider}
+                <MenuItem
+                  item={item}
+                  T={T}
                   onPress={() => { Haptics.selectionAsync(); if (item.route) go(item.route); }}
                 />
-                {idx < GROUP_SECONDARY.length - 1 && <View style={[ss.div, { backgroundColor: divider, marginLeft: separatorML }]} />}
+                {idx < GROUP_SECONDARY.length - 1 && (
+                  <View style={[ss.div, { backgroundColor: divider, marginLeft: 16 }]} />
+                )}
               </React.Fragment>
             ))}
           </View>
 
-          {/* ── Logout ── */}
-          <View style={[ss.listCard, { backgroundColor: groupBg, borderColor: groupBorder, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, shadowOpacity: groupShadow }]}>
-            <TouchableOpacity style={ss.menuRow} activeOpacity={0.60}
+          {/* ── Çıkış Yap — soft red text, no icon ── */}
+          <View style={[ss.listCard, {
+            backgroundColor: groupBg,
+            borderColor:     groupBorder,
+            borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+            shadowOpacity:   groupShadow,
+          }]}>
+            <TouchableOpacity
+              style={ss.menuRow}
+              activeOpacity={0.60}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose(); }}
             >
-              <View style={[ss.menuIcon, { backgroundColor: T.isDark ? "rgba(255,59,48,0.07)" : "rgba(255,59,48,0.09)" }]}>
-                <Feather name="log-out" size={13} color={T.isDark ? "rgba(255,59,48,0.62)" : "#FF3B30"} />
-              </View>
-              <Text style={[ss.menuLabel, { color: T.isDark ? "rgba(255,59,48,0.62)" : "#FF3B30" }]}>Çıkış Yap</Text>
+              <Text style={[ss.menuLabel, {
+                color: T.isDark ? "rgba(255,80,70,0.72)" : "rgba(220,38,30,0.82)",
+              }]}>
+                Çıkış Yap
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -343,7 +412,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
   );
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
+// ─── Sub-components ─────────────────────────────────────────────────────────────
 
 function SectionHeader({ title, T, action }: { title: string; T: any; action?: string }) {
   return (
@@ -351,25 +420,33 @@ function SectionHeader({ title, T, action }: { title: string; T: any; action?: s
       <Text style={[ss.sectionTitle, { color: T.zinc }]}>{title}</Text>
       {action && (
         <TouchableOpacity hitSlop={10} onPress={() => Haptics.selectionAsync()}>
-          <Text style={[ss.sectionAction, { color: T.isDark ? "rgba(255,255,255,0.32)" : "rgba(60,60,67,0.52)" }]}>{action}</Text>
+          <Text style={[ss.sectionAction, {
+            color: T.isDark ? "rgba(255,255,255,0.32)" : "rgba(60,60,67,0.52)",
+          }]}>
+            {action}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function MenuItem({ item, T, iconBg, accentBg, dividerClr, onPress }: {
-  item: { icon: string; label: string; accent: boolean };
-  T: any; iconBg: string; accentBg: string; dividerClr: string;
+// Icon-free menu row — label left, chevron or PRO badge right
+function MenuItem({
+  item,
+  T,
+  onPress,
+}: {
+  item: { label: string; accent: boolean };
+  T: any;
   onPress: () => void;
 }) {
   const chevronClr = T.isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.14)";
   return (
     <TouchableOpacity style={ss.menuRow} activeOpacity={0.60} onPress={onPress}>
-      <View style={[ss.menuIcon, { backgroundColor: item.accent ? accentBg : iconBg }]}>
-        <Feather name={item.icon as any} size={13} color={item.accent ? "#C6A969" : T.fgSoft} />
-      </View>
-      <Text style={[ss.menuLabel, { color: item.accent ? "#B89B5E" : T.fg }]}>{item.label}</Text>
+      <Text style={[ss.menuLabel, { color: item.accent ? "#B89B5E" : T.fg }]}>
+        {item.label}
+      </Text>
       {item.accent ? (
         <View style={[ss.proBadge, { backgroundColor: "rgba(198,169,105,0.12)" }]}>
           <Text style={[ss.proBadgeText, { color: "#C6A969" }]}>PRO</Text>
@@ -381,7 +458,7 @@ function MenuItem({ item, T, iconBg, accentBg, dividerClr, onPress }: {
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
+// ─── Styles ─────────────────────────────────────────────────────────────────────
 const FAB_SIZE = 50;
 
 const ss = StyleSheet.create({
@@ -411,17 +488,17 @@ const ss = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowRadius: 12, elevation: 3,
     marginBottom: 2,
   },
-  profileLeft:  { flexDirection: "row", alignItems: "center", gap: 13, flex: 1 },
-  avatarFrame:  { width: 48, height: 48 },
-  avatarImg:    { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
-  onlineDot:    { position: "absolute", bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, borderWidth: 2 },
-  profileText:  { flex: 1, gap: 5 },
-  profileName:  { fontSize: 15, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
-  profileSubRow:{ flexDirection: "row", alignItems: "center", gap: 7 },
-  planChip:     { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  planChipLabel:{ fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.1 },
-  planSub:      { fontSize: 11, fontFamily: "Inter_400Regular" },
-  profileArrow: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  profileLeft:   { flexDirection: "row", alignItems: "center", gap: 13, flex: 1 },
+  avatarFrame:   { width: 48, height: 48 },
+  avatarImg:     { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
+  onlineDot:     { position: "absolute", bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, borderWidth: 2 },
+  profileText:   { flex: 1, gap: 5 },
+  profileName:   { fontSize: 15, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
+  profileSubRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  planChip:      { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  planChipLabel: { fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.1 },
+  planSub:       { fontSize: 11, fontFamily: "Inter_400Regular" },
+  profileArrow:  { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
 
   // ── Section headers
   sectionHeader: {
@@ -437,8 +514,8 @@ const ss = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowRadius: 10, elevation: 2,
   },
 
-  // ── History rows
-  histRow: {
+  // ── History rows (keep icon for bookmark + message-square)
+  histRow:  {
     flexDirection: "row", alignItems: "center",
     paddingVertical: 12, paddingHorizontal: 14, gap: 10,
   },
@@ -446,11 +523,13 @@ const ss = StyleSheet.create({
   histTitle: { fontSize: 14, fontFamily: "Inter_400Regular", letterSpacing: -0.05 },
   histTime:  { fontSize: 11, fontFamily: "Inter_400Regular", letterSpacing: 0.1, marginRight: 4 },
 
-  // ── Menu rows
-  menuRow:   { flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 14, gap: 13 },
-  menuIcon:  { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", letterSpacing: -0.1 },
-  proBadge:     { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  // ── Menu rows — icon-free, generous horizontal padding
+  menuRow:   {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 15, paddingHorizontal: 18,
+  },
+  menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", letterSpacing: -0.15 },
+  proBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   proBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6 },
 
   // ── Divider
