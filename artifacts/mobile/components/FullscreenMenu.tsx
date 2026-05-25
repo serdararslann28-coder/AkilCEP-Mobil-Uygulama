@@ -303,10 +303,10 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
             <TouchableOpacity style={ss.menuRow} activeOpacity={0.60}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose(); }}
             >
-              <View style={[ss.menuIcon, { backgroundColor: "rgba(255,59,48,0.09)" }]}>
-                <Feather name="log-out" size={13} color="#FF3B30" />
+              <View style={[ss.menuIcon, { backgroundColor: T.isDark ? "rgba(255,59,48,0.07)" : "rgba(255,59,48,0.09)" }]}>
+                <Feather name="log-out" size={13} color={T.isDark ? "rgba(255,59,48,0.62)" : "#FF3B30"} />
               </View>
-              <Text style={[ss.menuLabel, { color: "#FF3B30" }]}>Çıkış Yap</Text>
+              <Text style={[ss.menuLabel, { color: T.isDark ? "rgba(255,59,48,0.62)" : "#FF3B30" }]}>Çıkış Yap</Text>
             </TouchableOpacity>
           </View>
 
@@ -332,7 +332,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               onPress={handleNewChat}
               activeOpacity={0.78}
             >
-              <Feather name="edit-3" size={18} color={T.isDark ? "rgba(255,255,255,0.78)" : "#FFFFFF"} />
+              <Feather name="edit-3" size={18} color={T.isDark ? "#C6A969" : "#FFFFFF"} />
             </TouchableOpacity>
           </RNAnimated.View>
 
@@ -367,12 +367,12 @@ function MenuItem({ item, T, iconBg, accentBg, dividerClr, onPress }: {
   return (
     <TouchableOpacity style={ss.menuRow} activeOpacity={0.60} onPress={onPress}>
       <View style={[ss.menuIcon, { backgroundColor: item.accent ? accentBg : iconBg }]}>
-        <Feather name={item.icon as any} size={13} color={item.accent ? (T.isDark ? T.green : "#C6A969") : T.fgSoft} />
+        <Feather name={item.icon as any} size={13} color={item.accent ? "#C6A969" : T.fgSoft} />
       </View>
-      <Text style={[ss.menuLabel, { color: item.accent ? (T.isDark ? T.green : "#B89B5E") : T.fg }]}>{item.label}</Text>
+      <Text style={[ss.menuLabel, { color: item.accent ? "#B89B5E" : T.fg }]}>{item.label}</Text>
       {item.accent ? (
-        <View style={[ss.proBadge, { backgroundColor: T.isDark ? T.greenTint : "rgba(198,169,105,0.14)" }]}>
-          <Text style={[ss.proBadgeText, { color: T.isDark ? T.greenEmphasis : "#C6A969" }]}>PRO</Text>
+        <View style={[ss.proBadge, { backgroundColor: "rgba(198,169,105,0.12)" }]}>
+          <Text style={[ss.proBadgeText, { color: "#C6A969" }]}>PRO</Text>
         </View>
       ) : (
         <Feather name="chevron-right" size={12} color={chevronClr} />
