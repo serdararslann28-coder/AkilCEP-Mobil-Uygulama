@@ -42,9 +42,9 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FullscreenMenu   from "@/components/FullscreenMenu";
-import InlineWaveform   from "@/components/InlineWaveform";
 import MessageBubble    from "@/components/MessageBubble";
 import TypingIndicator  from "@/components/TypingIndicator";
+import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
 import { useChat }      from "@/context/ChatContext";
 import { useTheme }     from "@/context/ThemeContext";
 
@@ -409,9 +409,6 @@ export default function ChatScreen() {
   const btnBorderClr = T.isDark ? "rgba(255,255,255,0.09)"  : "transparent";
   const logoTint     = T.isDark ? "#888888"                 : "#5A5A5A";
 
-  // Waveform bar color adapts to theme
-  const waveColor = T.isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.18)";
-
   // Mic button colors per phase
   const micBg = useCallback((): string => {
     if (voicePhase === "listening") return T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)";
@@ -430,14 +427,6 @@ export default function ChatScreen() {
     if (voicePhase === "listening") return "square";
     if (voicePhase === "speaking")  return "volume-2";
     return "mic";
-  };
-
-  // Status hint above waveform
-  const voiceStatusText = (): string => {
-    if (voicePhase === "listening") return "Dinliyorum — durdurmak için dokunun";
-    if (voicePhase === "thinking")  return "Düşünüyorum...";
-    if (voicePhase === "speaking")  return "AkılCEP konuşuyor — durdurmak için dokunun";
-    return "";
   };
 
   const voiceActive = voicePhase !== "idle";
@@ -500,28 +489,11 @@ export default function ChatScreen() {
           ListFooterComponent={<View style={{ height: 12 }} />}
         />
 
+        {/* ════ VOICE ORB PANEL — slides in above input ════ */}
+        <VoiceOrbPanel phase={voicePhase} isDark={T.isDark} />
+
         {/* ════ INPUT AREA ════ */}
         <View style={[ss.inputOuter, { paddingBottom: bottomPad + 10 }]}>
-
-          {/* Voice status + waveform — appears above input when voice active */}
-          {voiceActive && (
-            <View style={ss.voiceBar}>
-              {/* Status hint text */}
-              <Text style={[ss.voiceStatus, { color: T.isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.30)" }]}>
-                {voiceStatusText()}
-              </Text>
-
-              {/* Thinking dots (when backend is processing) */}
-              {voicePhase === "thinking" && (
-                <ThinkingDots color={T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.30)"} />
-              )}
-
-              {/* Waveform (listening or speaking) */}
-              {voicePhase !== "thinking" && (
-                <InlineWaveform active={voiceActive} color={waveColor} />
-              )}
-            </View>
-          )}
 
           {/* Input row */}
           <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
@@ -537,7 +509,7 @@ export default function ChatScreen() {
                 ss.textInput,
                 { color: inputTextClr, opacity: voiceActive ? 0.45 : 1 },
               ]}
-              placeholder={voiceActive ? "" : "AkılCEP'e yanıt ver…"}
+              placeholder={voiceActive ? "" : "AkılCEP'e yazın…"}
               placeholderTextColor={inputPlhClr}
               value={inputText}
               onChangeText={setInputText}
@@ -722,21 +694,6 @@ const ss = StyleSheet.create({
   inputOuter: {
     paddingHorizontal: 14,
     paddingTop:        6,
-  },
-
-  // Voice bar — shown above input row during active voice
-  voiceBar: {
-    alignItems:    "center",
-    paddingBottom: 4,
-    gap:           2,
-    minHeight:     52,
-    justifyContent: "flex-end",
-  },
-  voiceStatus: {
-    fontFamily:    "Inter_400Regular",
-    fontSize:      11,
-    letterSpacing: 0.3,
-    marginBottom:  4,
   },
 
   // Input row
