@@ -538,13 +538,13 @@ export default function HomeScreen() {
   }));
 
   // Arrow button animated styles
-  // Outer warm-amber halo — large soft bloom that pulses
+  // Outer pearl-ivory haze — wide, ultra-soft ambient bloom
   const arrowGlowOuterAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.13 + arrowGlowPulse.value * 0.20),
+    opacity: voiceModeSV.value * (0.09 + arrowGlowPulse.value * 0.13),
   }));
-  // Inner glow — tighter, brighter
+  // Inner champagne mist — tighter, slightly more visible
   const arrowGlowInnerAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.22 + arrowGlowPulse.value * 0.32),
+    opacity: voiceModeSV.value * (0.16 + arrowGlowPulse.value * 0.22),
   }));
   // Dark graphite bg fades in (voice mode)
   const arrowVoiceBgAnim = useAnimatedStyle(() => ({
@@ -1145,14 +1145,14 @@ const ss = StyleSheet.create({
   },
   // Concentric glow rings — absolutely behind the button
   arrowGlowOuter: {
-    position:     "absolute",
-    width:        66, height: 66, borderRadius: 33,
-    backgroundColor: "rgba(200, 160, 80, 1)",
+    position:        "absolute",
+    width:           76, height: 76, borderRadius: 38,
+    backgroundColor: "rgba(248, 245, 240, 1)",
   },
   arrowGlowInner: {
-    position:     "absolute",
-    width:        50, height: 50, borderRadius: 25,
-    backgroundColor: "rgba(220, 175, 100, 1)",
+    position:        "absolute",
+    width:           56, height: 56, borderRadius: 28,
+    backgroundColor: "rgba(255, 253, 250, 1)",
   },
   // Background circles — layered, animated opacity
   sendBtnBg: {

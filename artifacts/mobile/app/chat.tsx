@@ -167,12 +167,12 @@ export default function ChatScreen() {
     transform: [{ scale: 1 + micGlow.value * 0.35 }],
   }));
 
-  // Arrow animated styles — identical logic to home screen
+  // Arrow animated styles — pearl ivory ambient glow (matches home screen)
   const arrowGlowOuterAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.13 + arrowGlowPulse.value * 0.20),
+    opacity: voiceModeSV.value * (0.09 + arrowGlowPulse.value * 0.13),
   }));
   const arrowGlowInnerAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.22 + arrowGlowPulse.value * 0.32),
+    opacity: voiceModeSV.value * (0.16 + arrowGlowPulse.value * 0.22),
   }));
   const arrowVoiceBgAnim = useAnimatedStyle(() => ({
     opacity: voiceModeSV.value,
@@ -934,13 +934,13 @@ const ss = StyleSheet.create({
   },
   arrowGlowOuter: {
     position:        "absolute",
-    width:           66, height: 66, borderRadius: 33,
-    backgroundColor: "rgba(200, 160, 80, 1)",
+    width:           76, height: 76, borderRadius: 38,
+    backgroundColor: "rgba(248, 245, 240, 1)",
   },
   arrowGlowInner: {
     position:        "absolute",
-    width:           50, height: 50, borderRadius: 25,
-    backgroundColor: "rgba(220, 175, 100, 1)",
+    width:           56, height: 56, borderRadius: 28,
+    backgroundColor: "rgba(255, 253, 250, 1)",
   },
   sendBtnBg: {
     position:     "absolute",
