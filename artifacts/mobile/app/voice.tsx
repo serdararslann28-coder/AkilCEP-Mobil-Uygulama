@@ -1,20 +1,14 @@
 /**
- * Voice Mode — premium cinematic experience.
- * Flow: record → POST base64 to /api/openai/conversations/:id/voice-messages
- *       SSE events: user_transcript, transcript, audio (base64 mp3), done
- * UI: particle canvas + breathing logo, tap mic button, transcript overlay.
+ * Voice Mode — cinematic always-dark experience.
+ * Recording: expo-av Audio.Recording (Expo Go compatible).
+ * TTS: expo-speech (no native modules required).
  * Always dark #010108 — never adapts to global theme.
  */
 import { Feather } from "@expo/vector-icons";
-import {
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  useAudioPlayer,
-  useAudioRecorder,
-} from "expo-audio";
-import * as FileSystem from "expo-file-system";
+import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import * as Speech from "expo-speech";
 import React, {
   useCallback,
   useEffect,
@@ -70,13 +64,11 @@ export default function VoiceScreen() {
   const [userText, setUserText]           = useState("");
   const [assistantText, setAssistantText] = useState("");
   const [convId, setConvId]               = useState<number | null>(null);
-  const [audioUri, setAudioUri]           = useState<string | null>(null);
+  // null = not checked, false = unavailable, true = ready
+  const [available, setAvailable]         = useState<boolean | null>(null);
 
-  const abortRef = useRef<AbortController | null>(null);
-
-  // expo-audio hooks
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const player   = useAudioPlayer(audioUri ?? undefined);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const abortRef     = useRef<AbortController | null>(null);
 
   // ── Animation values ───────────────────────────────────────────────────────
   const topOpacity        = useSharedValue(0);
@@ -112,7 +104,7 @@ export default function VoiceScreen() {
     logoScale.value   = withSpring(1.0, { damping: 18, stiffness: 55 });
   }, []);
 
-  // ── Phase-driven effects ───────────────────────────────────────────────────
+  // ── Phase-driven animation effects ────────────────────────────────────────
   useEffect(() => {
     const active = phase === "listening" || phase === "speaking";
     glowOpacity.value = withTiming(active ? 0.60 : 0.14, { duration: 650 });
@@ -138,28 +130,60 @@ export default function VoiceScreen() {
     transcriptOpacity.value = withTiming(has ? 1 : 0, { duration: 400 });
   }, [userText, assistantText]);
 
-  // ── Mount: permissions + conversation ─────────────────────────────────────
+  // ── Mount: check availability ──────────────────────────────────────────────
   useEffect(() => {
-    (async () => {
-      if (Platform.OS !== "web") {
-        const { granted } = await requestRecordingPermissionsAsync();
-        if (!granted) {
-          Alert.alert(
-            "Mikrofon İzni",
-            "Sesli mod için mikrofon erişimi gereklidir.",
-            [{ text: "Tamam", onPress: () => router.back() }]
-          );
-          return;
-        }
-      }
-      createConversation();
-    })();
-
+    initVoice();
     return () => {
       abortRef.current?.abort();
-      try { recorder.stop(); } catch {}
+      cleanupRecording();
+      Speech.stop();
     };
   }, []);
+
+  const initVoice = async () => {
+    // Web: voice mode not supported in browser
+    if (Platform.OS === "web") {
+      setAvailable(false);
+      return;
+    }
+
+    try {
+      // Request microphone permission
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        setAvailable(false);
+        Alert.alert(
+          "Mikrofon İzni",
+          "Sesli mod için mikrofon izni gereklidir. Lütfen ayarlardan izin verin.",
+          [{ text: "Tamam" }]
+        );
+        return;
+      }
+
+      // Configure audio session for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      setAvailable(true);
+      createConversation();
+    } catch (err) {
+      console.warn("Voice init error:", err);
+      setAvailable(false);
+    }
+  };
+
+  const cleanupRecording = async () => {
+    const rec = recordingRef.current;
+    if (!rec) return;
+    recordingRef.current = null;
+    try {
+      const status = await rec.getStatusAsync();
+      if (status.isRecording) await rec.stopAndUnloadAsync();
+      else await rec.stopAndUnloadAsync();
+    } catch {}
+  };
 
   const createConversation = async () => {
     try {
@@ -172,11 +196,15 @@ export default function VoiceScreen() {
         const data = await res.json() as { id: number };
         setConvId(data.id);
       }
-    } catch {}
+    } catch (err) {
+      console.warn("createConversation error:", err);
+    }
   };
 
   // ── Mic tap ────────────────────────────────────────────────────────────────
   const handleMicPress = async () => {
+    if (available === false) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     micScale.value = withSequence(
       withSpring(0.88, { duration: 80 }),
@@ -187,123 +215,123 @@ export default function VoiceScreen() {
       await stopAndProcess();
       return;
     }
+
     if (phase === "thinking" || phase === "speaking") {
       abortRef.current?.abort();
-      try { recorder.stop(); } catch {}
-      setAudioUri(null);
+      Speech.stop();
+      await cleanupRecording();
       setPhase("idle");
       setUserText("");
       setAssistantText("");
       return;
     }
-    // idle → start recording
+
+    // idle → start
     await startRecording();
   };
 
   const startRecording = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert("Sesli Mod", "Sesli mod Android/iOS cihazlarda çalışır.");
-      return;
-    }
     try {
       setUserText("");
       setAssistantText("");
-      setAudioUri(null);
-      await recorder.prepareToRecordAsync();
-      recorder.record();
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        undefined,
+        100
+      );
+      recordingRef.current = recording;
       setPhase("listening");
-    } catch {
+    } catch (err) {
+      console.warn("startRecording error:", err);
       Alert.alert("Kayıt Hatası", "Mikrofon başlatılamadı. Lütfen tekrar deneyin.");
+      setPhase("idle");
     }
   };
 
   const stopAndProcess = async () => {
     setPhase("thinking");
-    try {
-      await recorder.stop();
-      const uri = recorder.uri;
-      if (!uri) { setPhase("idle"); return; }
+    const rec = recordingRef.current;
+    recordingRef.current = null;
 
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+    if (!rec) {
+      setPhase("idle");
+      return;
+    }
+
+    try {
+      await rec.stopAndUnloadAsync();
+      const uri = rec.getURI();
+      if (!uri) {
+        setPhase("idle");
+        return;
+      }
+
+      // Reset audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
       });
-      await sendVoiceMessage(base64);
-    } catch {
+
+      // Read file as base64 using fetch (works in Expo Go)
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const base64 = await blobToBase64(blob);
+
+      await sendToServer(base64);
+    } catch (err) {
+      console.warn("stopAndProcess error:", err);
       setPhase("idle");
     }
   };
 
-  const sendVoiceMessage = async (audioBase64: string) => {
+  const sendToServer = async (audioBase64: string) => {
     const abort = new AbortController();
     abortRef.current = abort;
     const id = convId ?? 0;
 
     try {
-      const res = await fetch(`${API_BASE}/openai/conversations/${id}/voice-messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: abort.signal,
-        body: JSON.stringify({ audio: audioBase64 }),
-      });
-
-      if (!res.ok || !res.body) { setPhase("idle"); return; }
-
-      const reader  = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer    = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6)) as {
-              type?: string; data?: string; done?: boolean; error?: string;
-            };
-
-            if (evt.type === "user_transcript" && evt.data) {
-              setUserText(evt.data);
-            } else if (evt.type === "transcript" && evt.data) {
-              setAssistantText(evt.data);
-              setPhase("speaking");
-            } else if (evt.type === "audio" && evt.data) {
-              await playBase64Audio(evt.data, abort);
-            } else if (evt.done || evt.error) {
-              setPhase("idle");
-            }
-          } catch {}
+      const res = await fetch(
+        `${API_BASE}/openai/conversations/${id}/voice-messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: abort.signal,
+          body: JSON.stringify({ audio: audioBase64 }),
         }
+      );
+
+      if (!res.ok) {
+        setPhase("idle");
+        return;
       }
-    } catch (err: unknown) {
-      if ((err as { name?: string })?.name !== "AbortError") setPhase("idle");
-    }
-  };
 
-  const playBase64Audio = async (b64: string, abort: AbortController) => {
-    if (abort.signal.aborted) return;
-    try {
-      const tmpUri = `${FileSystem.Paths.cache.uri}akılcep_voice.mp3`;
-      await FileSystem.writeAsStringAsync(tmpUri, b64, {
-        encoding: FileSystem.EncodingType.Base64,
+      const data = await res.json() as { userText?: string; assistantText?: string; error?: string };
+
+      if (data.error || !data.assistantText) {
+        setPhase("idle");
+        return;
+      }
+
+      setUserText(data.userText ?? "");
+      setAssistantText(data.assistantText ?? "");
+      setPhase("speaking");
+
+      // Speak the reply using expo-speech (Expo Go compatible)
+      Speech.speak(data.assistantText, {
+        language: "tr-TR",
+        rate: 0.92,
+        onDone: () => setPhase("idle"),
+        onError: () => setPhase("idle"),
+        onStopped: () => setPhase("idle"),
       });
-      // Setting the uri triggers expo-audio to load + play via the player hook
-      setAudioUri(tmpUri);
-    } catch {}
-  };
-
-  // Watch player for completion
-  useEffect(() => {
-    if (!player || phase !== "speaking") return;
-    const status = player.currentStatus;
-    if (status && "didJustFinish" in status && status.didJustFinish) {
-      setPhase("idle");
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name !== "AbortError") {
+        console.warn("sendToServer error:", err);
+        setPhase("idle");
+      }
     }
-  }, [player?.currentStatus]);
+  };
 
   // ── Animated styles ────────────────────────────────────────────────────────
   const logoContainerStyle = useAnimatedStyle(() => ({
@@ -314,19 +342,24 @@ export default function VoiceScreen() {
     opacity:   glowOpacity.value,
     transform: [{ scale: glowScale.value }],
   }));
-  const topStyle       = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
-  const micStyle       = useAnimatedStyle(() => ({ transform: [{ scale: micScale.value }] }));
-  const micRingStyle   = useAnimatedStyle(() => ({
+  const topStyle        = useAnimatedStyle(() => ({ opacity: topOpacity.value }));
+  const micStyle        = useAnimatedStyle(() => ({ transform: [{ scale: micScale.value }] }));
+  const micRingStyle    = useAnimatedStyle(() => ({
     opacity:   micRingOpacity.value,
     transform: [{ scale: micRingScale.value }],
   }));
-  const statusStyle    = useAnimatedStyle(() => ({ opacity: statusOpacity.value }));
+  const statusStyle     = useAnimatedStyle(() => ({ opacity: statusOpacity.value }));
   const transcriptStyle = useAnimatedStyle(() => ({ opacity: transcriptOpacity.value }));
 
-  const isActive    = phase !== "idle";
-  const micBg       = phase === "listening" ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.07)";
-  const micIconClr  = phase === "listening" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.52)";
+  const isActive   = phase !== "idle";
+  const micBg      = phase === "listening"
+    ? "rgba(255,255,255,0.16)"
+    : "rgba(255,255,255,0.07)";
+  const micIconClr = phase === "listening"
+    ? "rgba(255,255,255,0.95)"
+    : "rgba(255,255,255,0.52)";
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={ss.root}>
 
@@ -334,12 +367,16 @@ export default function VoiceScreen() {
       <VoiceCanvas voiceState={canvasState(phase)} onFormationDone={handleFormationDone} />
 
       {/* Top bar */}
-      <Animated.View style={[ss.topBar, { paddingTop: topPad + 14 }, topStyle]} pointerEvents="box-none">
+      <Animated.View
+        style={[ss.topBar, { paddingTop: topPad + 14 }, topStyle]}
+        pointerEvents="box-none"
+      >
         <TouchableOpacity
           style={ss.topBtn}
           onPress={() => {
             abortRef.current?.abort();
-            try { recorder.stop(); } catch {}
+            Speech.stop();
+            cleanupRecording();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }}
@@ -362,32 +399,58 @@ export default function VoiceScreen() {
         </Animated.View>
       </View>
 
+      {/* Unavailable fallback */}
+      {available === false && (
+        <View style={ss.fallbackBox} pointerEvents="none">
+          <Feather name="mic-off" size={22} color="rgba(255,255,255,0.30)" />
+          <Text style={ss.fallbackTitle}>Sesli Mod Kullanılamıyor</Text>
+          <Text style={ss.fallbackBody}>
+            {Platform.OS === "web"
+              ? "Sesli mod yalnızca mobil cihazlarda çalışır."
+              : "Mikrofon erişimi sağlanamadı. Lütfen ayarlardan izin verin."}
+          </Text>
+        </View>
+      )}
+
       {/* Transcript */}
-      <Animated.View style={[ss.transcriptArea, transcriptStyle]} pointerEvents="none">
-        {!!userText && (
-          <Text style={ss.userText} numberOfLines={2}>{userText}</Text>
-        )}
-        {!!assistantText && (
-          <Text style={ss.assistantText} numberOfLines={5}>{assistantText}</Text>
-        )}
-      </Animated.View>
+      {available !== false && (
+        <Animated.View style={[ss.transcriptArea, transcriptStyle]} pointerEvents="none">
+          {!!userText && (
+            <Text style={ss.userText} numberOfLines={2}>{userText}</Text>
+          )}
+          {!!assistantText && (
+            <Text style={ss.assistantText} numberOfLines={5}>{assistantText}</Text>
+          )}
+        </Animated.View>
+      )}
 
       {/* Bottom controls */}
       <View style={[ss.bottomArea, { paddingBottom: btmPad + 28 }]}>
         <Animated.Text style={[ss.statusLabel, statusStyle]}>
-          {STATUS_LABELS[phase]}
+          {available === false
+            ? "Sesli mod kullanılamıyor"
+            : available === null
+            ? "Hazırlanıyor..."
+            : STATUS_LABELS[phase]}
         </Animated.Text>
 
         <View style={ss.micWrap}>
           <Animated.View style={[ss.micRing, micRingStyle]} />
           <Animated.View style={micStyle}>
             <TouchableOpacity
-              style={[ss.micBtn, { backgroundColor: micBg }]}
+              style={[
+                ss.micBtn,
+                { backgroundColor: micBg },
+                available === false && ss.micDisabled,
+              ]}
               onPress={handleMicPress}
+              disabled={available !== true}
               activeOpacity={0.80}
               hitSlop={12}
             >
-              {phase === "thinking" ? (
+              {available === false ? (
+                <Feather name="mic-off" size={24} color="rgba(255,255,255,0.25)" />
+              ) : phase === "thinking" ? (
                 <ThinkingDots />
               ) : phase === "speaking" ? (
                 <Feather name="volume-2" size={24} color="rgba(255,255,255,0.82)" />
@@ -398,7 +461,7 @@ export default function VoiceScreen() {
           </Animated.View>
         </View>
 
-        {isActive && (
+        {isActive && available === true && (
           <Text style={ss.cancelHint}>
             {phase === "listening" ? "Durdurmak için dokunun" : "İptal etmek için dokunun"}
           </Text>
@@ -409,7 +472,23 @@ export default function VoiceScreen() {
   );
 }
 
-// ─── Thinking dots ─────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Strip the data URL prefix (e.g. "data:audio/m4a;base64,")
+      const base64 = result.split(",")[1] ?? result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// ── Thinking dots ──────────────────────────────────────────────────────────────
 function ThinkingDots() {
   const d0 = useSharedValue(0.3);
   const d1 = useSharedValue(0.3);
@@ -443,7 +522,7 @@ function ThinkingDots() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const LOGO_SIZE = Math.round(Math.min(W, H) * 0.36);
 const GLOW_SIZE = LOGO_SIZE * 2.6;
 const MIC_SIZE  = 72;
@@ -479,6 +558,19 @@ const ss = StyleSheet.create({
     shadowRadius: LOGO_SIZE * 0.6,
   },
   logo: { width: LOGO_SIZE, height: LOGO_SIZE, tintColor: "#FFFFFF" },
+
+  fallbackBox: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: H * 0.28,
+    alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 40,
+  },
+  fallbackTitle: {
+    fontFamily: "Inter_500Medium", fontSize: 16,
+    color: "rgba(255,255,255,0.50)", textAlign: "center",
+  },
+  fallbackBody: {
+    fontFamily: "Inter_400Regular", fontSize: 13,
+    color: "rgba(255,255,255,0.28)", textAlign: "center", lineHeight: 20,
+  },
 
   transcriptArea: {
     position: "absolute", bottom: H * 0.30, left: 32, right: 32,
@@ -517,6 +609,7 @@ const ss = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
+  micDisabled: { opacity: 0.4 },
 
   cancelHint: {
     fontFamily: "Inter_400Regular", fontSize: 11,

@@ -1,8 +1,8 @@
 /**
  * POST /openai/conversations/:id/voice-messages
  * Accepts base64 audio, transcribes with gpt-4o-mini-transcribe,
- * generates reply with gpt-5.4, synthesises with OpenAI TTS,
- * streams transcript + base64 audio chunks back via SSE.
+ * generates a short Turkish reply with gpt-4o-mini.
+ * Returns plain JSON — TTS is handled on-device via expo-speech.
  */
 import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -16,12 +16,6 @@ router.post("/conversations/:id/voice-messages", async (req, res) => {
     return;
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const send = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
-
   try {
     // 1. Transcribe audio → text
     const audioBuffer = Buffer.from(audio, "base64");
@@ -33,51 +27,33 @@ router.post("/conversations/:id/voice-messages", async (req, res) => {
       response_format: "json",
     });
     const userText = transcription.text?.trim() ?? "";
-    send({ type: "user_transcript", data: userText });
 
     if (!userText) {
-      send({ done: true });
-      res.end();
+      res.json({ userText: "", assistantText: "" });
       return;
     }
 
-    // 2. Generate AI text reply
+    // 2. Generate short AI reply (voice-friendly, natural Turkish)
     const completion = await openai.chat.completions.create({
-      model: "gpt-5.4",
-      max_completion_tokens: 512,
+      model: "gpt-4o-mini",
+      max_completion_tokens: 256,
       messages: [
         {
           role: "system",
           content:
             "Sen AkılCEP — premium Türkçe yapay zeka asistanısın. " +
-            "Yanıtların kısa, doğal, sıcak ve akıcı olmalı. " +
-            "Sesli konuşma için tasarlandığın için cümleler net ve akıcı olsun.",
+            "Yanıtların kısa (1-3 cümle), doğal, sıcak ve sesli konuşmaya uygun olmalı. " +
+            "Madde işareti, liste veya özel karakter kullanma.",
         },
         { role: "user", content: userText },
       ],
     });
     const assistantText = completion.choices[0]?.message?.content?.trim() ?? "";
-    send({ type: "transcript", data: assistantText });
 
-    // 3. Synthesise speech with alloy voice (calm, natural)
-    const ttsResponse = await openai.audio.speech.create({
-      model: "tts-1",
-      voice: "alloy",
-      input: assistantText,
-      response_format: "mp3",
-      speed: 0.92,
-    });
-
-    const audioArrayBuffer = await ttsResponse.arrayBuffer();
-    const audioB64 = Buffer.from(audioArrayBuffer).toString("base64");
-    send({ type: "audio", data: audioB64, format: "mp3" });
-
-    send({ done: true });
-    res.end();
+    res.json({ userText, assistantText });
   } catch (err) {
     req.log?.error({ err }, "voice-messages error");
-    send({ error: "Voice processing failed" });
-    res.end();
+    res.status(500).json({ error: "Voice processing failed" });
   }
 });
 
