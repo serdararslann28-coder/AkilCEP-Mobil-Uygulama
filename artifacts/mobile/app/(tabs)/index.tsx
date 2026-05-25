@@ -30,6 +30,7 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -103,6 +104,10 @@ export default function HomeScreen() {
   // ── Shared values — mini voice orb ─────────────────────────────────────────
   const orbScale   = useSharedValue(1);
   const orbGlowOp  = useSharedValue(0);
+
+  // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
+  const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
+  const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
 
   // ── Shared values — voice layer entry/exit ─────────────────────────────────
   const voiceLayerOp = useSharedValue(0);
@@ -222,6 +227,28 @@ export default function HomeScreen() {
     animBar(leftBars,  L_MAX, L_DEL, L_DUR);
     animBar(rightBars, R_MAX, R_DEL, R_DUR);
   }, [voicePhase]);
+
+  // ── Arrow morphs: text present → send button / empty → dark voice orb ───────
+  useEffect(() => {
+    voiceModeSV.value = withTiming(hasText ? 0 : 1, {
+      duration: 340,
+      easing:   Easing.out(Easing.ease),
+    });
+    if (!hasText) {
+      arrowGlowPulse.value = withDelay(
+        180,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1, false
+        )
+      );
+    } else {
+      arrowGlowPulse.value = withTiming(0, { duration: 200 });
+    }
+  }, [hasText]);
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -416,6 +443,32 @@ export default function HomeScreen() {
     opacity:  voiceLayerOp.value,
     height:   voiceLayerH.value,
     overflow: "hidden",
+  }));
+
+  // Arrow button animated styles
+  // Outer warm-amber halo — large soft bloom that pulses
+  const arrowGlowOuterAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value * (0.13 + arrowGlowPulse.value * 0.20),
+  }));
+  // Inner glow — tighter, brighter
+  const arrowGlowInnerAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value * (0.22 + arrowGlowPulse.value * 0.32),
+  }));
+  // Dark graphite bg fades in (voice mode)
+  const arrowVoiceBgAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value,
+  }));
+  // Primary-color bg fades out (voice mode)
+  const arrowSendBgAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [1, 0]),
+  }));
+  // Arrow icon — bright in send mode, dimmed in voice mode
+  const arrowSendIconAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [1, 0]),
+  }));
+  // Voice icon — hidden in send mode, appears in voice mode
+  const arrowVoiceIconAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [0, 1]),
   }));
 
   // Per-bar animated styles
@@ -676,27 +729,41 @@ export default function HomeScreen() {
             editable={voicePhase === "idle"}
           />
 
-          {/* Mic — always visible, transforms per phase */}
+          {/* Mic — stays visible as ambient indicator; dims slightly while typing */}
           <TouchableOpacity
-            style={[ss.inputIconBtn, { opacity: hasText ? 0 : 1 }]}
+            style={[ss.inputIconBtn, { opacity: hasText ? 0.38 : 0.82 }]}
             onPress={handleMicPress}
             hitSlop={10} activeOpacity={0.65}
           >
             <Feather name={micIcon} size={17} color={micColor} />
           </TouchableOpacity>
 
-          {/* Send */}
-          <TouchableOpacity
-            style={[
-              ss.sendBtn,
-              { backgroundColor: hasText ? T.primary : T.accent, opacity: hasText ? 1 : 0.42 },
-            ]}
-            onPress={handleSend}
-            disabled={!hasText}
-            hitSlop={10} activeOpacity={0.75}
-          >
-            <Feather name="arrow-up" size={16} color={hasText ? T.primaryForeground : T.muted} />
-          </TouchableOpacity>
+          {/* Smart arrow — send when typing, dark voice-orb trigger when empty */}
+          <View style={ss.sendWrap}>
+            {/* Outer warm amber bloom — pulses in voice mode */}
+            <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
+            {/* Inner glow ring */}
+            <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
+            {/* Dark graphite circle — voice mode bg */}
+            <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#1A1A1A" }, arrowVoiceBgAnim]} />
+            {/* Primary-color circle — send mode bg */}
+            <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
+
+            <TouchableOpacity
+              style={ss.sendBtnTouch}
+              onPress={hasText ? handleSend : handleMicPress}
+              hitSlop={12} activeOpacity={0.75}
+            >
+              {/* Arrow icon — send mode (bright) */}
+              <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                <Feather name="arrow-up" size={16} color={T.primaryForeground} />
+              </Animated.View>
+              {/* Arrow icon — voice mode (dimmed on dark) */}
+              <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                <Feather name="arrow-up" size={16} color="rgba(255,255,255,0.55)" />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
 
         </View>
       </View>
@@ -925,8 +992,38 @@ const ss = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical:   6,
   },
-  sendBtn: {
+  // Smart send/voice-orb button system
+  sendWrap: {
+    width: 38, height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Concentric glow rings — absolutely behind the button
+  arrowGlowOuter: {
+    position:     "absolute",
+    width:        66, height: 66, borderRadius: 33,
+    backgroundColor: "rgba(200, 160, 80, 1)",
+  },
+  arrowGlowInner: {
+    position:     "absolute",
+    width:        50, height: 50, borderRadius: 25,
+    backgroundColor: "rgba(220, 175, 100, 1)",
+  },
+  // Background circles — layered, animated opacity
+  sendBtnBg: {
+    position:     "absolute",
+    width:        38, height: 38, borderRadius: 19,
+  },
+  // Transparent circle that receives touches
+  sendBtnTouch: {
     width: 38, height: 38, borderRadius: 19,
-    alignItems: "center", justifyContent: "center",
+    alignItems:  "center",
+    justifyContent: "center",
+  },
+  // Absolutely stacked icons — only one visible at a time
+  iconCenter: {
+    position:       "absolute",
+    alignItems:     "center",
+    justifyContent: "center",
   },
 });
