@@ -64,7 +64,7 @@ export default function ThemeToggle() {
   const pillBg     = theme.isDark ? "rgba(255,255,255,0.20)"  : "#FFFFFF";
   const pillShadow = theme.isDark ? 0 : 0.14;
   const sunClr     = theme.isDark ? "#F5F5F5" : "#3A3A3C";
-  const moonClr    = theme.isDark ? theme.green : "#3A3A3C";
+  const moonClr    = theme.isDark ? "rgba(255,255,255,0.82)" : "#3A3A3C";
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={1}>

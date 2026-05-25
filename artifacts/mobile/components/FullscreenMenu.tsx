@@ -130,7 +130,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
   const groupBorder = T.isDark ? "rgba(255,255,255,0.08)"  : "transparent";
   const divider     = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.055)";
   const iconBg      = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.04)";
-  const accentIconBg= T.isDark ? T.greenTint                : "rgba(107,203,142,0.10)";
+  const accentIconBg= T.isDark ? "rgba(255,255,255,0.08)"   : "rgba(107,203,142,0.10)";
   const groupShadow = T.isDark ? 0 : 0.04;
   const separatorML = 46; // dividers start after icon
 
@@ -198,8 +198,8 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               <View style={ss.profileText}>
                 <Text style={[ss.profileName, { color: T.fg }]}>Kullanıcı</Text>
                 <View style={ss.profileSubRow}>
-                  <View style={[ss.planChip, { backgroundColor: T.isDark ? T.greenTint : "rgba(107,203,142,0.12)" }]}>
-                    <Text style={[ss.planChipLabel, { color: T.green }]}>Ücretsiz</Text>
+                  <View style={[ss.planChip, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(107,203,142,0.12)" }]}>
+                    <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.50)" : T.green }]}>Ücretsiz</Text>
                   </View>
                   <Text style={[ss.planSub, { color: T.muted }]}>AkılCEP AI</Text>
                 </View>
@@ -241,7 +241,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               return (
                 <React.Fragment key={item.id}>
                   <TouchableOpacity
-                    style={[ss.histRow, active && { backgroundColor: T.isDark ? T.greenTint : "rgba(107,203,142,0.07)" }]}
+                    style={[ss.histRow, active && { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(107,203,142,0.07)" }]}
                     activeOpacity={0.62}
                     onPress={() => {
                       if (item.real) {
@@ -254,10 +254,10 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                       }
                     }}
                   >
-                    <View style={[ss.histIcon, { backgroundColor: active ? T.greenTint : iconBg }]}>
-                      <Feather name="message-square" size={11} color={active ? T.green : T.muted} />
+                    <View style={[ss.histIcon, { backgroundColor: active ? (T.isDark ? "rgba(255,255,255,0.10)" : T.greenTint) : iconBg }]}>
+                      <Feather name="message-square" size={11} color={active ? (T.isDark ? "rgba(255,255,255,0.65)" : T.green) : T.muted} />
                     </View>
-                    <Text style={[ss.histTitle, { color: active ? T.green : T.fg, flex: 1 }]} numberOfLines={1}>
+                    <Text style={[ss.histTitle, { color: active ? (T.isDark ? T.fg : T.green) : T.fg, flex: 1 }]} numberOfLines={1}>
                       {item.title}
                     </Text>
                     <Text style={[ss.histTime, { color: T.zinc }]}>{item.time}</Text>
@@ -323,11 +323,16 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
           {/* Circular FAB — bottom-right */}
           <RNAnimated.View style={{ transform: [{ scale: fabScale }] }}>
             <TouchableOpacity
-              style={[ss.fab, { backgroundColor: T.isDark ? "#F0F0F0" : "#0A0A0A", shadowOpacity: T.isDark ? 0 : 0.22 }]}
+              style={[ss.fab, {
+                backgroundColor: T.isDark ? "rgba(255,255,255,0.12)" : "#0A0A0A",
+                shadowOpacity:   T.isDark ? 0 : 0.22,
+                borderWidth:     T.isDark ? StyleSheet.hairlineWidth : 0,
+                borderColor:     "rgba(255,255,255,0.12)",
+              }]}
               onPress={handleNewChat}
-              activeOpacity={0.80}
+              activeOpacity={0.78}
             >
-              <Feather name="edit-3" size={18} color={T.isDark ? "#0A0A0A" : "#FFFFFF"} />
+              <Feather name="edit-3" size={18} color={T.isDark ? "rgba(255,255,255,0.78)" : "#FFFFFF"} />
             </TouchableOpacity>
           </RNAnimated.View>
 
