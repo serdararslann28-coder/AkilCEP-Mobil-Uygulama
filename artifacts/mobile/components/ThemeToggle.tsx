@@ -1,82 +1,134 @@
 /**
- * ThemeToggle — small glassmorphic circle, icon-only.
- * Sun ↔ Moon morph with spring rotation.
- * Designed to sit in the FullscreenMenu bottom-left corner.
+ * ThemeToggle — sliding capsule toggle.
+ * Sun (left) ↔ Moon (right). Pill slides with spring physics.
+ * Glassmorphic, Apple-premium, no text labels.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 import { useTheme } from "@/context/ThemeContext";
 
-interface Props {
-  size?: number;
-}
+// ─── Capsule geometry ─────────────────────────────────────────────────────────
+const CW   = 80;   // capsule width
+const CH   = 36;   // capsule height
+const PILL = 28;   // pill diameter
+const PAD  = 4;    // padding inside capsule
 
-export default function ThemeToggle({ size = 44 }: Props) {
+const POS_LIGHT = PAD;                  // pill x for PURE
+const POS_DARK  = CW - PILL - PAD;     // pill x for VOID  (= 48)
+
+export default function ThemeToggle() {
   const { theme, toggle } = useTheme();
+  const prevDark = useRef(theme.isDark);
 
-  const spin  = useSharedValue(theme.isDark ? 1 : 0);
-  const scale = useSharedValue(1);
+  // ── Animated values ──
+  const pillX       = useSharedValue(theme.isDark ? POS_DARK  : POS_LIGHT);
+  const sunOpacity  = useSharedValue(theme.isDark ? 0.28 : 0.9);
+  const moonOpacity = useSharedValue(theme.isDark ? 0.9  : 0.28);
+  const pillScale   = useSharedValue(1);
 
-  const prevDark = React.useRef(theme.isDark);
-
-  React.useEffect(() => {
+  useEffect(() => {
     if (prevDark.current === theme.isDark) return;
     prevDark.current = theme.isDark;
-    spin.value = withSpring(theme.isDark ? 1 : 0, { damping: 12, stiffness: 120 });
+
+    pillX.value       = withSpring(theme.isDark ? POS_DARK : POS_LIGHT, { damping: 18, stiffness: 190 });
+    sunOpacity.value  = withTiming(theme.isDark ? 0.28 : 0.9,  { duration: 300, easing: Easing.inOut(Easing.ease) });
+    moonOpacity.value = withTiming(theme.isDark ? 0.9  : 0.28, { duration: 300, easing: Easing.inOut(Easing.ease) });
   }, [theme.isDark]);
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value * 180}deg` }],
-  }));
+  const pillStyle  = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }] }));
+  const pilScStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pillX.value }, { scale: pillScale.value }] }));
+  const sunStyle   = useAnimatedStyle(() => ({ opacity: sunOpacity.value }));
+  const moonStyle  = useAnimatedStyle(() => ({ opacity: moonOpacity.value }));
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    scale.value = withSpring(0.82, { duration: 80 }, () => {
-      scale.value = withSpring(1, { damping: 14, stiffness: 200 });
+    pillScale.value = withSpring(0.80, { duration: 80 }, () => {
+      pillScale.value = withSpring(1, { damping: 14, stiffness: 220 });
     });
     toggle();
   };
 
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const bg     = theme.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.055)";
-  const border = theme.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.08)";
-  const icon   = theme.isDark ? theme.green : theme.fgSoft;
+  // Capsule glass colours
+  const capsuleBg  = theme.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.055)";
+  const capsuleBdr = theme.isDark ? "rgba(255,255,255,0.11)"  : "rgba(0,0,0,0.07)";
+  const pillBg     = theme.isDark ? "rgba(255,255,255,0.20)"  : "#FFFFFF";
+  const pillShadow = theme.isDark ? 0 : 0.14;
+  const sunClr     = theme.isDark ? "#F5F5F5" : "#3A3A3C";
+  const moonClr    = theme.isDark ? theme.green : "#3A3A3C";
 
   return (
-    <Animated.View style={[{ width: size, height: size }, pillStyle]}>
-      <TouchableOpacity
-        style={[ss.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg, borderColor: border }]}
-        onPress={handlePress}
-        activeOpacity={1}
+    <TouchableOpacity onPress={handlePress} activeOpacity={1}>
+      <View
+        style={[
+          ss.capsule,
+          { backgroundColor: capsuleBg, borderColor: capsuleBdr },
+        ]}
       >
-        <Animated.View style={iconStyle}>
-          <Feather name={theme.isDark ? "moon" : "sun"} size={16} color={icon} />
-        </Animated.View>
-      </TouchableOpacity>
-    </Animated.View>
+        {/* Icon layer — always visible, opacity animated */}
+        <View style={ss.iconRow}>
+          <Animated.View style={[ss.iconSlot, sunStyle]}>
+            <Feather name="sun" size={13} color={sunClr} />
+          </Animated.View>
+          <Animated.View style={[ss.iconSlot, moonStyle]}>
+            <Feather name="moon" size={13} color={moonClr} />
+          </Animated.View>
+        </View>
+
+        {/* Sliding pill */}
+        <Animated.View
+          style={[
+            ss.pill,
+            { width: PILL, height: PILL, borderRadius: PILL / 2, backgroundColor: pillBg, shadowOpacity: pillShadow },
+            pilScStyle,
+          ]}
+        />
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const ss = StyleSheet.create({
-  circle: {
-    alignItems:  "center",
+  capsule: {
+    width:        CW,
+    height:       CH,
+    borderRadius: CH / 2,
+    borderWidth:  StyleSheet.hairlineWidth,
+    overflow:     "hidden",
     justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    // Shadow on capsule
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius:  8,
+    elevation:     3,
+  },
+  iconRow: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection:  "row",
+    alignItems:     "center",
+  },
+  iconSlot: {
+    flex:           1,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  pill: {
+    position: "absolute",
+    top:      (CH - PILL) / 2,
+    left:     0,                // translateX drives actual position
+    shadowColor:  "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation:    2,
   },
 });
