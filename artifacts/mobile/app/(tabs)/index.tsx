@@ -71,6 +71,9 @@ const LOGO_WRAP_D = 320;
 const RING_D = [LOGO_WRAP_D, 268, 218, 174, 138] as const;  // outermost → innermost
 const RING_TOP = RING_D.map((d) => (LOGO_WRAP_D - d) / 2)   as unknown as number[];
 
+const MIN_INPUT_H = 40;   // compact single-line height
+const MAX_INPUT_H = 138;  // ~5-6 lines at 15px font
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { startNewConversation, injectMessages, sendMessage } = useChat();
@@ -114,6 +117,10 @@ export default function HomeScreen() {
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
   const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
+  const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
+
+  // Adaptive multiline: scrolls once past MAX_INPUT_H
+  const [scrollEnabled, setScrollEnabled] = useState(false);
 
   // ── Shared values — voice layer entry/exit ─────────────────────────────────
   const voiceLayerOp = useSharedValue(0);
@@ -411,6 +418,14 @@ export default function HomeScreen() {
     try { await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true }); } catch {}
   };
 
+  // ── Adaptive height ──────────────────────────────────────────────────────────
+  const onContentSizeChange = (e: { nativeEvent: { contentSize: { height: number } } }) => {
+    const h = e.nativeEvent.contentSize.height;
+    const clamped = Math.min(Math.max(h, MIN_INPUT_H), MAX_INPUT_H);
+    inputHeightSV.value = withSpring(clamped, { damping: 20, stiffness: 180, mass: 0.8 });
+    setScrollEnabled(h > MAX_INPUT_H);
+  };
+
   // ── STT helpers — mic icon fills input field (no navigation) ────────────────
   const handleSttPress = async () => {
     if (Platform.OS === "web") {
@@ -487,6 +502,8 @@ export default function HomeScreen() {
     startNewConversation();
     sendMessage(msg);
     setInputText("");
+    inputHeightSV.value = withSpring(MIN_INPUT_H, { damping: 20, stiffness: 180, mass: 0.8 });
+    setScrollEnabled(false);
     router.push("/chat");
   };
 
@@ -550,6 +567,11 @@ export default function HomeScreen() {
   const sttPulseStyle = useAnimatedStyle(() => ({
     opacity:   sttPulse.value * 0.42,
     transform: [{ scale: 1 + sttPulse.value * 0.55 }],
+  }));
+
+  // Adaptive input wrapper — springs up/down as content grows
+  const inputFieldAnim = useAnimatedStyle(() => ({
+    height: inputHeightSV.value,
   }));
 
   // Per-bar animated styles
@@ -798,17 +820,20 @@ export default function HomeScreen() {
             <Feather name="plus" size={18} color={attachClr} />
           </TouchableOpacity>
 
-          <TextInput
-            style={[ss.textInput, { color: T.fg }]}
-            placeholder="AkılCEP'e bir şey sor…"
-            placeholderTextColor={T.zinc}
-            value={inputText}
-            onChangeText={setInputText}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-            editable={voicePhase === "idle"}
-          />
+          <Animated.View style={[ss.textInputWrap, inputFieldAnim]}>
+            <TextInput
+              style={[ss.textInput, { color: T.fg }]}
+              placeholder="AkılCEP'e bir şey sor…"
+              placeholderTextColor={T.zinc}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              scrollEnabled={scrollEnabled}
+              onContentSizeChange={onContentSizeChange}
+              blurOnSubmit={false}
+              editable={voicePhase === "idle"}
+            />
+          </Animated.View>
 
           {/* Mic — speech-to-text: records and inserts text into field */}
           <View style={ss.micSttWrap}>
@@ -1075,7 +1100,7 @@ const ss = StyleSheet.create({
   inputWrap:    { paddingHorizontal: 18 },
   inputBar: {
     flexDirection:     "row",
-    alignItems:        "center",
+    alignItems:        "flex-end",
     borderRadius:      60,
     paddingVertical:   8,
     paddingHorizontal: 8,
@@ -1098,6 +1123,12 @@ const ss = StyleSheet.create({
   micSttHalo: {
     position: "absolute",
     width: 42, height: 42, borderRadius: 21,
+  },
+  // Animated wrapper around TextInput — height springs with content
+  textInputWrap: {
+    flex:           1,
+    justifyContent: "center",
+    minHeight:      40,
   },
   textInput: {
     flex:              1,

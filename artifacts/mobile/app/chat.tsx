@@ -58,6 +58,9 @@ const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 // ── Voice phase ────────────────────────────────────────────────────────────────
 type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
+const MIN_INPUT_H = 40;   // compact single-line height
+const MAX_INPUT_H = 138;  // ~5-6 lines at 15px font
+
 export default function ChatScreen() {
   const { theme: T }   = useTheme();
   const insets          = useSafeAreaInsets();
@@ -108,6 +111,8 @@ export default function ChatScreen() {
     });
     sendMessage(inputText.trim());
     setInputText("");
+    inputHeightSV.value = withSpring(MIN_INPUT_H, { damping: 20, stiffness: 180, mass: 0.8 });
+    setScrollEnabled(false);
   };
 
   // ── Watermark logo — breathing + speaking boost ────────────────────────────
@@ -150,6 +155,10 @@ export default function ChatScreen() {
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
   const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
+  const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
+
+  // Adaptive multiline: scrolls once past MAX_INPUT_H
+  const [scrollEnabled, setScrollEnabled] = useState(false);
 
   // Mic button glow pulse during listening
   const micGlow = useSharedValue(0);
@@ -182,6 +191,11 @@ export default function ChatScreen() {
   const sttPulseStyle = useAnimatedStyle(() => ({
     opacity:   sttPulse.value * 0.42,
     transform: [{ scale: 1 + sttPulse.value * 0.55 }],
+  }));
+
+  // Adaptive input wrapper — springs up/down as content grows
+  const inputFieldAnim = useAnimatedStyle(() => ({
+    height: inputHeightSV.value,
   }));
 
   useEffect(() => {
@@ -306,6 +320,14 @@ export default function ChatScreen() {
       } catch {}
       applyVoice("idle");
     }
+  };
+
+  // ── Adaptive height ──────────────────────────────────────────────────────────
+  const onContentSizeChange = (e: { nativeEvent: { contentSize: { height: number } } }) => {
+    const h = e.nativeEvent.contentSize.height;
+    const clamped = Math.min(Math.max(h, MIN_INPUT_H), MAX_INPUT_H);
+    inputHeightSV.value = withSpring(clamped, { damping: 20, stiffness: 180, mass: 0.8 });
+    setScrollEnabled(h > MAX_INPUT_H);
   };
 
   // ── STT helpers — mic icon fills input field (no navigation) ────────────────
@@ -634,21 +656,24 @@ export default function ChatScreen() {
             </TouchableOpacity>
 
             {/* Text field — dims slightly during voice */}
-            <TextInput
-              style={[
-                ss.textInput,
-                { color: inputTextClr, opacity: voiceActive ? 0.45 : 1 },
-              ]}
-              placeholder={voiceActive ? "" : "AkılCEP'e yazın…"}
-              placeholderTextColor={inputPlhClr}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={2000}
-              onSubmitEditing={handleSend}
-              blurOnSubmit={false}
-              editable={!voiceActive}
-            />
+            <Animated.View style={[ss.textInputWrap, inputFieldAnim]}>
+              <TextInput
+                style={[
+                  ss.textInput,
+                  { color: inputTextClr, opacity: voiceActive ? 0.45 : 1 },
+                ]}
+                placeholder={voiceActive ? "" : "AkılCEP'e yazın…"}
+                placeholderTextColor={inputPlhClr}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={2000}
+                scrollEnabled={scrollEnabled}
+                onContentSizeChange={onContentSizeChange}
+                blurOnSubmit={false}
+                editable={!voiceActive}
+              />
+            </Animated.View>
 
             {/* Right controls */}
             <View style={ss.rightRow}>
@@ -857,11 +882,16 @@ const ss = StyleSheet.create({
     justifyContent: "center",
     marginBottom:   1,
   },
+  // Animated wrapper around TextInput — height springs with content
+  textInputWrap: {
+    flex:           1,
+    justifyContent: "center",
+    minHeight:      40,
+  },
   textInput: {
     flex:              1,
     fontSize:          15,
     fontFamily:        "Inter_400Regular",
-    maxHeight:         130,
     paddingVertical:   8,
     paddingHorizontal: 2,
     lineHeight:        22,
