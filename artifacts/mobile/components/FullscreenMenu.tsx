@@ -201,7 +201,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                   <View style={[ss.planChip, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(107,203,142,0.12)" }]}>
                     <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.50)" : T.green }]}>Ücretsiz</Text>
                   </View>
-                  <Text style={[ss.planSub, { color: T.muted }]}>AkılCEP AI</Text>
+                  <Text style={[ss.planSub, { color: T.muted }]}>AkılCEP</Text>
                 </View>
               </View>
             </View>
