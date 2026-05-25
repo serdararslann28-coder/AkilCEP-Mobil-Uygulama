@@ -32,8 +32,10 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSequence,
   withSpring,
@@ -138,11 +140,35 @@ export default function ChatScreen() {
     opacity:   loOp.value,
   }));
 
+  // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
+  const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
+  const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
+
   // Mic button glow pulse during listening
   const micGlow = useSharedValue(0);
   const micGlowStyle = useAnimatedStyle(() => ({
     opacity:   micGlow.value,
     transform: [{ scale: 1 + micGlow.value * 0.35 }],
+  }));
+
+  // Arrow animated styles — identical logic to home screen
+  const arrowGlowOuterAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value * (0.13 + arrowGlowPulse.value * 0.20),
+  }));
+  const arrowGlowInnerAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value * (0.22 + arrowGlowPulse.value * 0.32),
+  }));
+  const arrowVoiceBgAnim = useAnimatedStyle(() => ({
+    opacity: voiceModeSV.value,
+  }));
+  const arrowSendBgAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [1, 0]),
+  }));
+  const arrowSendIconAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [1, 0]),
+  }));
+  const arrowVoiceIconAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(voiceModeSV.value, [0, 1], [0, 1]),
   }));
 
   useEffect(() => {
@@ -158,6 +184,28 @@ export default function ChatScreen() {
       micGlow.value = withTiming(0, { duration: 350 });
     }
   }, [isListening]);
+
+  // ── Arrow morphs: text present → send / empty → dark voice orb ─────────────
+  useEffect(() => {
+    voiceModeSV.value = withTiming(hasText ? 0 : 1, {
+      duration: 340,
+      easing:   Easing.out(Easing.ease),
+    });
+    if (!hasText) {
+      arrowGlowPulse.value = withDelay(
+        180,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1, false
+        )
+      );
+    } else {
+      arrowGlowPulse.value = withTiming(0, { duration: 200 });
+    }
+  }, [hasText]);
 
   // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -523,53 +571,59 @@ export default function ChatScreen() {
             {/* Right controls */}
             <View style={ss.rightRow}>
 
-              {/* Mic — always visible when no text, transforms per voice phase */}
-              {!hasText && (
-                <View style={ss.micWrap}>
-                  {/* Glow halo behind button */}
-                  <Animated.View
-                    style={[
-                      ss.micHalo,
-                      {
-                        backgroundColor: T.isDark
-                          ? "rgba(255,255,255,0.08)"
-                          : "rgba(0,0,0,0.05)",
-                      },
-                      micGlowStyle,
-                    ]}
-                    pointerEvents="none"
-                  />
-                  <TouchableOpacity
-                    style={[ss.micBtn, { backgroundColor: micBg() }]}
-                    onPress={handleMicPress}
-                    activeOpacity={0.65}
-                    hitSlop={8}
-                  >
-                    {voicePhase === "thinking" ? (
-                      <ThinkingDots
-                        color={T.isDark ? "rgba(255,255,255,0.50)" : "rgba(0,0,0,0.35)"}
-                        size={3.5}
-                      />
-                    ) : (
-                      <Feather name={micIconName()} size={15} color={micIconColor()} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Send */}
-              <Animated.View style={sendStyle}>
+              {/* Mic — always visible; dims while typing, transforms per voice phase */}
+              <View style={[ss.micWrap, { opacity: hasText ? 0.38 : 0.82 }]}>
+                <Animated.View
+                  style={[
+                    ss.micHalo,
+                    {
+                      backgroundColor: T.isDark
+                        ? "rgba(255,255,255,0.08)"
+                        : "rgba(0,0,0,0.05)",
+                    },
+                    micGlowStyle,
+                  ]}
+                  pointerEvents="none"
+                />
                 <TouchableOpacity
-                  style={[ss.sendBtn, { backgroundColor: sendBtnBg, opacity: hasText ? 1 : 0.42 }]}
-                  onPress={handleSend}
-                  disabled={!hasText}
-                  activeOpacity={0.70}
+                  style={[ss.micBtn, { backgroundColor: micBg() }]}
+                  onPress={handleMicPress}
+                  activeOpacity={0.65}
+                  hitSlop={8}
                 >
-                  <Feather
-                    name="arrow-up"
-                    size={17}
-                    color={T.isDark ? "rgba(255,255,255,0.82)" : "#5C5C5C"}
-                  />
+                  {voicePhase === "thinking" ? (
+                    <ThinkingDots
+                      color={T.isDark ? "rgba(255,255,255,0.50)" : "rgba(0,0,0,0.35)"}
+                      size={3.5}
+                    />
+                  ) : (
+                    <Feather name={micIconName()} size={15} color={micIconColor()} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Smart arrow — send when typing, dark voice-orb trigger when empty */}
+              <Animated.View style={[ss.sendWrap, sendStyle]}>
+                {/* Outer warm amber bloom — pulses in voice mode */}
+                <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
+                {/* Inner glow ring */}
+                <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
+                {/* Dark graphite bg — voice mode */}
+                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#1A1A1A" }, arrowVoiceBgAnim]} />
+                {/* Primary-color bg — send mode */}
+                <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
+
+                <TouchableOpacity
+                  style={ss.sendBtnTouch}
+                  onPress={hasText ? handleSend : handleMicPress}
+                  hitSlop={12} activeOpacity={0.75}
+                >
+                  <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                    <Feather name="arrow-up" size={16} color={T.primaryForeground} />
+                  </Animated.View>
+                  <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                    <Feather name="arrow-up" size={16} color="rgba(255,255,255,0.55)" />
+                  </Animated.View>
                 </TouchableOpacity>
               </Animated.View>
             </View>
@@ -756,11 +810,33 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Send
-  sendBtn: {
-    width:          38,
-    height:         38,
-    borderRadius:   19,
+  // Smart send/voice-orb button — same system as home screen
+  sendWrap: {
+    width: 38, height: 38,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  arrowGlowOuter: {
+    position:        "absolute",
+    width:           66, height: 66, borderRadius: 33,
+    backgroundColor: "rgba(200, 160, 80, 1)",
+  },
+  arrowGlowInner: {
+    position:        "absolute",
+    width:           50, height: 50, borderRadius: 25,
+    backgroundColor: "rgba(220, 175, 100, 1)",
+  },
+  sendBtnBg: {
+    position:     "absolute",
+    width:        38, height: 38, borderRadius: 19,
+  },
+  sendBtnTouch: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  iconCenter: {
+    position:       "absolute",
     alignItems:     "center",
     justifyContent: "center",
   },
