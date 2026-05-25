@@ -1,189 +1,164 @@
+/**
+ * MessageBubble — floating glassmorphic chat bubbles.
+ * User: smoke gray · AI: warm white · fade-up entrance · typewriter for latest AI.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import { Message } from "@/context/ChatContext";
-import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 
-interface MessageBubbleProps {
-  message: Message;
+interface Props {
+  message:  Message;
   isLatest?: boolean;
 }
 
 function formatTime(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function MessageBubble({ message, isLatest }: MessageBubbleProps) {
-  const colors = useColors();
+export default function MessageBubble({ message, isLatest }: Props) {
+  const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
-  const [displayedContent, setDisplayedContent] = useState(
-    isLatest && !isUser ? "" : message.content
+  // ── Typewriter effect for latest AI message ────────────────────────────
+  const [displayed, setDisplayed] = useState(
+    isLatest && !isUser ? "" : message.content,
   );
-  const indexRef = useRef(0);
+  const idxRef   = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isLatest || isUser) {
-      setDisplayedContent(message.content);
+      setDisplayed(message.content);
       return;
     }
-    indexRef.current = 0;
-    setDisplayedContent("");
-
+    idxRef.current = 0;
+    setDisplayed("");
     const tick = () => {
-      indexRef.current += 2;
-      if (indexRef.current <= message.content.length) {
-        setDisplayedContent(message.content.slice(0, indexRef.current));
-        timerRef.current = setTimeout(tick, 12);
+      idxRef.current += 2;
+      if (idxRef.current <= message.content.length) {
+        setDisplayed(message.content.slice(0, idxRef.current));
+        timerRef.current = setTimeout(tick, 11);
       } else {
-        setDisplayedContent(message.content);
+        setDisplayed(message.content);
       }
     };
-    timerRef.current = setTimeout(tick, 80);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    timerRef.current = setTimeout(tick, 60);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [message.content, isLatest, isUser]);
+
+  // ── Bubble colours ─────────────────────────────────────────────────────
+  const userBubbleBg   = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(60,60,67,0.09)";
+  const userTextClr    = T.fg;
+  const aiBubbleBg     = T.isDark ? "rgba(255,255,255,0.058)" : "rgba(255,255,255,0.92)";
+  const aiTextClr      = T.isDark ? T.fg : "#1C1C1E";
+
+  // ── Timestamp fade-in ──────────────────────────────────────────────────
+  const tsOpacity = useSharedValue(0);
+  useEffect(() => {
+    tsOpacity.value = withTiming(1, { duration: 600 });
+  }, []);
+  const tsStyle = useAnimatedStyle(() => ({ opacity: tsOpacity.value }));
 
   if (isUser) {
     return (
       <Animated.View
-        entering={FadeInDown.duration(280).springify()}
-        style={styles.userWrapper}
+        entering={FadeInDown.duration(300).springify().damping(18)}
+        style={ss.userWrapper}
       >
-        <View
-          style={[
-            styles.userBubble,
-            {
-              backgroundColor: colors.primary,
-              shadowColor: "#000",
-            },
-          ]}
-        >
-          <Text style={[styles.userText, { color: colors.primaryForeground }]}>
+        <View style={[ss.userBubble, { backgroundColor: userBubbleBg }]}>
+          <Text style={[ss.userText, { color: userTextClr }]}>
             {message.content}
           </Text>
         </View>
-        <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>
+        <Animated.Text style={[ss.timestamp, { color: T.zinc }, tsStyle]}>
           {formatTime(message.timestamp)}
-        </Text>
+        </Animated.Text>
       </Animated.View>
     );
   }
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(280).springify()}
-      style={styles.aiWrapper}
+      entering={FadeInDown.duration(340).springify().damping(18)}
+      style={ss.aiWrapper}
     >
-      <View style={styles.aiRow}>
-        <View
-          style={[
-            styles.aiAvatar,
-            { backgroundColor: colors.foreground },
-          ]}
-        >
-          <View style={[styles.aiAvatarDot, { backgroundColor: colors.background }]} />
-        </View>
-        <View
-          style={[
-            styles.aiBubble,
-            {
-              backgroundColor: colors.card,
-              shadowColor: "#000",
-            },
-          ]}
-        >
-          <Text style={[styles.aiText, { color: colors.foreground }]}>
-            {displayedContent}
-          </Text>
-        </View>
+      <View style={[ss.aiBubble, { backgroundColor: aiBubbleBg, shadowColor: T.isDark ? "#39FF14" : "#000" }]}>
+        <Text style={[ss.aiText, { color: aiTextClr }]}>
+          {displayed}
+        </Text>
       </View>
-      <Text style={[styles.aiTimestamp, { color: colors.mutedForeground }]}>
-        {formatTime(message.timestamp)}
-      </Text>
+      <Animated.Text style={[ss.aiTimestamp, { color: T.zinc }, tsStyle]}>
+        AkılCEP · {formatTime(message.timestamp)}
+      </Animated.Text>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const ss = StyleSheet.create({
+  // User
   userWrapper: {
-    alignItems: "flex-end",
-    marginBottom: 18,
+    alignItems:       "flex-end",
+    marginBottom:     16,
     paddingHorizontal: 16,
   },
   userBubble: {
-    maxWidth: "78%",
-    borderRadius: 22,
+    maxWidth:              "76%",
+    borderRadius:          22,
     borderBottomRightRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
+    paddingHorizontal:     16,
+    paddingVertical:       12,
+    shadowColor:           "#000",
+    shadowOffset:          { width: 0, height: 2 },
+    shadowOpacity:         0.08,
+    shadowRadius:          10,
   },
   userText: {
-    fontSize: 15,
+    fontSize:   15,
     fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
   timestamp: {
-    fontSize: 10,
+    fontSize:   10,
     fontFamily: "Inter_400Regular",
-    marginTop: 5,
+    marginTop:  5,
     marginRight: 4,
+    letterSpacing: 0.1,
   },
 
+  // AI
   aiWrapper: {
-    marginBottom: 18,
+    marginBottom:     16,
     paddingHorizontal: 16,
-  },
-  aiRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-  },
-  aiAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    marginBottom: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 6,
-  },
-  aiAvatarDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   aiBubble: {
-    flex: 1,
-    maxWidth: "80%",
-    borderRadius: 22,
+    alignSelf:           "flex-start",
+    maxWidth:            "82%",
+    borderRadius:        22,
     borderBottomLeftRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    paddingHorizontal:   16,
+    paddingVertical:     13,
+    shadowOffset:        { width: 0, height: 2 },
+    shadowOpacity:       0.06,
+    shadowRadius:        14,
   },
   aiText: {
-    fontSize: 15,
+    fontSize:   15,
     fontFamily: "Inter_400Regular",
-    lineHeight: 22,
+    lineHeight: 23,
   },
   aiTimestamp: {
-    fontSize: 10,
+    fontSize:   10,
     fontFamily: "Inter_400Regular",
-    marginTop: 5,
-    marginLeft: 38,
+    marginTop:  6,
+    marginLeft: 4,
+    letterSpacing: 0.1,
   },
 });

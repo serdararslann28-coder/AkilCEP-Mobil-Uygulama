@@ -1,3 +1,7 @@
+/**
+ * TypingIndicator — floating glassmorphic AI typing bubble.
+ * Three softly pulsing dots, no avatar circle, matches MessageBubble style.
+ */
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -10,103 +14,72 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
+
+function usePulse(delay: number): SharedValue<number> {
+  const op = useSharedValue(0.22);
+  useEffect(() => {
+    op.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(1,    { duration: 420 }),
+          withTiming(0.22, { duration: 420 }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, []);
+  return op;
+}
 
 export default function TypingIndicator() {
-  const colors = useColors();
+  const { theme: T } = useTheme();
 
-  const dot1 = useSharedValue(0.25);
-  const dot2 = useSharedValue(0.25);
-  const dot3 = useSharedValue(0.25);
+  const d1 = usePulse(0);
+  const d2 = usePulse(160);
+  const d3 = usePulse(320);
 
-  useEffect(() => {
-    const anim = (sv: SharedValue<number>, delayMs: number) => {
-      sv.value = withDelay(
-        delayMs,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: 380 }),
-            withTiming(0.25, { duration: 380 })
-          ),
-          -1,
-          false
-        )
-      );
-    };
-    anim(dot1, 0);
-    anim(dot2, 160);
-    anim(dot3, 320);
-  }, []);
+  const s1 = useAnimatedStyle(() => ({ opacity: d1.value }));
+  const s2 = useAnimatedStyle(() => ({ opacity: d2.value }));
+  const s3 = useAnimatedStyle(() => ({ opacity: d3.value }));
 
-  const dotStyle1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
-  const dotStyle2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
-  const dotStyle3 = useAnimatedStyle(() => ({ opacity: dot3.value }));
+  const bubbleBg = T.isDark ? "rgba(255,255,255,0.058)" : "rgba(255,255,255,0.92)";
+  const dotClr   = T.isDark ? "rgba(255,255,255,0.55)"  : "rgba(0,0,0,0.35)";
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.aiRow}>
-        <View style={[styles.avatar, { backgroundColor: colors.foreground }]}>
-          <View style={[styles.avatarDot, { backgroundColor: colors.background }]} />
-        </View>
-        <View
-          style={[
-            styles.bubble,
-            {
-              backgroundColor: colors.card,
-              shadowColor: "#000",
-            },
-          ]}
-        >
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle1]} />
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle2]} />
-          <Animated.View style={[styles.dot, { backgroundColor: colors.zinc500 }, dotStyle3]} />
-        </View>
+    <View style={ss.wrapper}>
+      <View style={[ss.bubble, { backgroundColor: bubbleBg, shadowColor: T.isDark ? "#39FF14" : "#000" }]}>
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s1]} />
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s2]} />
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s3]} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const ss = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
-    marginBottom: 18,
-  },
-  aiRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 6,
-  },
-  avatarDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    marginBottom:      16,
   },
   bubble: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 22,
+    alignSelf:           "flex-start",
+    flexDirection:       "row",
+    alignItems:          "center",
+    gap:                 6,
+    paddingHorizontal:   18,
+    paddingVertical:     16,
+    borderRadius:        22,
     borderBottomLeftRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOffset:        { width: 0, height: 2 },
+    shadowOpacity:       0.06,
+    shadowRadius:        14,
   },
   dot: {
-    width: 7,
-    height: 7,
+    width:        7,
+    height:       7,
     borderRadius: 3.5,
   },
 });
