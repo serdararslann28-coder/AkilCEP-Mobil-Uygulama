@@ -94,17 +94,19 @@ export default function ChatScreen() {
   }));
 
   // ── Colour tokens ─────────────────────────────────────────────────────────
-  // Header — very light translucent, no hard edge
+  // Header
   const headerBg    = T.isDark ? "rgba(5,5,5,0.82)"       : "rgba(246,246,243,0.82)";
-  // Input — warm light gray, not pure white
-  const inputBg     = T.isDark ? "rgba(255,255,255,0.055)" : "rgba(232,232,228,0.90)";
-  const inputBorder = T.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.055)";
-  // Button glass
+  // Input — exact spec values for PURE; integrated dark glass for VOID
+  const inputBg     = T.isDark ? "rgba(255,255,255,0.055)" : "#F1F1EE";
+  const sendBtnBg   = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
+  const inputTextClr   = T.isDark ? T.fg  : "#5C5C5C";
+  const inputPlhClr    = T.isDark ? T.muted : "#9A9A9A";
+  // Attachment / mic icon
+  const attachClr   = T.isDark ? "rgba(255,255,255,0.32)"  : "#9A9A9A";
+  // Header button glass
   const btnBg       = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.045)";
   const btnBorder   = T.isDark ? StyleSheet.hairlineWidth  : 0;
   const btnBorderClr= T.isDark ? "rgba(255,255,255,0.09)"  : "transparent";
-  // Mic bg
-  const micBg       = T.isDark ? "rgba(255,255,255,0.06)"  : "rgba(0,0,0,0.04)";
 
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
@@ -167,22 +169,18 @@ export default function ChatScreen() {
 
         {/* ════════ INPUT BAR ════════ */}
         <View style={[ss.inputOuter, { paddingBottom: bottomPad + 10 }]}>
-          <View
-            style={[
-              ss.inputRow,
-              { backgroundColor: inputBg, borderColor: inputBorder },
-            ]}
-          >
+          <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
+
             {/* Attachment */}
-            <TouchableOpacity style={ss.attachBtn} hitSlop={8} activeOpacity={0.62}>
-              <Feather name="plus" size={18} color={T.muted} />
+            <TouchableOpacity style={ss.attachBtn} hitSlop={8} activeOpacity={0.60}>
+              <Feather name="plus" size={18} color={attachClr} />
             </TouchableOpacity>
 
-            {/* Text */}
+            {/* Text field */}
             <TextInput
-              style={[ss.textInput, { color: T.fg }]}
-              placeholder="AkılCEP'e yanıt ver..."
-              placeholderTextColor={T.muted}
+              style={[ss.textInput, { color: inputTextClr }]}
+              placeholder="AkılCEP'e yanıt ver…"
+              placeholderTextColor={inputPlhClr}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -195,40 +193,37 @@ export default function ChatScreen() {
             <View style={ss.rightRow}>
               {!hasText && (
                 <TouchableOpacity
-                  style={[ss.micBtn, { backgroundColor: micBg }]}
+                  style={ss.micBtn}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voice"); }}
-                  hitSlop={8} activeOpacity={0.62}
+                  hitSlop={8} activeOpacity={0.60}
                 >
-                  <Feather name="mic" size={15} color={T.muted} />
+                  <Feather name="mic" size={15} color={attachClr} />
                 </TouchableOpacity>
               )}
 
+              {/* Send — same surface tone, no border, fades with input state */}
               <Animated.View style={sendStyle}>
                 <TouchableOpacity
                   style={[
                     ss.sendBtn,
                     {
-                      backgroundColor: T.isDark
-                        ? hasText ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.07)"
-                        : hasText ? "rgba(0,0,0,0.13)"       : "rgba(0,0,0,0.05)",
-                      shadowColor:   "#000",
-                      shadowOpacity: hasText ? 0.10 : 0,
+                      backgroundColor: sendBtnBg,
+                      opacity: hasText ? 1 : 0.42,
                     },
                   ]}
                   onPress={handleSend}
                   disabled={!hasText}
-                  activeOpacity={0.72}
+                  activeOpacity={0.70}
                 >
                   <Feather
                     name="arrow-up"
                     size={17}
-                    color={T.isDark
-                      ? hasText ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.28)"
-                      : hasText ? "rgba(0,0,0,0.75)"       : "rgba(0,0,0,0.22)"}
+                    color={T.isDark ? "rgba(255,255,255,0.82)" : "#5C5C5C"}
                   />
                 </TouchableOpacity>
               </Animated.View>
             </View>
+
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -292,15 +287,14 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "flex-end",
     borderRadius:      28,
-    borderWidth:       StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
     paddingVertical:   7,
     gap:               4,
     shadowColor:       "#000",
-    shadowOffset:      { width: 0, height: 8 },
-    shadowOpacity:     0.09,
-    shadowRadius:      22,
-    elevation:         5,
+    shadowOffset:      { width: 0, height: 2 },
+    shadowOpacity:     0.04,
+    shadowRadius:      8,
+    elevation:         2,
   },
   attachBtn: {
     width:          36,
@@ -337,9 +331,5 @@ const ss = StyleSheet.create({
     borderRadius:   19,
     alignItems:     "center",
     justifyContent: "center",
-    borderWidth:    StyleSheet.hairlineWidth,
-    shadowOffset:   { width: 0, height: 4 },
-    shadowRadius:   12,
-    elevation:      4,
   },
 });
