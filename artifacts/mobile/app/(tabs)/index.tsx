@@ -87,6 +87,11 @@ export default function HomeScreen() {
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null);
 
+  // ── STT — lightweight speech-to-text that fills the input field ─────────────
+  const [sttListening,  setSttListening]  = useState(false);
+  const sttRecordingRef = useRef<Audio.Recording | null>(null);
+  const sttAbortRef     = useRef<AbortController | null>(null);
+
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 16 : insets.bottom;
   const hasText = inputText.trim().length > 0;
@@ -108,6 +113,7 @@ export default function HomeScreen() {
   // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
+  const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
 
   // ── Shared values — voice layer entry/exit ─────────────────────────────────
   const voiceLayerOp = useSharedValue(0);
@@ -254,6 +260,7 @@ export default function HomeScreen() {
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      sttAbortRef.current?.abort();
       safeStop();
       try { Speech.stop(); } catch {}
     };
@@ -404,6 +411,74 @@ export default function HomeScreen() {
     try { await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true }); } catch {}
   };
 
+  // ── STT helpers — mic icon fills input field (no navigation) ────────────────
+  const handleSttPress = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Ses Girişi", "Sesli giriş yalnızca mobil cihazlarda çalışır.");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (sttListening) { await stopStt(); } else { await startStt(); }
+  };
+
+  const startStt = async () => {
+    const ok = await ensurePermission();
+    if (!ok) return;
+    try {
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      );
+      sttRecordingRef.current = recording;
+      setSttListening(true);
+      sttPulse.value = withRepeat(
+        withSequence(
+          withTiming(1,    { duration: 650, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.28, { duration: 650, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, true,
+      );
+    } catch {
+      Alert.alert("Ses Girişi", "Mikrofon başlatılamadı.");
+    }
+  };
+
+  const stopStt = async () => {
+    const rec = sttRecordingRef.current;
+    sttRecordingRef.current = null;
+    setSttListening(false);
+    sttPulse.value = withTiming(0, { duration: 280 });
+    if (!rec) return;
+    try {
+      await rec.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      const uri = rec.getURI();
+      if (!uri) return;
+      let base64: string;
+      try {
+        base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      } catch {
+        const resp = await fetch(uri);
+        const blob = await resp.blob();
+        base64 = await blobToBase64(blob);
+      }
+      const abort = new AbortController();
+      sttAbortRef.current = abort;
+      const res = await fetch(`${API_BASE}/openai/transcribe`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        signal:  abort.signal,
+        body:    JSON.stringify({ audio: base64 }),
+      });
+      if (abort.signal.aborted || !res.ok) return;
+      const data = await res.json() as { text?: string };
+      const t = data.text?.trim() ?? "";
+      if (t) setInputText((prev) => (prev ? `${prev} ${t}` : t));
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === "AbortError") return;
+    }
+  };
+
   // ── Text send ───────────────────────────────────────────────────────────────
   const handleSend = () => {
     const msg = inputText.trim();
@@ -469,6 +544,12 @@ export default function HomeScreen() {
   // Voice icon — hidden in send mode, appears in voice mode
   const arrowVoiceIconAnim = useAnimatedStyle(() => ({
     opacity: interpolate(voiceModeSV.value, [0, 1], [0, 1]),
+  }));
+
+  // STT mic — soft radial pulse ring while recording
+  const sttPulseStyle = useAnimatedStyle(() => ({
+    opacity:   sttPulse.value * 0.42,
+    transform: [{ scale: 1 + sttPulse.value * 0.55 }],
   }));
 
   // Per-bar animated styles
@@ -729,21 +810,25 @@ export default function HomeScreen() {
             editable={voicePhase === "idle"}
           />
 
-          {/* Mic — always visible; dims while typing */}
-          <TouchableOpacity
-            style={[ss.inputIconBtn, { opacity: hasText ? 0.38 : 0.82 }]}
-            onPress={() => {
-              if (Platform.OS === "web") {
-                Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
-                return;
-              }
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/voice");
-            }}
-            hitSlop={10} activeOpacity={0.65}
-          >
-            <Feather name="mic" size={17} color={attachClr} />
-          </TouchableOpacity>
+          {/* Mic — speech-to-text: records and inserts text into field */}
+          <View style={ss.micSttWrap}>
+            {/* Pulse ring — glows softly while recording */}
+            <Animated.View
+              style={[ss.micSttHalo, { backgroundColor: T.fg }, sttPulseStyle]}
+              pointerEvents="none"
+            />
+            <TouchableOpacity
+              style={[ss.inputIconBtn, { opacity: sttListening ? 1 : (hasText ? 0.38 : 0.82) }]}
+              onPress={handleSttPress}
+              hitSlop={10} activeOpacity={0.65}
+            >
+              <Feather
+                name={sttListening ? "square" : "mic"}
+                size={17}
+                color={sttListening ? T.fg : attachClr}
+              />
+            </TouchableOpacity>
+          </View>
 
           {/* Smart arrow — send when typing, dark AKILCEP-branded voice orb when empty */}
           <View style={ss.sendWrap}>
@@ -1003,6 +1088,16 @@ const ss = StyleSheet.create({
   inputIconBtn: {
     width: 42, height: 42, borderRadius: 21,
     alignItems: "center", justifyContent: "center",
+  },
+  // STT mic wrapper — relative so pulse ring can be absolute inside
+  micSttWrap: {
+    width: 42, height: 42,
+    alignItems: "center", justifyContent: "center",
+  },
+  // Pulse ring behind the mic icon
+  micSttHalo: {
+    position: "absolute",
+    width: 42, height: 42, borderRadius: 21,
   },
   textInput: {
     flex:              1,

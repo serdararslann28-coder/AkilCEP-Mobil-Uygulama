@@ -57,4 +57,29 @@ router.post("/conversations/:id/voice-messages", async (req, res) => {
   }
 });
 
+// POST /openai/transcribe — Whisper only, no GPT
+// Used by the lightweight STT mic that fills the input field in-place
+router.post("/transcribe", async (req, res) => {
+  const { audio } = req.body as { audio?: string };
+  if (!audio) {
+    res.status(400).json({ error: "audio field required (base64)" });
+    return;
+  }
+  try {
+    const audioBuffer = Buffer.from(audio, "base64");
+    const file = new File([audioBuffer], "voice.m4a", { type: "audio/m4a" });
+    const transcription = await openai.audio.transcriptions.create({
+      model:           "gpt-4o-mini-transcribe",
+      file,
+      response_format: "json",
+      language:        "tr",
+    });
+    const text = transcription.text?.trim() ?? "";
+    res.json({ text });
+  } catch (err) {
+    req.log?.error({ err }, "transcribe error");
+    res.status(500).json({ error: "Transcription failed" });
+  }
+});
+
 export default router;

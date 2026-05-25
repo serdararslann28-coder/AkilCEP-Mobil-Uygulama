@@ -80,6 +80,11 @@ export default function ChatScreen() {
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
 
+  // ── STT — lightweight speech-to-text that fills the input field ─────────────
+  const [sttListening,  setSttListening]  = useState(false);
+  const sttRecordingRef = useRef<Audio.Recording | null>(null);
+  const sttAbortRef     = useRef<AbortController | null>(null);
+
   const applyVoice = (p: VoicePhase) => {
     voicePhaseRef.current = p;
     setVoicePhase(p);
@@ -144,6 +149,7 @@ export default function ChatScreen() {
   // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
+  const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
 
   // Mic button glow pulse during listening
   const micGlow = useSharedValue(0);
@@ -170,6 +176,12 @@ export default function ChatScreen() {
   }));
   const arrowVoiceIconAnim = useAnimatedStyle(() => ({
     opacity: interpolate(voiceModeSV.value, [0, 1], [0, 1]),
+  }));
+
+  // STT mic — soft radial pulse ring while recording
+  const sttPulseStyle = useAnimatedStyle(() => ({
+    opacity:   sttPulse.value * 0.42,
+    transform: [{ scale: 1 + sttPulse.value * 0.55 }],
   }));
 
   useEffect(() => {
@@ -212,6 +224,7 @@ export default function ChatScreen() {
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      sttAbortRef.current?.abort();
       safeStopRecording();
       try { Speech.stop(); } catch {}
     };
@@ -292,6 +305,74 @@ export default function ChatScreen() {
         });
       } catch {}
       applyVoice("idle");
+    }
+  };
+
+  // ── STT helpers — mic icon fills input field (no navigation) ────────────────
+  const handleSttPress = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Ses Girişi", "Sesli giriş yalnızca mobil cihazlarda çalışır.");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (sttListening) { await stopStt(); } else { await startStt(); }
+  };
+
+  const startStt = async () => {
+    const ok = await ensurePermission();
+    if (!ok) return;
+    try {
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      );
+      sttRecordingRef.current = recording;
+      setSttListening(true);
+      sttPulse.value = withRepeat(
+        withSequence(
+          withTiming(1,    { duration: 650, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.28, { duration: 650, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, true,
+      );
+    } catch {
+      Alert.alert("Ses Girişi", "Mikrofon başlatılamadı.");
+    }
+  };
+
+  const stopStt = async () => {
+    const rec = sttRecordingRef.current;
+    sttRecordingRef.current = null;
+    setSttListening(false);
+    sttPulse.value = withTiming(0, { duration: 280 });
+    if (!rec) return;
+    try {
+      await rec.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      const uri = rec.getURI();
+      if (!uri) return;
+      let base64: string;
+      try {
+        base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      } catch {
+        const resp = await fetch(uri);
+        const blob = await resp.blob();
+        base64 = await blobToBase64(blob);
+      }
+      const abort = new AbortController();
+      sttAbortRef.current = abort;
+      const res = await fetch(`${API_BASE}/openai/transcribe`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        signal:  abort.signal,
+        body:    JSON.stringify({ audio: base64 }),
+      });
+      if (abort.signal.aborted || !res.ok) return;
+      const data = await res.json() as { text?: string };
+      const t = data.text?.trim() ?? "";
+      if (t) setInputText((prev) => (prev ? `${prev} ${t}` : t));
+    } catch (err: unknown) {
+      if ((err as { name?: string })?.name === "AbortError") return;
     }
   };
 
@@ -572,22 +653,24 @@ export default function ChatScreen() {
             {/* Right controls */}
             <View style={ss.rightRow}>
 
-              {/* Mic — always visible; dims while typing, routes to full-screen voice */}
-              <View style={[ss.micWrap, { opacity: hasText ? 0.38 : 0.82 }]}>
+              {/* Mic — speech-to-text: records and inserts text into field */}
+              <View style={[ss.micWrap, { opacity: sttListening ? 1 : (hasText ? 0.38 : 0.82) }]}>
+                {/* Pulse ring — glows softly while recording */}
+                <Animated.View
+                  style={[ss.micHalo, { backgroundColor: T.fg }, sttPulseStyle]}
+                  pointerEvents="none"
+                />
                 <TouchableOpacity
                   style={[ss.micBtn]}
-                  onPress={() => {
-                    if (Platform.OS === "web") {
-                      Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
-                      return;
-                    }
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push("/voice");
-                  }}
+                  onPress={handleSttPress}
                   activeOpacity={0.65}
                   hitSlop={8}
                 >
-                  <Feather name="mic" size={15} color={attachClr} />
+                  <Feather
+                    name={sttListening ? "square" : "mic"}
+                    size={15}
+                    color={sttListening ? T.fg : attachClr}
+                  />
                 </TouchableOpacity>
               </View>
 
