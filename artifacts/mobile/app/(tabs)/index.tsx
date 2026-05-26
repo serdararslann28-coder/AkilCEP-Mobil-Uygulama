@@ -41,8 +41,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import FullscreenMenu from "@/components/FullscreenMenu";
-import ProfileMenu   from "@/components/ProfileMenu";
+import FullscreenMenu    from "@/components/FullscreenMenu";
+import MultimodalPanel   from "@/components/MultimodalPanel";
+import ProfileMenu       from "@/components/ProfileMenu";
 import { useChat }   from "@/context/ChatContext";
 import { useTheme }  from "@/context/ThemeContext";
 
@@ -112,6 +113,18 @@ export default function HomeScreen() {
   // ── Shared values — mini voice orb ─────────────────────────────────────────
   const orbScale   = useSharedValue(1);
   const orbGlowOp  = useSharedValue(0);
+
+  // ── Panel — multimodal AI toolbox ──────────────────────────────────────────
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
+  const plusRotSV = useSharedValue(0);
+  useEffect(() => {
+    plusRotSV.value = withSpring(panelOpen ? 1 : 0, { damping: 18, stiffness: 280, mass: 0.8 });
+  }, [panelOpen]);
+  const plusRotAnim = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(plusRotSV.value, [0, 1], [0, 45])}deg` }],
+  }));
 
   // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
@@ -812,12 +825,13 @@ export default function HomeScreen() {
             style={ss.inputIconBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              startNewConversation();
-              router.push("/chat");
+              setPanelOpen(p => !p);
             }}
             hitSlop={10} activeOpacity={0.65}
           >
-            <Feather name="plus" size={18} color={attachClr} />
+            <Animated.View style={plusRotAnim}>
+              <Feather name="plus" size={18} color={attachClr} />
+            </Animated.View>
           </TouchableOpacity>
 
           <Animated.View style={[ss.textInputWrap, inputFieldAnim]}>
@@ -900,6 +914,12 @@ export default function HomeScreen() {
         </Pressable>
       </KeyboardAvoidingView>
 
+      <MultimodalPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        bottomOffset={btmPad + 68}
+        T={T}
+      />
       <FullscreenMenu visible={sidebar}     onClose={() => setSidebar(false)} />
       <ProfileMenu   visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>

@@ -45,6 +45,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FullscreenMenu   from "@/components/FullscreenMenu";
+import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import TypingIndicator  from "@/components/TypingIndicator";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
@@ -149,6 +150,18 @@ export default function ChatScreen() {
   const logoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: loScale.value }],
     opacity:   loOp.value,
+  }));
+
+  // ── Panel — multimodal AI toolbox ──────────────────────────────────────────
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
+  const plusRotSV = useSharedValue(0);
+  useEffect(() => {
+    plusRotSV.value = withSpring(panelOpen ? 1 : 0, { damping: 18, stiffness: 280, mass: 0.8 });
+  }, [panelOpen]);
+  const plusRotAnim = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(plusRotSV.value, [0, 1], [0, 45])}deg` }],
   }));
 
   // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
@@ -586,6 +599,12 @@ export default function ChatScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
+      <MultimodalPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        bottomOffset={bottomPad + 68}
+        T={T}
+      />
       <FullscreenMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
 
       {/* ════ WATERMARK LOGO ════ */}
@@ -650,9 +669,19 @@ export default function ChatScreen() {
           {/* Input row */}
           <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
 
-            {/* Attachment */}
-            <TouchableOpacity style={ss.attachBtn} hitSlop={8} activeOpacity={0.60}>
-              <Feather name="plus" size={18} color={attachClr} />
+            {/* Attachment — opens multimodal panel */}
+            <TouchableOpacity
+              style={ss.attachBtn}
+              hitSlop={8}
+              activeOpacity={0.60}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setPanelOpen(p => !p);
+              }}
+            >
+              <Animated.View style={plusRotAnim}>
+                <Feather name="plus" size={18} color={attachClr} />
+              </Animated.View>
             </TouchableOpacity>
 
             {/* Text field — dims slightly during voice */}
