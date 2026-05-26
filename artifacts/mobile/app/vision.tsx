@@ -45,6 +45,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Use "screen" — includes status bar + nav bar for true fullscreen dimensions on Android
 const { width: W, height: H } = Dimensions.get("screen");
 
+// ── Cover-mode crop calculation ─────────────────────────────────────────────
+// Android camera sensor defaults to 4:3 aspect ratio.
+// Modern phone screens are ~20:9 — far taller than 4:3.
+// Fix: scale the CameraView so its HEIGHT fills the screen,
+// then clip the excess width (sides) with overflow:hidden on the wrapper.
+const CAM_ASPECT    = 4 / 3;                              // sensor ratio
+const SCR_ASPECT    = H / W;                              // screen ratio
+// How much to scale up so the camera height ≥ screen height
+const COVER_SCALE   = Math.max(1, SCR_ASPECT / CAM_ASPECT * 1.005); // 0.5% buffer
+const CAM_W         = W * COVER_SCALE;                    // scaled camera width
+const CAM_H         = W * CAM_ASPECT * COVER_SCALE;       // scaled camera height
+const CAM_OFFSET_X  = -(CAM_W - W) / 2;                  // center-crop horizontally
+const CAM_OFFSET_Y  = -(CAM_H - H) / 2;                  // center-crop vertically
+
 // Focus frame: 62% of shorter screen dimension
 const FRAME_D   = Math.round(Math.min(W, H) * 0.62);
 const CORNER_SZ = 26;
@@ -215,18 +229,20 @@ export default function VisionScreen() {
       {/* Hide status bar for true edge-to-edge immersion */}
       <StatusBar hidden />
 
-      {/* ════ CAMERA FEED — explicit screen dimensions so nothing clips on Android ════ */}
-      {permGranted ? (
-        <CameraView
-          style={ss.camera}
-          facing="back"
-          animateShutter={false}
-        />
-      ) : (
-        <View style={[ss.camera, ss.camBg]}>
-          <View style={ss.camBgOrb} />
-        </View>
-      )}
+      {/* ════ CAMERA FEED — cover-crop wrapper clips the oversized feed ════ */}
+      <View style={ss.camCover}>
+        {permGranted ? (
+          <CameraView
+            style={ss.camera}
+            facing="back"
+            animateShutter={false}
+          />
+        ) : (
+          <View style={[ss.camera, ss.camBg]}>
+            <View style={ss.camBgOrb} />
+          </View>
+        )}
+      </View>
 
       {/* ════ VIGNETTE OVERLAYS — top/bottom only, no side clipping ════ */}
       <View style={ss.vTop}    pointerEvents="none" />
@@ -403,13 +419,24 @@ const ss = StyleSheet.create({
     overflow:        "hidden",
   },
 
-  // CameraView — explicit screen pixel dimensions so Android never clips
-  camera: {
+  // Cover container — screen-sized, clips the scaled-up camera feed
+  camCover: {
     position: "absolute",
     top:      0,
     left:     0,
     width:    W,
     height:   H,
+    overflow: "hidden",
+  },
+
+  // CameraView — scaled up so its height fills the screen (cover-mode crop)
+  // CAM_OFFSET_X/Y center the oversized feed; overflow:hidden on camCover clips edges
+  camera: {
+    position: "absolute",
+    top:      CAM_OFFSET_Y,
+    left:     CAM_OFFSET_X,
+    width:    CAM_W,
+    height:   CAM_H,
   },
 
   // ── Camera fallback bg (same dimensions as camera)
