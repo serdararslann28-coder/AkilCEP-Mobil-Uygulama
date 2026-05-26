@@ -1,13 +1,22 @@
 /**
  * VisionScreen — AKILCEP Vision Mode.
  *
- * Full-screen cinematic AI camera:
- *   - expo-camera v17 CameraView (correct SDK-54 version)
- *   - useCameraPermissions() for runtime permission request
- *   - AI focus frame with scanning animation
- *   - Ambient floating analysis labels (cycled every 3 s)
- *   - Glassmorphism bottom dock: Capture / Analyze / Ask / Web
- *   - Graceful fallback for web and denied permission
+ * Camera architecture:
+ *   CameraView sits at the absolute root of the component tree with
+ *   StyleSheet.absoluteFillObject + a transform:scale to achieve cover-mode.
+ *
+ *   Why transform:scale and not overflow:hidden?
+ *   overflow:hidden only clips React Native View children — it cannot clip
+ *   the camera's own native rendering surface (a SurfaceView/TextureView on
+ *   Android, AVPreviewLayer on iOS). The scale transform makes the camera
+ *   fill the entire screen from the inside; the screen edge itself clips the
+ *   overflow naturally without any container tricks.
+ *
+ *   Cover-mode scale formula:
+ *     Camera sensor is 4:3 portrait (conservative assumption; works for 16:9 too).
+ *     Natural camera height at screen width W = W × (4/3).
+ *     If screen H > natural camera H, scale up by H / (W × 4/3).
+ *     Result: camera height == screen height, sides overflow and get clipped.
  *
  * Always dark graphite palette — never follows global theme.
  */
@@ -42,30 +51,26 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Use "screen" — includes status bar + nav bar for true fullscreen dimensions on Android
-const { width: W, height: H } = Dimensions.get("screen");
+// Screen dimensions — use "screen" to include status + nav bar areas on Android
+const { width: SW, height: SH } = Dimensions.get("screen");
 
-// ── Cover-mode crop calculation ─────────────────────────────────────────────
-// Android camera sensor defaults to 4:3 aspect ratio.
-// Modern phone screens are ~20:9 — far taller than 4:3.
-// Fix: scale the CameraView so its HEIGHT fills the screen,
-// then clip the excess width (sides) with overflow:hidden on the wrapper.
-const CAM_ASPECT    = 4 / 3;                              // sensor ratio
-const SCR_ASPECT    = H / W;                              // screen ratio
-// How much to scale up so the camera height ≥ screen height
-const COVER_SCALE   = Math.max(1, SCR_ASPECT / CAM_ASPECT * 1.005); // 0.5% buffer
-const CAM_W         = W * COVER_SCALE;                    // scaled camera width
-const CAM_H         = W * CAM_ASPECT * COVER_SCALE;       // scaled camera height
-const CAM_OFFSET_X  = -(CAM_W - W) / 2;                  // center-crop horizontally
-const CAM_OFFSET_Y  = -(CAM_H - H) / 2;                  // center-crop vertically
+// ── Cover-mode transform scale ────────────────────────────────────────────────
+// 4:3 is the conservative sensor assumption (also correct for 16:9 — only
+// over-scales slightly, still fills with no black bars).
+// The camera is given absoluteFill; scale from center until height ≥ SH.
+const CAM_SENSOR_RATIO = 4 / 3;             // sensor: height = width × 4/3
+const CAM_NATURAL_H    = SW * CAM_SENSOR_RATIO;  // camera height at screen width
+const COVER_SCALE      = CAM_NATURAL_H < SH
+  ? (SH / CAM_NATURAL_H) * 1.008          // 0.8% extra — guarantees no hair gap
+  : 1.008;
 
 // Focus frame: 62% of shorter screen dimension
-const FRAME_D   = Math.round(Math.min(W, H) * 0.62);
+const FRAME_D   = Math.round(Math.min(SW, SH) * 0.62);
 const CORNER_SZ = 26;
 const CORNER_TH = 2;
 const CORNER_BR = 4;
 
-// Ambient analysis labels — rotated every 3 s
+// Ambient analysis labels — rotate every 3 s
 const LABELS = [
   "Analiz ediliyor...",
   "Nesne algılandı",
@@ -75,7 +80,7 @@ const LABELS = [
   "Nesne tanınıyor...",
 ];
 
-// Bottom dock actions
+// Bottom dock
 const DOCK = [
   { id: "analyze", icon: "cpu",    label: "Analiz Et" },
   { id: "capture", icon: "circle", label: "Çek",       large: true },
@@ -83,39 +88,34 @@ const DOCK = [
   { id: "web",     icon: "globe",  label: "Web" },
 ] as const;
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function VisionScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
-  // expo-camera v17 permission hook — works on both native and web
   const [permission, requestPermission] = useCameraPermissions();
-
-  const [labelIdx,   setLabelIdx]   = useState(0);
+  const [labelIdx, setLabelIdx] = useState(0);
   const cyclerId = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Request on mount if not yet determined
+  // Request on mount
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
     }
   }, [permission?.status]);
 
-  // Clean up label cycler on unmount
-  useEffect(() => {
-    return () => { if (cyclerId.current) clearInterval(cyclerId.current); };
-  }, []);
+  useEffect(() => () => { if (cyclerId.current) clearInterval(cyclerId.current); }, []);
 
-  // ── Entrance animations ───────────────────────────────────────────────────
+  // ── Entrance ─────────────────────────────────────────────────────────────
   const topOp  = useSharedValue(0);
   const dockOp = useSharedValue(0);
   const dockY  = useSharedValue(30);
 
   useEffect(() => {
-    topOp.value  = withDelay(150, withTiming(1, { duration: 500 }));
-    dockY.value  = withDelay(300, withSpring(0, { damping: 22, stiffness: 180 }));
-    dockOp.value = withDelay(300, withTiming(1, { duration: 420 }));
+    topOp.value  = withDelay(120, withTiming(1, { duration: 480 }));
+    dockY.value  = withDelay(280, withSpring(0,  { damping: 22, stiffness: 180 }));
+    dockOp.value = withDelay(280, withTiming(1,  { duration: 400 }));
   }, []);
 
   const topStyle  = useAnimatedStyle(() => ({ opacity: topOp.value }));
@@ -124,75 +124,57 @@ export default function VisionScreen() {
     transform: [{ translateY: dockY.value }],
   }));
 
-  // ── Focus frame animations (start once camera is live) ───────────────────
-  const cameraReady = permission?.granted === true;
+  // ── Focus frame (starts once permission granted) ──────────────────────────
+  const cameraLive = permission?.granted === true;
 
   const frameOp    = useSharedValue(0);
   const frameSc    = useSharedValue(0.92);
-  const cornerGlow = useSharedValue(0.45);
+  const cornerGlow = useSharedValue(0.4);
   const scanY      = useSharedValue(0);
+  const labelOp    = useSharedValue(0);
 
   useEffect(() => {
-    if (!cameraReady) return;
+    if (!cameraLive) return;
 
-    frameOp.value  = withDelay(500, withTiming(1, { duration: 700 }));
-    frameSc.value  = withDelay(500, withSpring(1, { damping: 20, stiffness: 130 }));
+    frameOp.value  = withDelay(450, withTiming(1,   { duration: 650 }));
+    frameSc.value  = withDelay(450, withSpring(1,    { damping: 20, stiffness: 130 }));
+    labelOp.value  = withDelay(1300, withTiming(1,  { duration: 500 }));
 
-    // Corner brackets breathe
-    cornerGlow.value = withDelay(
-      700,
-      withRepeat(
-        withSequence(
-          withTiming(1,   { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, false,
+    cornerGlow.value = withDelay(650, withRepeat(
+      withSequence(
+        withTiming(1,   { duration: 1900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.38,{ duration: 1900, easing: Easing.inOut(Easing.ease) }),
       ),
-    );
+      -1, false,
+    ));
 
-    // Scan line sweeps top-to-bottom, jumps back, repeats
-    scanY.value = withDelay(
-      900,
-      withRepeat(
-        withTiming(FRAME_D + 2, { duration: 2200, easing: Easing.linear }),
-        -1, false,
-      ),
-    );
+    scanY.value = withDelay(850, withRepeat(
+      withTiming(FRAME_D + 2, { duration: 2100, easing: Easing.linear }),
+      -1, false,
+    ));
 
-    // Start label cycling
     cyclerId.current = setInterval(() => {
       labelOp.value = withSequence(
-        withTiming(0, { duration: 300 }),
+        withTiming(0, { duration: 280 }),
         withTiming(0, { duration: 50 }),
       );
       setTimeout(() => {
-        setLabelIdx(prev => (prev + 1) % LABELS.length);
-        labelOp.value = withTiming(1, { duration: 380 });
-      }, 350);
+        setLabelIdx(p => (p + 1) % LABELS.length);
+        labelOp.value = withTiming(1, { duration: 360 });
+      }, 330);
     }, 3000);
 
     return () => { if (cyclerId.current) clearInterval(cyclerId.current); };
-  }, [cameraReady]);
+  }, [cameraLive]);
 
   const frameStyle  = useAnimatedStyle(() => ({
-    opacity:   frameOp.value,
-    transform: [{ scale: frameSc.value }],
+    opacity: frameOp.value, transform: [{ scale: frameSc.value }],
   }));
   const cornerStyle = useAnimatedStyle(() => ({ opacity: cornerGlow.value }));
   const scanStyle   = useAnimatedStyle(() => ({
     transform: [{ translateY: scanY.value }],
   }));
-
-  // ── Ambient label ─────────────────────────────────────────────────────────
-  const labelOp = useSharedValue(0);
-
-  useEffect(() => {
-    if (cameraReady) {
-      labelOp.value = withDelay(1400, withTiming(1, { duration: 500 }));
-    }
-  }, [cameraReady]);
-
-  const labelStyle = useAnimatedStyle(() => ({ opacity: labelOp.value }));
+  const labelStyle  = useAnimatedStyle(() => ({ opacity: labelOp.value }));
 
   // ── Capture flash ─────────────────────────────────────────────────────────
   const flashOp    = useSharedValue(0);
@@ -202,11 +184,11 @@ export default function VisionScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     flashOp.value = withSequence(
       withTiming(0.55, { duration: 55 }),
-      withTiming(0,    { duration: 350, easing: Easing.out(Easing.ease) }),
+      withTiming(0,    { duration: 340, easing: Easing.out(Easing.ease) }),
     );
   }, []);
 
-  const handleDockAction = useCallback((id: string) => {
+  const handleDock = useCallback((id: string) => {
     if (id === "capture") { handleCapture(); return; }
     Haptics.selectionAsync();
   }, [handleCapture]);
@@ -216,8 +198,6 @@ export default function VisionScreen() {
     router.back();
   };
 
-  // ── Permission state ──────────────────────────────────────────────────────
-  // Null while loading, then .granted / .canAskAgain tell us what to show
   const permLoading = permission === null;
   const permGranted = permission?.granted === true;
   const permAskable = !permGranted && (permission?.canAskAgain ?? true);
@@ -226,35 +206,44 @@ export default function VisionScreen() {
   return (
     <View style={ss.root}>
 
-      {/* Hide status bar for true edge-to-edge immersion */}
+      {/* Status bar hidden — full immersion */}
       <StatusBar hidden />
 
-      {/* ════ CAMERA FEED — cover-crop wrapper clips the oversized feed ════ */}
-      <View style={ss.camCover}>
-        {permGranted ? (
-          <CameraView
-            style={ss.camera}
-            facing="back"
-            animateShutter={false}
-          />
-        ) : (
-          <View style={[ss.camera, ss.camBg]}>
-            <View style={ss.camBgOrb} />
-          </View>
-        )}
-      </View>
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 1 — CAMERA (absoluteFill + cover-scale)
+          Direct child of root. No wrapper. No container. No overflow:hidden.
+          The transform:scale enlarges from center; screen edge clips naturally.
+      ══════════════════════════════════════════════════════════════════════ */}
+      {permGranted ? (
+        <CameraView
+          style={ss.camera}
+          facing="back"
+          animateShutter={false}
+        />
+      ) : (
+        // Dark cinematic bg while loading / denied
+        <View style={ss.camFallback}>
+          <View style={ss.camFallbackOrb} />
+        </View>
+      )}
 
-      {/* ════ VIGNETTE OVERLAYS — top/bottom only, no side clipping ════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 2 — CINEMATIC VIGNETTES (pointerEvents none, top/bottom only)
+      ══════════════════════════════════════════════════════════════════════ */}
       <View style={ss.vTop}    pointerEvents="none" />
       <View style={ss.vBottom} pointerEvents="none" />
 
-      {/* ════ CAPTURE FLASH ════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 3 — WHITE CAPTURE FLASH
+      ══════════════════════════════════════════════════════════════════════ */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.flash, flashStyle]}
         pointerEvents="none"
       />
 
-      {/* ════ TOP BAR ════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 4 — TOP BAR
+      ══════════════════════════════════════════════════════════════════════ */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 10 }, topStyle]}>
         <TouchableOpacity
           style={ss.backBtn}
@@ -262,35 +251,36 @@ export default function VisionScreen() {
           hitSlop={18}
           activeOpacity={0.65}
         >
-          <Feather name="chevron-left" size={16} color="rgba(255,255,255,0.72)" />
+          <Feather name="chevron-left" size={16} color="rgba(255,255,255,0.80)" />
         </TouchableOpacity>
 
         <View style={ss.topCenter} pointerEvents="none">
           <Text style={ss.topTitle}>AKILCEP VİZYON</Text>
         </View>
 
-        {/* Live indicator — only shown when camera is active */}
         <View style={[ss.liveChip, !permGranted && ss.liveChipOff]}>
           {permGranted ? <LiveDot /> : (
-            <View style={[ss.liveDotStatic, { backgroundColor: "rgba(255,255,255,0.18)" }]} />
+            <View style={ss.liveDot} />
           )}
-          <Text style={[ss.liveText, !permGranted && { opacity: 0.30 }]}>
-            {permGranted ? "CANLI" : permLoading ? "..." : "BEKLİYOR"}
+          <Text style={[ss.liveText, !permGranted && { opacity: 0.28 }]}>
+            {permGranted ? "CANLI" : permLoading ? "···" : "BEKLİYOR"}
           </Text>
         </View>
       </Animated.View>
 
-      {/* ════ AI FOCUS FRAME (camera active) ════ */}
-      {permGranted && (
-        <View style={ss.frameWrap} pointerEvents="none">
-          <Animated.View style={[ss.frameContainer, frameStyle]}>
-            {/* Scan line — clips inside frame */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 5 — AI FOCUS FRAME + AMBIENT LABEL
+      ══════════════════════════════════════════════════════════════════════ */}
+      {cameraLive && (
+        <View style={ss.frameArea} pointerEvents="none">
+          <Animated.View style={[ss.frame, frameStyle]}>
+            {/* Scan line */}
             <View style={ss.scanClip}>
               <Animated.View style={[ss.scanLine, scanStyle]} />
             </View>
-            {/* Subtle ambient fill */}
+            {/* Subtle fill tint */}
             <View style={ss.frameFill} />
-            {/* Corner brackets */}
+            {/* L-corner brackets */}
             <Animated.View style={[StyleSheet.absoluteFill, cornerStyle]}>
               <View style={[ss.corner, ss.cTL]} />
               <View style={[ss.corner, ss.cTR]} />
@@ -299,7 +289,7 @@ export default function VisionScreen() {
             </Animated.View>
           </Animated.View>
 
-          {/* Ambient analysis label */}
+          {/* Cycling analysis label */}
           <Animated.View style={[ss.labelWrap, labelStyle]}>
             <View style={ss.labelCard}>
               <View style={ss.labelDot} />
@@ -309,11 +299,13 @@ export default function VisionScreen() {
         </View>
       )}
 
-      {/* ════ PERMISSION / UNAVAILABLE CARD ════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 5b — PERMISSION CARD (shown when camera not available)
+      ══════════════════════════════════════════════════════════════════════ */}
       {!permGranted && !permLoading && (
-        <View style={ss.permWrap} pointerEvents="box-none">
+        <View style={ss.permArea} pointerEvents="box-none">
           <View style={ss.permCard}>
-            <View style={ss.permIconRing}>
+            <View style={ss.permIcon}>
               <Feather
                 name={permAskable ? "camera" : "camera-off"}
                 size={24}
@@ -323,16 +315,14 @@ export default function VisionScreen() {
             <Text style={ss.permTitle}>
               {Platform.OS === "web"
                 ? "Kamera Desteklenmiyor"
-                : permAskable
-                  ? "Kamera İzni Gerekli"
-                  : "Kamera Erişimi Yok"}
+                : permAskable ? "Kamera İzni Gerekli" : "Kamera Erişimi Yok"}
             </Text>
             <Text style={ss.permSub}>
               {Platform.OS === "web"
-                ? "Vizyon Modu yalnızca mobil cihazlarda\ngerçek kamera önizlemesi gösterir."
+                ? "Vizyon Modu yalnızca\nmobil cihazlarda çalışır."
                 : permAskable
-                  ? "AI Vizyon Modu için kamera iznine\nihtiyaç duyulmaktadır."
-                  : "Kamera izni reddedildi. Lütfen cihaz\nayarlarından izin verin."}
+                  ? "AI Vizyon Modu için\nkamera iznine ihtiyaç var."
+                  : "Lütfen cihaz ayarlarından\nkamera iznini verin."}
             </Text>
             {permAskable && Platform.OS !== "web" && (
               <TouchableOpacity
@@ -347,7 +337,9 @@ export default function VisionScreen() {
         </View>
       )}
 
-      {/* ════ BOTTOM DOCK ════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          LAYER 6 — BOTTOM DOCK
+      ══════════════════════════════════════════════════════════════════════ */}
       <Animated.View
         style={[ss.dock, { paddingBottom: btmPad + 18 }, dockStyle]}
         pointerEvents="box-none"
@@ -358,22 +350,21 @@ export default function VisionScreen() {
             return (
               <TouchableOpacity
                 key={action.id}
-                style={isCapture ? ss.dockCapture : ss.dockSecondary}
-                onPress={() => handleDockAction(action.id)}
-                activeOpacity={isCapture ? 0.80 : 0.70}
+                style={isCapture ? ss.dockCapture : ss.dockBtn}
+                onPress={() => handleDock(action.id)}
+                activeOpacity={isCapture ? 0.80 : 0.68}
                 hitSlop={isCapture ? 0 : 8}
               >
                 {isCapture ? (
-                  // Concentric-ring shutter button
                   <View style={ss.shutterOuter}>
                     <View style={[
                       ss.shutterInner,
-                      !permGranted && { backgroundColor: "rgba(255,255,255,0.30)" },
+                      !permGranted && { backgroundColor: "rgba(255,255,255,0.28)" },
                     ]} />
                   </View>
                 ) : (
                   <>
-                    <Feather name={action.icon as any} size={18} color="rgba(255,255,255,0.68)" />
+                    <Feather name={action.icon as any} size={18} color="rgba(255,255,255,0.70)" />
                     <Text style={ss.dockLabel}>{action.label}</Text>
                   </>
                 )}
@@ -387,87 +378,74 @@ export default function VisionScreen() {
   );
 }
 
-// ── Pulsing live dot — its own animation loop ─────────────────────────────────
+// ── Pulsing live dot ──────────────────────────────────────────────────────────
 function LiveDot() {
   const op = useSharedValue(1);
   useEffect(() => {
     op.value = withRepeat(
       withSequence(
-        withTiming(0.22, { duration: 560, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1,    { duration: 560, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.20, { duration: 540, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1,    { duration: 540, easing: Easing.inOut(Easing.ease) }),
       ),
       -1, false,
     );
   }, []);
   return (
     <Animated.View
-      style={[ss.liveDotStatic, useAnimatedStyle(() => ({ opacity: op.value }))]}
+      style={[ss.liveDot, useAnimatedStyle(() => ({ opacity: op.value }))]}
     />
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const CORNER_CLR = "rgba(255,255,255,0.75)";
-const SCAN_CLR   = "rgba(200,220,255,0.20)";
+const SCAN_CLR   = "rgba(200,220,255,0.22)";
 
 const ss = StyleSheet.create({
 
-  // Root expands to fill the screen — no SafeArea constraints
+  // ── Root — flex:1, no overflow constraints
   root: {
     flex:            1,
     backgroundColor: "#060608",
-    overflow:        "hidden",
   },
 
-  // Cover container — screen-sized, clips the scaled-up camera feed
-  camCover: {
-    position: "absolute",
-    top:      0,
-    left:     0,
-    width:    W,
-    height:   H,
-    overflow: "hidden",
-  },
-
-  // CameraView — scaled up so its height fills the screen (cover-mode crop)
-  // CAM_OFFSET_X/Y center the oversized feed; overflow:hidden on camCover clips edges
+  // ── CAMERA — absoluteFill + cover-scale transform
+  // The scale makes the camera fill the screen height; screen edge clips the sides.
   camera: {
-    position: "absolute",
-    top:      CAM_OFFSET_Y,
-    left:     CAM_OFFSET_X,
-    width:    CAM_W,
-    height:   CAM_H,
+    ...StyleSheet.absoluteFillObject,
+    transform: [{ scale: COVER_SCALE }],
   },
 
-  // ── Camera fallback bg (same dimensions as camera)
-  camBg: {
+  // ── Dark fallback while permission resolves / denied / web
+  camFallback: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "#060608",
     alignItems:      "center",
     justifyContent:  "center",
   },
-  camBgOrb: {
+  camFallbackOrb: {
     position:        "absolute",
-    width:           W * 1.4,
-    height:          W * 1.4,
-    borderRadius:    W * 0.7,
+    width:           SW * 1.4,
+    height:          SW * 1.4,
+    borderRadius:    SW * 0.7,
     backgroundColor: "rgba(80,110,180,0.04)",
   },
 
-  // ── Vignette layers — top/bottom gradient only, no side letterboxing
+  // ── Vignettes
   vTop: {
     position:        "absolute",
     top: 0, left: 0, right: 0,
-    height:          H * 0.24,
-    backgroundColor: "rgba(4,4,8,0.68)",
+    height:          SH * 0.22,
+    backgroundColor: "rgba(4,4,8,0.72)",
   },
   vBottom: {
     position:        "absolute",
     bottom: 0, left: 0, right: 0,
-    height:          H * 0.38,
-    backgroundColor: "rgba(4,4,8,0.82)",
+    height:          SH * 0.36,
+    backgroundColor: "rgba(4,4,8,0.84)",
   },
 
-  // ── Flash overlay
+  // ── Capture flash
   flash: {
     zIndex:          90,
     backgroundColor: "#FFFFFF",
@@ -493,14 +471,11 @@ const ss = StyleSheet.create({
     borderWidth:     StyleSheet.hairlineWidth,
     borderColor:     "rgba(255,255,255,0.10)",
   },
-  topCenter: {
-    flex:       1,
-    alignItems: "center",
-  },
+  topCenter: { flex: 1, alignItems: "center" },
   topTitle: {
     fontSize:      10,
     fontFamily:    "Inter_600SemiBold",
-    color:         "rgba(255,255,255,0.58)",
+    color:         "rgba(255,255,255,0.60)",
     letterSpacing: 3.4,
   },
   liveChip: {
@@ -518,7 +493,7 @@ const ss = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.03)",
     borderColor:     "rgba(255,255,255,0.05)",
   },
-  liveDotStatic: {
+  liveDot: {
     width:           5,
     height:          5,
     borderRadius:    3,
@@ -531,34 +506,30 @@ const ss = StyleSheet.create({
     letterSpacing: 1.4,
   },
 
-  // ── AI focus frame
-  frameWrap: {
-    position:       "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+  // ── Focus frame area
+  frameArea: {
+    ...StyleSheet.absoluteFillObject,
     alignItems:     "center",
     justifyContent: "center",
-    paddingBottom:  90,
+    paddingBottom:  100,
   },
-  frameContainer: {
+  frame: {
     width:  FRAME_D,
     height: FRAME_D,
   },
   scanClip: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
   },
   scanLine: {
     position:        "absolute",
-    top:             0,
-    left:            0,
-    right:           0,
+    top:             0, left: 0, right: 0,
     height:          1.5,
     backgroundColor: SCAN_CLR,
   },
   frameFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.015)",
+    backgroundColor: "rgba(255,255,255,0.014)",
   },
   corner: {
     position:    "absolute",
@@ -568,30 +539,26 @@ const ss = StyleSheet.create({
   },
   cTL: {
     top: 0, left: 0,
-    borderTopWidth:      CORNER_TH,
-    borderLeftWidth:     CORNER_TH,
+    borderTopWidth: CORNER_TH, borderLeftWidth: CORNER_TH,
     borderTopLeftRadius: CORNER_BR,
   },
   cTR: {
     top: 0, right: 0,
-    borderTopWidth:       CORNER_TH,
-    borderRightWidth:     CORNER_TH,
+    borderTopWidth: CORNER_TH, borderRightWidth: CORNER_TH,
     borderTopRightRadius: CORNER_BR,
   },
   cBL: {
     bottom: 0, left: 0,
-    borderBottomWidth:     CORNER_TH,
-    borderLeftWidth:       CORNER_TH,
+    borderBottomWidth: CORNER_TH, borderLeftWidth: CORNER_TH,
     borderBottomLeftRadius: CORNER_BR,
   },
   cBR: {
     bottom: 0, right: 0,
-    borderBottomWidth:      CORNER_TH,
-    borderRightWidth:       CORNER_TH,
+    borderBottomWidth: CORNER_TH, borderRightWidth: CORNER_TH,
     borderBottomRightRadius: CORNER_BR,
   },
 
-  // Ambient label
+  // ── Ambient label
   labelWrap: {
     marginTop:  18,
     alignItems: "center",
@@ -621,9 +588,8 @@ const ss = StyleSheet.create({
   },
 
   // ── Permission card
-  permWrap: {
-    position:       "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+  permArea: {
+    ...StyleSheet.absoluteFillObject,
     alignItems:     "center",
     justifyContent: "center",
     paddingBottom:  100,
@@ -639,7 +605,7 @@ const ss = StyleSheet.create({
     borderColor:       "rgba(255,255,255,0.08)",
     maxWidth:          300,
   },
-  permIconRing: {
+  permIcon: {
     width:           64,
     height:          64,
     borderRadius:    32,
@@ -658,11 +624,11 @@ const ss = StyleSheet.create({
     textAlign:     "center",
   },
   permSub: {
-    fontSize:      13,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.34)",
-    textAlign:     "center",
-    lineHeight:    20,
+    fontSize:   13,
+    fontFamily: "Inter_400Regular",
+    color:      "rgba(255,255,255,0.34)",
+    textAlign:  "center",
+    lineHeight: 20,
   },
   permBtn: {
     marginTop:         6,
@@ -695,12 +661,12 @@ const ss = StyleSheet.create({
     gap:               8,
     paddingHorizontal: 20,
     paddingVertical:   14,
-    backgroundColor:   "rgba(8,8,12,0.78)",
+    backgroundColor:   "rgba(8,8,12,0.80)",
     borderRadius:      34,
     borderWidth:       StyleSheet.hairlineWidth,
     borderColor:       "rgba(255,255,255,0.07)",
   },
-  dockSecondary: {
+  dockBtn: {
     alignItems:        "center",
     justifyContent:    "center",
     gap:               5,
@@ -713,7 +679,7 @@ const ss = StyleSheet.create({
   dockLabel: {
     fontSize:      9,
     fontFamily:    "Inter_500Medium",
-    color:         "rgba(255,255,255,0.45)",
+    color:         "rgba(255,255,255,0.44)",
     letterSpacing: 0.3,
   },
   dockCapture: {
