@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -14,18 +15,24 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ChatProvider } from "@/context/ChatContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ErrorBoundary }  from "@/components/ErrorBoundary";
+import { ChatProvider }   from "@/context/ChatContext";
+import { ThemeProvider }  from "@/context/ThemeContext";
+import { ONBOARDING_KEY } from "@/app/onboarding";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function RootLayoutNav() {
+function RootLayoutNav({ initialRoute }: { initialRoute: "onboarding" | "(tabs)" }) {
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack initialRouteName={initialRoute}>
+      {/* Onboarding — no gesture dismiss, no header */}
+      <Stack.Screen
+        name="onboarding"
+        options={{ headerShown: false, animation: "none", gestureEnabled: false }}
+      />
+      <Stack.Screen name="(tabs)"  options={{ headerShown: false }} />
       <Stack.Screen name="chat"    options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen name="voice"   options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
       <Stack.Screen name="vision"  options={{ headerShown: false, animation: "fade",               presentation: "fullScreenModal" }} />
@@ -42,26 +49,43 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  // On web, browser handles @font-face natively — never block render.
-  // On native, give fonts up to 2 s then proceed with system fallback.
   const isWeb = Platform.OS === "web";
-  const [ready, setReady] = useState(isWeb);
 
+  // null = still checking AsyncStorage
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const [ready,          setReady]          = useState(false);
+
+  // Check onboarding status on mount
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-      setReady(true);
-      return;
-    }
-    if (isWeb) return; // already ready
-    const t = setTimeout(() => {
-      setReady(true);
-      SplashScreen.hideAsync();
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [fontsLoaded, fontError]);
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then(v => setOnboardingDone(v === "true"))
+      .catch(() => setOnboardingDone(false));
+  }, []);
 
-  if (!ready) return null;
+  // Gate on both fonts + onboarding check
+  useEffect(() => {
+    const fontsReady = fontsLoaded || !!fontError || isWeb;
+    if (!fontsReady || onboardingDone === null) return;
+    SplashScreen.hideAsync();
+    setReady(true);
+  }, [fontsLoaded, fontError, onboardingDone]);
+
+  // Safety timeout — don't block render forever if fonts stall
+  useEffect(() => {
+    if (isWeb) return;
+    const t = setTimeout(() => {
+      if (!ready) {
+        SplashScreen.hideAsync();
+        setReady(true);
+        if (onboardingDone === null) setOnboardingDone(false);
+      }
+    }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!ready || onboardingDone === null) return null;
+
+  const initialRoute: "onboarding" | "(tabs)" = onboardingDone ? "(tabs)" : "onboarding";
 
   return (
     <SafeAreaProvider>
@@ -71,7 +95,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <ThemeProvider>
                 <ChatProvider>
-                  <RootLayoutNav />
+                  <RootLayoutNav initialRoute={initialRoute} />
                 </ChatProvider>
               </ThemeProvider>
             </KeyboardProvider>
