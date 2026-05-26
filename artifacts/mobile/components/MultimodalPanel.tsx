@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Platform,
@@ -177,20 +178,12 @@ export default function MultimodalPanel({
   const camGlowStyle = useAnimatedStyle(() => ({ opacity: camGlow.value }));
 
   // ── Image pickers ─────────────────────────────────────────────────────────
-  const handleCamera = useCallback(async () => {
+  const handleCamera = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (Platform.OS === "web") { onClose(); return; }
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality:    0.88,
-    });
-    if (!result.canceled && result.assets[0]) {
-      onImagePicked?.(result.assets[0].uri);
-      onClose();
-    }
-  }, [onImagePicked, onClose]);
+    onClose();
+    // Navigate to full-screen AI Vision Mode
+    setTimeout(() => router.push("/vision"), 160);
+  }, [onClose]);
 
   const handlePhotos = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
