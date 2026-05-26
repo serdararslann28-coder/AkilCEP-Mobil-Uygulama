@@ -103,10 +103,8 @@ export default function SplashScreen() {
   const destination = useRef<"/(tabs)" | "/onboarding">("/onboarding");
 
   useEffect(() => {
-    // Resolve destination early so it's ready by navigate time
-    AsyncStorage.getItem(ONBOARDING_KEY)
-      .then(v => { destination.current = v === "true" ? "/(tabs)" : "/onboarding"; })
-      .catch(() => { destination.current = "/onboarding"; });
+    // TEST MODE: always show onboarding regardless of saved state
+    destination.current = "/onboarding";
 
     // ── Animation sequence ─────────────────────────────────────────────────
 
