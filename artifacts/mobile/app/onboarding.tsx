@@ -56,23 +56,25 @@ const { width: SW, height: SH } = Dimensions.get("window");
 // Tight spring — luxury feel, minimal bounce
 const SPRING = { stiffness: 280, damping: 38, mass: 0.90 };
 
-// ── Eclipse geometry (matches splash for visual continuity) ───────────────────
+// ── Eclipse geometry ───────────────────────────────────────────────────────────
+// ECLIPSE_CY at 77% — ring top visible at ~47% of screen, matching reference
 const ECLIPSE_D  = SW * 1.30;
-const ECLIPSE_CY = SH * 0.72;
+const ECLIPSE_CY = SH * 0.77;
 const ECLIPSE_X  = (SW - ECLIPSE_D) / 2;
 
+// Bloom layers — significantly more intense to match reference glow
 const ECLIPSE_LAYERS = [
-  { extra: 120, bw: 44, op: 0.010 },
-  { extra: 70,  bw: 27, op: 0.022 },
-  { extra: 36,  bw: 14, op: 0.048 },
-  { extra: 16,  bw:  7, op: 0.090 },
-  { extra:  5,  bw:  4, op: 0.195 },
-  { extra:  0,  bw:  2, op: 0.920 },
+  { extra: 140, bw: 52, op: 0.020 },
+  { extra: 80,  bw: 32, op: 0.045 },
+  { extra: 40,  bw: 18, op: 0.088 },
+  { extra: 18,  bw:  9, op: 0.150 },
+  { extra:  5,  bw:  4, op: 0.280 },
+  { extra:  0,  bw:  2, op: 0.940 },
 ];
 
-const REFLECT_SCY = 0.28;
-const REFLECT_OP  = 0.18;
-const REFLECT_TOP = ECLIPSE_CY + ECLIPSE_D * 0.19;
+const REFLECT_SCY = 0.26;
+const REFLECT_OP  = 0.20;
+const REFLECT_TOP = ECLIPSE_CY + ECLIPSE_D * 0.16;
 
 // Stars — deterministic golden-angle distribution
 const STARS = Array.from({ length: 32 }, (_, i) => ({
@@ -353,24 +355,78 @@ function EclipseBackground() {
         })}
       </Animated.View>
 
-      {/* Fog column */}
+      {/* Galaxy nebula — soft glow cloud in upper sky, like the reference */}
       <LinearGradient
-        colors={["transparent", "rgba(255,255,255,0.016)", "rgba(255,255,255,0.032)", "transparent"]}
-        locations={[0, 0.35, 0.60, 1.0]}
-        style={[StyleSheet.absoluteFill, { top: SH * 0.42 }]}
+        colors={["rgba(255,255,255,0.038)", "rgba(255,255,255,0.012)", "transparent"]}
+        locations={[0, 0.45, 1.0]}
+        style={{
+          position:     "absolute",
+          top:          0,
+          left:         -SW * 0.15,
+          width:        SW * 0.85,
+          height:       SH * 0.28,
+          borderRadius: SW * 0.45,
+        }}
+        start={{ x: 0.25, y: 0 }}
+        end={{ x: 0.75, y: 1 }}
+      />
+
+      {/* Horizon glow — wide soft band at eclipse ring height, key to cinematic look */}
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(255,255,255,0.040)",
+          "rgba(255,255,255,0.095)",
+          "rgba(255,255,255,0.040)",
+          "transparent",
+        ]}
+        locations={[0, 0.25, 0.50, 0.75, 1.0]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={{
+          position: "absolute",
+          top:      ECLIPSE_CY - 70,
+          left:     0,
+          width:    SW,
+          height:   140,
+        }}
+      />
+
+      {/* Upward cone glow — light rising from eclipse as if from a light source */}
+      <LinearGradient
+        colors={["transparent", "rgba(255,255,255,0.055)", "rgba(255,255,255,0.020)", "transparent"]}
+        locations={[0, 0.55, 0.80, 1.0]}
+        start={{ x: 0.5, y: 1 }}
+        end={{ x: 0.5, y: 0 }}
+        style={{
+          position: "absolute",
+          top:      ECLIPSE_CY - ECLIPSE_D * 0.55,
+          left:     ECLIPSE_X + ECLIPSE_D * 0.12,
+          width:    ECLIPSE_D * 0.76,
+          height:   ECLIPSE_D * 0.58,
+        }}
+      />
+
+      {/* Fog column — thicker atmospheric mist rising from eclipse */}
+      <LinearGradient
+        colors={["transparent", "rgba(255,255,255,0.030)", "rgba(255,255,255,0.065)", "rgba(255,255,255,0.030)", "transparent"]}
+        locations={[0, 0.28, 0.52, 0.72, 1.0]}
+        style={[StyleSheet.absoluteFill, { top: SH * 0.40 }]}
         start={{ x: 0.5, y: 1 }}
         end={{ x: 0.5, y: 0 }}
       />
-      {/* Landscape depth gradient */}
+
+      {/* Landscape depth gradient — dark terrain below eclipse */}
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.28)", "rgba(0,0,0,0.70)", "#000000"]}
-        locations={[0.40, 0.58, 0.78, 1.0]}
+        colors={["transparent", "rgba(0,0,0,0.32)", "rgba(0,0,0,0.72)", "#000000"]}
+        locations={[0.38, 0.55, 0.76, 1.0]}
         style={StyleSheet.absoluteFill}
       />
-      {/* Sky vignette */}
+
+      {/* Sky vignette — top darkness for cinematic frame */}
       <LinearGradient
-        colors={["rgba(0,0,0,0.55)", "transparent"]}
-        locations={[0, 0.30]}
+        colors={["rgba(0,0,0,0.62)", "rgba(0,0,0,0.18)", "transparent"]}
+        locations={[0, 0.18, 0.35]}
         style={StyleSheet.absoluteFill}
       />
     </View>
@@ -409,12 +465,20 @@ function SlideContent({
 
   const isCenter = slide.align === "center";
 
-  // Per-slide vertical start positions
+  // Per-slide vertical start positions — tuned to match reference proportions
   const upperTop: Record<SlideId, number> = {
-    intro: topInset + 52,
-    voice: topInset + 80,
-    speed: topInset + 80,
-    ready: topInset + 72,
+    intro: topInset + 66,
+    voice: topInset + 92,
+    speed: topInset + 92,
+    ready: topInset + 80,
+  };
+
+  // Lower block offset per slide (chips/body start position)
+  const lowerOffset: Record<SlideId, number> = {
+    intro: 168,  // below headline + subtitle
+    voice: 192,  // below icon badge + headline
+    speed: 192,
+    ready: 158,  // below logo + headline (body sits close below)
   };
 
   return (
@@ -463,7 +527,7 @@ function SlideContent({
         style={[
           ss.block,
           isCenter ? ss.blockCenter : ss.blockLeft,
-          { top: upperTop[slide.id] + (slide.id === "intro" ? 148 : 200) },
+          { top: upperTop[slide.id] + lowerOffset[slide.id] },
           lowerStyle,
         ]}
       >
