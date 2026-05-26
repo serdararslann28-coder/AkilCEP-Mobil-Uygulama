@@ -209,8 +209,8 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               <View style={ss.profileText}>
                 <Text style={[ss.profileName, { color: T.fg }]}>Kullanıcı</Text>
                 <View style={ss.profileSubRow}>
-                  <View style={[ss.planChip, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(107,203,142,0.12)" }]}>
-                    <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.50)" : T.green }]}>Ücretsiz</Text>
+                  <View style={[ss.planChip, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.048)" }]}>
+                    <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.50)" }]}>Ücretsiz</Text>
                   </View>
                   <Text style={[ss.planSub, { color: T.muted }]}>AkılCEP</Text>
                 </View>
@@ -401,7 +401,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               onPress={handleNewChat}
               activeOpacity={0.78}
             >
-              <Feather name="edit-3" size={18} color={T.isDark ? "#C6A969" : "#FFFFFF"} />
+              <Feather name="edit-3" size={18} color={T.isDark ? "rgba(237,235,231,0.80)" : "#FFFFFF"} />
             </TouchableOpacity>
           </RNAnimated.View>
 
@@ -444,12 +444,12 @@ function MenuItem({
   const chevronClr = T.isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.14)";
   return (
     <TouchableOpacity style={ss.menuRow} activeOpacity={0.60} onPress={onPress}>
-      <Text style={[ss.menuLabel, { color: item.accent ? "#B89B5E" : T.fg }]}>
+      <Text style={[ss.menuLabel, { color: T.fg }]}>
         {item.label}
       </Text>
       {item.accent ? (
-        <View style={[ss.proBadge, { backgroundColor: "rgba(198,169,105,0.12)" }]}>
-          <Text style={[ss.proBadgeText, { color: "#C6A969" }]}>PRO</Text>
+        <View style={[ss.proBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
+          <Text style={[ss.proBadgeText, { color: T.isDark ? "rgba(237,235,231,0.65)" : "rgba(0,0,0,0.55)" }]}>PRO</Text>
         </View>
       ) : (
         <Feather name="chevron-right" size={12} color={chevronClr} />

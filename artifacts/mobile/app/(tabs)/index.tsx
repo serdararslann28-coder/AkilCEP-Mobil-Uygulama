@@ -614,8 +614,8 @@ export default function HomeScreen() {
   // 5-layer radial halo colors — outermost (index 0) to innermost (index 4)
   const ringColors = T.isDark
     ? ["rgba(255,255,255,0.02)","rgba(255,255,255,0.04)","rgba(255,255,255,0.06)","rgba(255,255,255,0.08)","rgba(255,255,255,0.11)"]
-    : ["rgba(248,244,226,0.07)","rgba(248,244,226,0.13)","rgba(248,244,226,0.21)","rgba(248,244,226,0.32)","rgba(248,244,226,0.48)"];
-  const glowBoostBg = T.isDark ? "rgba(255,255,255,0.14)" : "rgba(248,244,220,0.60)";
+    : ["rgba(0,0,0,0.018)","rgba(0,0,0,0.038)","rgba(0,0,0,0.062)","rgba(0,0,0,0.088)","rgba(0,0,0,0.115)"];
+  const glowBoostBg = T.isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.09)";
 
   const pillBg      = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(248,244,236,0.72)";
   const pillBorder  = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(200,196,186,0.40)";
