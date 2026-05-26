@@ -14,9 +14,18 @@
       "backgroundColor": "#F7F7F7"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "AkılCEP AI, kameranızı AI Vizyon Modu için kullanmak istiyor.",
+        "NSMicrophoneUsageDescription": "AkılCEP AI, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor."
+      }
     },
-    "android": {},
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -29,7 +38,15 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-av"
+      "expo-av",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AkılCEP AI, AI Vizyon Modu için kameranıza erişmek istiyor.",
+          "microphonePermission": "AkılCEP AI, ses kaydı için mikrofonunuza erişmek istiyor.",
+          "recordAudioAndroid": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
