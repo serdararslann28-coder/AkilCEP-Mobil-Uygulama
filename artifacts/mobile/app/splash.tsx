@@ -14,7 +14,7 @@
  * No spinners. No progress indicators. Pure emotion.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAudioPlayer } from "expo-audio";
+import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import { router }         from "expo-router";
 import { StatusBar }      from "expo-status-bar";
@@ -81,14 +81,11 @@ const T_FADE_OUT   = 2700;
 const T_NAVIGATE   = 3000;
 
 export default function SplashScreen() {
-  // ── Audio ──────────────────────────────────────────────────────────────────
+  // ── Audio — expo-av Audio.Sound ────────────────────────────────────────────
   // ffmpeg-processed: trimmed to 3.0 s, fade-in 0.5 s, fade-out 0.65 s @ 2.35 s,
   // gentle compression + low-pass 11 kHz (removes harsh "movie trailer" peaks).
-  // Software volume ramp mirrors the fade timestamps for double insurance.
-  const player = useAudioPlayer(
-    require("@/assets/sounds/startup.mp3"),
-    { updateInterval: 80 },
-  );
+  // Software volume ramps mirror the ffmpeg envelope for double-layer fade insurance.
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   // ── Animated values ────────────────────────────────────────────────────────
   const logoOp        = useSharedValue(0);
@@ -183,41 +180,48 @@ export default function SplashScreen() {
       withTiming(0, { duration: 320, easing: Easing.in(Easing.ease) }),
     );
 
-    // ── Audio synchronization ──────────────────────────────────────────────
-    // Start at 0.3 s — matches logo fade-in, so first sound arrives with first visual.
-    // The ffmpeg audio envelope already handles fade-in (0–0.5 s) and fade-out (2.35–3.0 s).
-    // Software volume ramp below is a redundant second layer of silence insurance.
+    // ── Audio — expo-av Audio.Sound ────────────────────────────────────────────
+    // Load the sound immediately so it's ready by 0.3 s.
+    // All volume control goes through setVolumeAsync — no hook state needed.
+    let rampInId:  ReturnType<typeof setInterval> | null = null;
+    let rampOutId: ReturnType<typeof setInterval> | null = null;
+
+    Audio.Sound.createAsync(
+      require("@/assets/sounds/startup.mp3"),
+      { shouldPlay: false, volume: 0, progressUpdateIntervalMillis: 80 },
+    ).then(({ sound }) => {
+      soundRef.current = sound;
+    }).catch(() => {});
+
+    // 0.3 s — start playback, ramp volume in over 500 ms (synced with logo fade)
     const audioStart = setTimeout(() => {
-      try {
-        player.volume = 0;
-        player.play();
-        // Ramp volume in over 500 ms — mirrors the logo fade feel
-        const steps    = 20;
-        const stepMs   = 500 / steps;
-        const targetVol = 0.85;
-        let   step = 0;
-        const rampIn = setInterval(() => {
-          step++;
-          player.volume = Math.min(targetVol, (step / steps) * targetVol);
-          if (step >= steps) clearInterval(rampIn);
-        }, stepMs);
-      } catch {}
+      const s = soundRef.current;
+      if (!s) return;
+      s.playAsync().catch(() => {});
+      const TARGET = 0.85;
+      const STEPS  = 20;
+      const STEP_MS = 500 / STEPS;
+      let step = 0;
+      rampInId = setInterval(() => {
+        step++;
+        s.setVolumeAsync(Math.min(TARGET, (step / STEPS) * TARGET)).catch(() => {});
+        if (step >= STEPS) { clearInterval(rampInId!); rampInId = null; }
+      }, STEP_MS);
     }, T_LOGO_IN);
 
-    // Software fade-out at 2.35 s — 0.65 s ramp to silence, synced with master fade-out
+    // 2.35 s — ramp volume out over 650 ms, synced with visual master fade
     const audioFade = setTimeout(() => {
-      try {
-        const startVol = player.volume;
-        const fadeMs   = 650;
-        const steps    = 26;
-        const stepMs   = fadeMs / steps;
-        let   step = 0;
-        const rampOut = setInterval(() => {
-          step++;
-          player.volume = Math.max(0, startVol * (1 - step / steps));
-          if (step >= steps) clearInterval(rampOut);
-        }, stepMs);
-      } catch {}
+      const s = soundRef.current;
+      if (!s) return;
+      const START = 0.85;
+      const STEPS  = 26;
+      const STEP_MS = 650 / STEPS;
+      let step = 0;
+      rampOutId = setInterval(() => {
+        step++;
+        s.setVolumeAsync(Math.max(0, START * (1 - step / STEPS))).catch(() => {});
+        if (step >= STEPS) { clearInterval(rampOutId!); rampOutId = null; }
+      }, STEP_MS);
     }, 2350);
 
     // 3.0 s — navigate
@@ -229,7 +233,10 @@ export default function SplashScreen() {
       clearTimeout(audioStart);
       clearTimeout(audioFade);
       clearTimeout(nav);
-      try { player.remove(); } catch {}
+      if (rampInId)  clearInterval(rampInId);
+      if (rampOutId) clearInterval(rampOutId);
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
     };
   }, []);
 
