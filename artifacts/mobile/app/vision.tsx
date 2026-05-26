@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, {
   useCallback,
   useEffect,
@@ -41,7 +42,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const { width: W, height: H } = Dimensions.get("window");
+// Use "screen" — includes status bar + nav bar for true fullscreen dimensions on Android
+const { width: W, height: H } = Dimensions.get("screen");
 
 // Focus frame: 62% of shorter screen dimension
 const FRAME_D   = Math.round(Math.min(W, H) * 0.62);
@@ -210,25 +212,25 @@ export default function VisionScreen() {
   return (
     <View style={ss.root}>
 
-      {/* ════ CAMERA FEED ════ */}
+      {/* Hide status bar for true edge-to-edge immersion */}
+      <StatusBar hidden />
+
+      {/* ════ CAMERA FEED — explicit screen dimensions so nothing clips on Android ════ */}
       {permGranted ? (
         <CameraView
-          style={StyleSheet.absoluteFill}
+          style={ss.camera}
           facing="back"
           animateShutter={false}
         />
       ) : (
-        // Cinematic dark fallback bg while permission loads / denied
-        <View style={[StyleSheet.absoluteFill, ss.camBg]}>
+        <View style={[ss.camera, ss.camBg]}>
           <View style={ss.camBgOrb} />
         </View>
       )}
 
-      {/* ════ VIGNETTE OVERLAYS — always present for cinematic feel ════ */}
+      {/* ════ VIGNETTE OVERLAYS — top/bottom only, no side clipping ════ */}
       <View style={ss.vTop}    pointerEvents="none" />
       <View style={ss.vBottom} pointerEvents="none" />
-      <View style={ss.vLeft}   pointerEvents="none" />
-      <View style={ss.vRight}  pointerEvents="none" />
 
       {/* ════ CAPTURE FLASH ════ */}
       <Animated.View
@@ -394,9 +396,23 @@ const SCAN_CLR   = "rgba(200,220,255,0.20)";
 
 const ss = StyleSheet.create({
 
-  root: { flex: 1, backgroundColor: "#060608" },
+  // Root expands to fill the screen — no SafeArea constraints
+  root: {
+    flex:            1,
+    backgroundColor: "#060608",
+    overflow:        "hidden",
+  },
 
-  // ── Camera fallback bg
+  // CameraView — explicit screen pixel dimensions so Android never clips
+  camera: {
+    position: "absolute",
+    top:      0,
+    left:     0,
+    width:    W,
+    height:   H,
+  },
+
+  // ── Camera fallback bg (same dimensions as camera)
   camBg: {
     backgroundColor: "#060608",
     alignItems:      "center",
@@ -410,30 +426,18 @@ const ss = StyleSheet.create({
     backgroundColor: "rgba(80,110,180,0.04)",
   },
 
-  // ── Vignette layers
+  // ── Vignette layers — top/bottom gradient only, no side letterboxing
   vTop: {
     position:        "absolute",
     top: 0, left: 0, right: 0,
-    height:          H * 0.30,
-    backgroundColor: "rgba(4,4,8,0.70)",
+    height:          H * 0.24,
+    backgroundColor: "rgba(4,4,8,0.68)",
   },
   vBottom: {
     position:        "absolute",
     bottom: 0, left: 0, right: 0,
-    height:          H * 0.42,
+    height:          H * 0.38,
     backgroundColor: "rgba(4,4,8,0.82)",
-  },
-  vLeft: {
-    position:        "absolute",
-    top: 0, bottom: 0, left: 0,
-    width:           W * 0.10,
-    backgroundColor: "rgba(4,4,8,0.26)",
-  },
-  vRight: {
-    position:        "absolute",
-    top: 0, bottom: 0, right: 0,
-    width:           W * 0.10,
-    backgroundColor: "rgba(4,4,8,0.26)",
   },
 
   // ── Flash overlay
