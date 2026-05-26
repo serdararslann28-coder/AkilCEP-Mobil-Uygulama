@@ -34,6 +34,10 @@ function RootLayoutNav() {
         name="onboarding"
         options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
       />
+      <Stack.Screen
+        name="auth"
+        options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
+      />
       <Stack.Screen name="(tabs)"  options={{ headerShown: false }} />
       <Stack.Screen name="chat"    options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen name="voice"   options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />

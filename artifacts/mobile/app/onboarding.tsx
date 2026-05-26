@@ -484,9 +484,9 @@ export default function OnboardingScreen() {
   const entryStyle = useAnimatedStyle(() => ({ opacity: entryOp.value }));
 
   // ── Navigation helpers ─────────────────────────────────────────────────────
-  const complete = useCallback(async () => {
-    try { await AsyncStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-    router.replace("/(tabs)");
+  const complete = useCallback(() => {
+    // Do not set ONBOARDING_KEY here — auth screen sets it after successful sign-in.
+    router.replace("/auth");
   }, []);
 
   const goToPage = useCallback((page: number) => {
