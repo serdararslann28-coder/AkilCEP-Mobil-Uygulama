@@ -1,36 +1,19 @@
 /**
  * VisionScreen — AKILCEP Vision Mode.
  *
- * Camera architecture:
- *   CameraView sits at the absolute root of the component tree with
- *   StyleSheet.absoluteFillObject + a transform:scale to achieve cover-mode.
- *
- *   Why transform:scale and not overflow:hidden?
- *   overflow:hidden only clips React Native View children — it cannot clip
- *   the camera's own native rendering surface (a SurfaceView/TextureView on
- *   Android, AVPreviewLayer on iOS). The scale transform makes the camera
- *   fill the entire screen from the inside; the screen edge itself clips the
- *   overflow naturally without any container tricks.
- *
- *   Cover-mode scale formula:
- *     Camera sensor is 4:3 portrait (conservative assumption; works for 16:9 too).
- *     Natural camera height at screen width W = W × (4/3).
- *     If screen H > natural camera H, scale up by H / (W × 4/3).
- *     Result: camera height == screen height, sides overflow and get clipped.
- *
+ * Camera: absoluteFillObject + transform:scale (cover-mode, no wrapper needed).
+ * Focus system: thin ivory outline + breathing + gradient shimmer + ambient
+ *   particles + BlurView frosted label. Apple-minimal, never sci-fi.
  * Always dark graphite palette — never follows global theme.
  */
 import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Platform,
@@ -51,44 +34,58 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Screen dimensions — use "screen" to include status + nav bar areas on Android
+// Screen dimensions — "screen" includes status/nav bar on Android
 const { width: SW, height: SH } = Dimensions.get("screen");
 
-// ── Cover-mode transform scale ────────────────────────────────────────────────
-// 4:3 is the conservative sensor assumption (also correct for 16:9 — only
-// over-scales slightly, still fills with no black bars).
-// The camera is given absoluteFill; scale from center until height ≥ SH.
-const CAM_SENSOR_RATIO = 4 / 3;             // sensor: height = width × 4/3
-const CAM_NATURAL_H    = SW * CAM_SENSOR_RATIO;  // camera height at screen width
+// ── Cover-mode transform scale ─────────────────────────────────────────────────
+// 4:3 conservative sensor assumption. Camera absoluteFills the screen then is
+// scaled up from center until height ≥ SH. Screen edge clips the overflow.
+const CAM_SENSOR_RATIO = 4 / 3;
+const CAM_NATURAL_H    = SW * CAM_SENSOR_RATIO;
 const COVER_SCALE      = CAM_NATURAL_H < SH
-  ? (SH / CAM_NATURAL_H) * 1.008          // 0.8% extra — guarantees no hair gap
+  ? (SH / CAM_NATURAL_H) * 1.008
   : 1.008;
 
-// Focus frame: 62% of shorter screen dimension
-const FRAME_D   = Math.round(Math.min(SW, SH) * 0.62);
-const CORNER_SZ = 26;
-const CORNER_TH = 2;
-const CORNER_BR = 4;
+// ── Focus frame geometry ───────────────────────────────────────────────────────
+const FRAME_D  = Math.round(Math.min(SW, SH) * 0.60); // square frame side
+const FRAME_BR = 22;  // border radius — rounded, not harsh
+const FRAME_BW = 0.8; // border width — hair-thin for elegance
 
-// Ambient analysis labels — rotate every 3 s
+// Corner accent brackets (independent from main outline)
+const CORNER_L = 22;  // bracket leg length
+const CORNER_W = 1.5; // bracket line width
+const CORNER_R = 7;   // bracket inner radius
+
+// Ambient particles around the frame
+const PARTICLES: Array<{ x: number; y: number; delay: number }> = [
+  { x: -(FRAME_D * 0.54), y: -(FRAME_D * 0.28), delay: 0    },
+  { x:   FRAME_D * 0.57,  y: -(FRAME_D * 0.18), delay: 700  },
+  { x: -(FRAME_D * 0.46), y:   FRAME_D * 0.34,  delay: 1400 },
+  { x:   FRAME_D * 0.52,  y:   FRAME_D * 0.26,  delay: 350  },
+  { x:   FRAME_D * 0.04,  y: -(FRAME_D * 0.56), delay: 1050 },
+  { x: -(FRAME_D * 0.06), y:   FRAME_D * 0.54,  delay: 210  },
+];
+
+// Cycling ambient analysis labels
 const LABELS = [
   "Analiz ediliyor...",
   "Nesne algılandı",
-  "Canlı yorum hazırlanıyor",
+  "Canlı analiz hazırlanıyor",
+  "Saç modeli analiz ediliyor",
+  "Ürün tanımlanıyor",
   "Ortam taranıyor",
   "AI görüşü etkinleştirildi",
-  "Nesne tanınıyor...",
 ];
 
-// Bottom dock
+// Bottom dock actions
 const DOCK = [
   { id: "analyze", icon: "cpu",    label: "Analiz Et" },
-  { id: "capture", icon: "circle", label: "Çek",       large: true },
+  { id: "capture", icon: "circle", label: "Çek",      large: true },
   { id: "ask",     icon: "mic",    label: "Sor" },
   { id: "web",     icon: "globe",  label: "Web" },
 ] as const;
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function VisionScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
@@ -98,7 +95,7 @@ export default function VisionScreen() {
   const [labelIdx, setLabelIdx] = useState(0);
   const cyclerId = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Request on mount
+  // Auto-request permission on mount
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
@@ -107,84 +104,59 @@ export default function VisionScreen() {
 
   useEffect(() => () => { if (cyclerId.current) clearInterval(cyclerId.current); }, []);
 
-  // ── Entrance ─────────────────────────────────────────────────────────────
+  // ── Entrance animations ────────────────────────────────────────────────────
   const topOp  = useSharedValue(0);
   const dockOp = useSharedValue(0);
-  const dockY  = useSharedValue(30);
+  const dockY  = useSharedValue(28);
 
   useEffect(() => {
-    topOp.value  = withDelay(120, withTiming(1, { duration: 480 }));
-    dockY.value  = withDelay(280, withSpring(0,  { damping: 22, stiffness: 180 }));
-    dockOp.value = withDelay(280, withTiming(1,  { duration: 400 }));
+    topOp.value  = withDelay(100, withTiming(1, { duration: 500 }));
+    dockY.value  = withDelay(260, withSpring(0, { damping: 22, stiffness: 180 }));
+    dockOp.value = withDelay(260, withTiming(1, { duration: 420 }));
   }, []);
 
   const topStyle  = useAnimatedStyle(() => ({ opacity: topOp.value }));
   const dockStyle = useAnimatedStyle(() => ({
-    opacity:   dockOp.value,
+    opacity: dockOp.value,
     transform: [{ translateY: dockY.value }],
   }));
 
-  // ── Focus frame (starts once permission granted) ──────────────────────────
+  // ── Focus frame lifecycle — starts once camera permission is live ──────────
   const cameraLive = permission?.granted === true;
 
-  const frameOp    = useSharedValue(0);
-  const frameSc    = useSharedValue(0.92);
-  const cornerGlow = useSharedValue(0.4);
-  const scanY      = useSharedValue(0);
-  const labelOp    = useSharedValue(0);
+  const frameOp  = useSharedValue(0);
+  const labelOp  = useSharedValue(0);
 
   useEffect(() => {
     if (!cameraLive) return;
 
-    frameOp.value  = withDelay(450, withTiming(1,   { duration: 650 }));
-    frameSc.value  = withDelay(450, withSpring(1,    { damping: 20, stiffness: 130 }));
-    labelOp.value  = withDelay(1300, withTiming(1,  { duration: 500 }));
+    frameOp.value = withDelay(420, withTiming(1, { duration: 700 }));
+    labelOp.value = withDelay(1400, withTiming(1, { duration: 550 }));
 
-    cornerGlow.value = withDelay(650, withRepeat(
-      withSequence(
-        withTiming(1,   { duration: 1900, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.38,{ duration: 1900, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    ));
-
-    scanY.value = withDelay(850, withRepeat(
-      withTiming(FRAME_D + 2, { duration: 2100, easing: Easing.linear }),
-      -1, false,
-    ));
-
+    // Cycle analysis labels every 3.2 s
     cyclerId.current = setInterval(() => {
-      labelOp.value = withSequence(
-        withTiming(0, { duration: 280 }),
-        withTiming(0, { duration: 50 }),
-      );
+      labelOp.value = withTiming(0, { duration: 300 });
       setTimeout(() => {
         setLabelIdx(p => (p + 1) % LABELS.length);
-        labelOp.value = withTiming(1, { duration: 360 });
-      }, 330);
-    }, 3000);
+        labelOp.value = withTiming(1, { duration: 400 });
+      }, 320);
+    }, 3200);
 
     return () => { if (cyclerId.current) clearInterval(cyclerId.current); };
   }, [cameraLive]);
 
-  const frameStyle  = useAnimatedStyle(() => ({
-    opacity: frameOp.value, transform: [{ scale: frameSc.value }],
-  }));
-  const cornerStyle = useAnimatedStyle(() => ({ opacity: cornerGlow.value }));
-  const scanStyle   = useAnimatedStyle(() => ({
-    transform: [{ translateY: scanY.value }],
-  }));
-  const labelStyle  = useAnimatedStyle(() => ({ opacity: labelOp.value }));
+  const frameAreaStyle = useAnimatedStyle(() => ({ opacity: frameOp.value }));
+  const labelStyle     = useAnimatedStyle(() => ({ opacity: labelOp.value }));
 
-  // ── Capture flash ─────────────────────────────────────────────────────────
+  // ── Capture flash ──────────────────────────────────────────────────────────
   const flashOp    = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flashOp.value }));
 
   const handleCapture = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     flashOp.value = withSequence(
-      withTiming(0.55, { duration: 55 }),
-      withTiming(0,    { duration: 340, easing: Easing.out(Easing.ease) }),
+      withTiming(0.50, { duration: 60 }),
+      withTiming(0,    { duration: 360, easing: Easing.out(Easing.ease) }),
     );
   }, []);
 
@@ -202,18 +174,13 @@ export default function VisionScreen() {
   const permGranted = permission?.granted === true;
   const permAskable = !permGranted && (permission?.canAskAgain ?? true);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={ss.root}>
 
-      {/* Status bar hidden — full immersion */}
       <StatusBar hidden />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 1 — CAMERA (absoluteFill + cover-scale)
-          Direct child of root. No wrapper. No container. No overflow:hidden.
-          The transform:scale enlarges from center; screen edge clips naturally.
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 1: Camera (absoluteFill + cover-scale, no wrapper) ───────── */}
       {permGranted ? (
         <CameraView
           style={ss.camera}
@@ -221,29 +188,22 @@ export default function VisionScreen() {
           animateShutter={false}
         />
       ) : (
-        // Dark cinematic bg while loading / denied
         <View style={ss.camFallback}>
           <View style={ss.camFallbackOrb} />
         </View>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 2 — CINEMATIC VIGNETTES (pointerEvents none, top/bottom only)
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 2: Cinematic vignettes ────────────────────────────────────── */}
       <View style={ss.vTop}    pointerEvents="none" />
       <View style={ss.vBottom} pointerEvents="none" />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 3 — WHITE CAPTURE FLASH
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 3: Capture flash ──────────────────────────────────────────── */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.flash, flashStyle]}
         pointerEvents="none"
       />
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 4 — TOP BAR
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 4: Top bar ────────────────────────────────────────────────── */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 10 }, topStyle]}>
         <TouchableOpacity
           style={ss.backBtn}
@@ -259,57 +219,50 @@ export default function VisionScreen() {
         </View>
 
         <View style={[ss.liveChip, !permGranted && ss.liveChipOff]}>
-          {permGranted ? <LiveDot /> : (
-            <View style={ss.liveDot} />
-          )}
+          {permGranted ? <LiveDot /> : <View style={ss.liveDot} />}
           <Text style={[ss.liveText, !permGranted && { opacity: 0.28 }]}>
             {permGranted ? "CANLI" : permLoading ? "···" : "BEKLİYOR"}
           </Text>
         </View>
       </Animated.View>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 5 — AI FOCUS FRAME + AMBIENT LABEL
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 5: AI Focus system (frame + particles + label) ────────────── */}
       {cameraLive && (
-        <View style={ss.frameArea} pointerEvents="none">
-          <Animated.View style={[ss.frame, frameStyle]}>
-            {/* Scan line */}
-            <View style={ss.scanClip}>
-              <Animated.View style={[ss.scanLine, scanStyle]} />
-            </View>
-            {/* Subtle fill tint */}
-            <View style={ss.frameFill} />
-            {/* L-corner brackets */}
-            <Animated.View style={[StyleSheet.absoluteFill, cornerStyle]}>
-              <View style={[ss.corner, ss.cTL]} />
-              <View style={[ss.corner, ss.cTR]} />
-              <View style={[ss.corner, ss.cBL]} />
-              <View style={[ss.corner, ss.cBR]} />
-            </Animated.View>
-          </Animated.View>
+        <Animated.View
+          style={[ss.focusArea, frameAreaStyle]}
+          pointerEvents="none"
+        >
+          {/* Ambient particles drifting around the frame */}
+          {PARTICLES.map((p, i) => (
+            <AmbientParticle key={i} x={p.x} y={p.y} delay={p.delay} />
+          ))}
 
-          {/* Cycling analysis label */}
+          {/* The focus frame itself */}
+          <AIFocusFrame />
+
+          {/* Mode label above the frame */}
+          <View style={ss.modeRow}>
+            <View style={ss.modeDash} />
+            <Text style={ss.modeText}>AI VİZYON · AKTİF</Text>
+            <View style={ss.modeDash} />
+          </View>
+
+          {/* Cycling analysis label below the frame */}
           <Animated.View style={[ss.labelWrap, labelStyle]}>
-            <View style={ss.labelCard}>
-              <View style={ss.labelDot} />
-              <Text style={ss.labelText}>{LABELS[labelIdx]}</Text>
-            </View>
+            <AnalysisLabel text={LABELS[labelIdx]} />
           </Animated.View>
-        </View>
+        </Animated.View>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 5b — PERMISSION CARD (shown when camera not available)
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 5b: Permission card ────────────────────────────────────────── */}
       {!permGranted && !permLoading && (
         <View style={ss.permArea} pointerEvents="box-none">
           <View style={ss.permCard}>
             <View style={ss.permIcon}>
               <Feather
                 name={permAskable ? "camera" : "camera-off"}
-                size={24}
-                color="rgba(255,255,255,0.55)"
+                size={22}
+                color="rgba(255,255,255,0.50)"
               />
             </View>
             <Text style={ss.permTitle}>
@@ -337,9 +290,7 @@ export default function VisionScreen() {
         </View>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          LAYER 6 — BOTTOM DOCK
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── LAYER 6: Bottom dock ────────────────────────────────────────────── */}
       <Animated.View
         style={[ss.dock, { paddingBottom: btmPad + 18 }, dockStyle]}
         pointerEvents="box-none"
@@ -364,7 +315,11 @@ export default function VisionScreen() {
                   </View>
                 ) : (
                   <>
-                    <Feather name={action.icon as any} size={18} color="rgba(255,255,255,0.70)" />
+                    <Feather
+                      name={action.icon as any}
+                      size={17}
+                      color="rgba(255,255,255,0.65)"
+                    />
                     <Text style={ss.dockLabel}>{action.label}</Text>
                   </>
                 )}
@@ -378,14 +333,183 @@ export default function VisionScreen() {
   );
 }
 
-// ── Pulsing live dot ──────────────────────────────────────────────────────────
+// ─── AIFocusFrame ─────────────────────────────────────────────────────────────
+// Thin ivory rounded outline + outer glow ring + L-corner accents +
+// gradient shimmer sweep + breathing pulse. Apple-minimal, never sci-fi.
+function AIFocusFrame() {
+  // Breathing: very slow scale oscillation — frame feels alive, not mechanical
+  const breathe = useSharedValue(1);
+  // Shimmer: vertical gradient sweep through the interior
+  const shimmer = useSharedValue(0);
+  // Glow: outer ring opacity breathes slightly offset from main scale
+  const glowOp  = useSharedValue(0.06);
+  // Corner accent brightness
+  const cornerOp = useSharedValue(0.5);
+
+  useEffect(() => {
+    // 2.8 s breathing cycle — inhale/exhale
+    breathe.value = withRepeat(
+      withSequence(
+        withTiming(0.988, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1.012, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1, false,
+    );
+
+    // Shimmer sweeps top → bottom every 3.6 s, then resets instantly
+    shimmer.value = withDelay(600, withRepeat(
+      withSequence(
+        withTiming(FRAME_D, { duration: 2600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0,        { duration: 0 }),
+        withTiming(0,        { duration: 1000 }), // pause between sweeps
+      ),
+      -1, false,
+    ));
+
+    // Outer glow pulses 0.06 → 0.16, offset phase
+    glowOp.value = withDelay(1400, withRepeat(
+      withSequence(
+        withTiming(0.16, { duration: 3200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.06, { duration: 3200, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1, false,
+    ));
+
+    // Corners pulse gently
+    cornerOp.value = withRepeat(
+      withSequence(
+        withTiming(0.90, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.40, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1, false,
+    );
+  }, []);
+
+  const breatheStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: breathe.value }],
+  }));
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: shimmer.value - FRAME_D * 0.15 }],
+  }));
+  const glowStyle    = useAnimatedStyle(() => ({ opacity: glowOp.value  }));
+  const cornerStyle  = useAnimatedStyle(() => ({ opacity: cornerOp.value }));
+
+  return (
+    <Animated.View style={[ss.frameRoot, breatheStyle]}>
+
+      {/* Outer glow ring — larger, lower opacity, champagne mist */}
+      <Animated.View style={[ss.glowRing, glowStyle]} pointerEvents="none" />
+
+      {/* Main frame outline — thin ivory border, subtle fill */}
+      <View style={ss.frameOutline}>
+
+        {/* Barely-there interior fill */}
+        <View style={ss.frameFill} />
+
+        {/* Gradient shimmer sweep — clips inside frame bounds */}
+        <View style={ss.shimmerClip}>
+          <Animated.View style={[ss.shimmerWrap, shimmerStyle]} pointerEvents="none">
+            <LinearGradient
+              colors={[
+                "transparent",
+                "rgba(245,242,235,0.09)",
+                "rgba(255,253,248,0.14)",
+                "rgba(245,242,235,0.09)",
+                "transparent",
+              ]}
+              style={ss.shimmerGradient}
+            />
+          </Animated.View>
+        </View>
+
+      </View>
+
+      {/* Corner accent brackets — ivory, independent brightness */}
+      <Animated.View style={[StyleSheet.absoluteFill, cornerStyle]}>
+        <View style={[ss.corner, ss.cTL]} />
+        <View style={[ss.corner, ss.cTR]} />
+        <View style={[ss.corner, ss.cBL]} />
+        <View style={[ss.corner, ss.cBR]} />
+      </Animated.View>
+
+    </Animated.View>
+  );
+}
+
+// ─── AmbientParticle ──────────────────────────────────────────────────────────
+// A single tiny floating dot that drifts and pulses softly.
+// Positioned absolutely relative to the focusArea center via x/y offsets.
+function AmbientParticle({ x, y, delay }: { x: number; y: number; delay: number }) {
+  const op    = useSharedValue(0);
+  const drift = useSharedValue(0);
+
+  useEffect(() => {
+    op.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(0.24, { duration: 1800 + delay % 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.04, { duration: 1800 + delay % 800, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1, false,
+    ));
+    drift.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(5,  { duration: 2400 + delay % 400, easing: Easing.inOut(Easing.sin) }),
+        withTiming(-5, { duration: 2400 + delay % 400, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1, false,
+    ));
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity:   op.value,
+    transform: [{ translateY: drift.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        ss.particle,
+        { transform: [{ translateX: x }, { translateY: y }] },
+        style,
+      ]}
+      pointerEvents="none"
+    />
+  );
+}
+
+// ─── AnalysisLabel ────────────────────────────────────────────────────────────
+// Frosted glass card — expo-blur + pulsing activity dot.
+function AnalysisLabel({ text }: { text: string }) {
+  const dotOp = useSharedValue(1);
+
+  useEffect(() => {
+    dotOp.value = withRepeat(
+      withSequence(
+        withTiming(0.25, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1,    { duration: 600, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1, false,
+    );
+  }, []);
+
+  const dotStyle = useAnimatedStyle(() => ({ opacity: dotOp.value }));
+
+  return (
+    <BlurView intensity={18} tint="dark" style={ss.labelCard}>
+      <Animated.View style={[ss.labelDot, dotStyle]} />
+      <Text style={ss.labelText}>{text}</Text>
+    </BlurView>
+  );
+}
+
+// ─── LiveDot ──────────────────────────────────────────────────────────────────
 function LiveDot() {
   const op = useSharedValue(1);
   useEffect(() => {
     op.value = withRepeat(
       withSequence(
-        withTiming(0.20, { duration: 540, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1,    { duration: 540, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.18, { duration: 560, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1,    { duration: 560, easing: Easing.inOut(Easing.ease) }),
       ),
       -1, false,
     );
@@ -398,25 +522,25 @@ function LiveDot() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const CORNER_CLR = "rgba(255,255,255,0.75)";
-const SCAN_CLR   = "rgba(200,220,255,0.22)";
+const IVORY      = "rgba(245,242,236,0.30)"; // main frame border
+const IVORY_BRT  = "rgba(255,252,246,0.68)"; // corner accents
+const GLOW_FILL  = "rgba(245,242,236,0.06)"; // outer glow ring bg
 
 const ss = StyleSheet.create({
 
-  // ── Root — flex:1, no overflow constraints
+  // ── Root
   root: {
     flex:            1,
     backgroundColor: "#060608",
   },
 
-  // ── CAMERA — absoluteFill + cover-scale transform
-  // The scale makes the camera fill the screen height; screen edge clips the sides.
+  // ── Camera — absoluteFill + cover-scale (screen edge clips overflow)
   camera: {
     ...StyleSheet.absoluteFillObject,
     transform: [{ scale: COVER_SCALE }],
   },
 
-  // ── Dark fallback while permission resolves / denied / web
+  // ── Fallback bg
   camFallback: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#060608",
@@ -428,21 +552,21 @@ const ss = StyleSheet.create({
     width:           SW * 1.4,
     height:          SW * 1.4,
     borderRadius:    SW * 0.7,
-    backgroundColor: "rgba(80,110,180,0.04)",
+    backgroundColor: "rgba(80,100,160,0.04)",
   },
 
   // ── Vignettes
   vTop: {
     position:        "absolute",
     top: 0, left: 0, right: 0,
-    height:          SH * 0.22,
-    backgroundColor: "rgba(4,4,8,0.72)",
+    height:          SH * 0.21,
+    backgroundColor: "rgba(4,4,8,0.70)",
   },
   vBottom: {
     position:        "absolute",
     bottom: 0, left: 0, right: 0,
     height:          SH * 0.36,
-    backgroundColor: "rgba(4,4,8,0.84)",
+    backgroundColor: "rgba(4,4,8,0.82)",
   },
 
   // ── Capture flash
@@ -475,8 +599,8 @@ const ss = StyleSheet.create({
   topTitle: {
     fontSize:      10,
     fontFamily:    "Inter_600SemiBold",
-    color:         "rgba(255,255,255,0.60)",
-    letterSpacing: 3.4,
+    color:         "rgba(255,255,255,0.55)",
+    letterSpacing: 3.6,
   },
   liveChip: {
     flexDirection:     "row",
@@ -506,85 +630,152 @@ const ss = StyleSheet.create({
     letterSpacing: 1.4,
   },
 
-  // ── Focus frame area
-  frameArea: {
+  // ── Focus area — centered column, pointerEvents none
+  focusArea: {
     ...StyleSheet.absoluteFillObject,
     alignItems:     "center",
     justifyContent: "center",
-    paddingBottom:  100,
+    paddingBottom:  90,
   },
-  frame: {
-    width:  FRAME_D,
-    height: FRAME_D,
+
+  // ── Frame root — breathing animated wrapper
+  frameRoot: {
+    width:          FRAME_D,
+    height:         FRAME_D,
+    alignItems:     "center",
+    justifyContent: "center",
   },
-  scanClip: {
+
+  // ── Outer glow ring (slightly larger than frame, champagne)
+  glowRing: {
+    position:        "absolute",
+    width:           FRAME_D + 28,
+    height:          FRAME_D + 28,
+    borderRadius:    FRAME_BR + 8,
+    backgroundColor: GLOW_FILL,
+    borderWidth:     1,
+    borderColor:     "rgba(245,242,236,0.10)",
+  },
+
+  // ── Main frame outline — thin ivory border
+  frameOutline: {
+    width:        FRAME_D,
+    height:       FRAME_D,
+    borderRadius: FRAME_BR,
+    borderWidth:  FRAME_BW,
+    borderColor:  IVORY,
+    overflow:     "hidden",
+  },
+
+  // ── Interior fill — barely visible warm tint
+  frameFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(245,242,236,0.020)",
+  },
+
+  // ── Shimmer: clips inside the frame outline (overflow hidden on parent)
+  shimmerClip: {
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
   },
-  scanLine: {
-    position:        "absolute",
-    top:             0, left: 0, right: 0,
-    height:          1.5,
-    backgroundColor: SCAN_CLR,
+  shimmerWrap: {
+    position: "absolute",
+    left:     0,
+    right:    0,
+    top:      0,
   },
-  frameFill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.014)",
-  },
-  corner: {
-    position:    "absolute",
-    width:       CORNER_SZ,
-    height:      CORNER_SZ,
-    borderColor: CORNER_CLR,
-  },
-  cTL: {
-    top: 0, left: 0,
-    borderTopWidth: CORNER_TH, borderLeftWidth: CORNER_TH,
-    borderTopLeftRadius: CORNER_BR,
-  },
-  cTR: {
-    top: 0, right: 0,
-    borderTopWidth: CORNER_TH, borderRightWidth: CORNER_TH,
-    borderTopRightRadius: CORNER_BR,
-  },
-  cBL: {
-    bottom: 0, left: 0,
-    borderBottomWidth: CORNER_TH, borderLeftWidth: CORNER_TH,
-    borderBottomLeftRadius: CORNER_BR,
-  },
-  cBR: {
-    bottom: 0, right: 0,
-    borderBottomWidth: CORNER_TH, borderRightWidth: CORNER_TH,
-    borderBottomRightRadius: CORNER_BR,
+  shimmerGradient: {
+    width:  "100%",
+    height: FRAME_D * 0.30,
   },
 
-  // ── Ambient label
+  // ── Corner accent brackets (ivory, independent animation)
+  corner: {
+    position:    "absolute",
+    width:       CORNER_L,
+    height:      CORNER_L,
+    borderColor: IVORY_BRT,
+  },
+  cTL: {
+    top: -FRAME_BW, left: -FRAME_BW,
+    borderTopWidth:      CORNER_W,
+    borderLeftWidth:     CORNER_W,
+    borderTopLeftRadius: CORNER_R,
+  },
+  cTR: {
+    top: -FRAME_BW, right: -FRAME_BW,
+    borderTopWidth:       CORNER_W,
+    borderRightWidth:     CORNER_W,
+    borderTopRightRadius: CORNER_R,
+  },
+  cBL: {
+    bottom: -FRAME_BW, left: -FRAME_BW,
+    borderBottomWidth:      CORNER_W,
+    borderLeftWidth:        CORNER_W,
+    borderBottomLeftRadius: CORNER_R,
+  },
+  cBR: {
+    bottom: -FRAME_BW, right: -FRAME_BW,
+    borderBottomWidth:       CORNER_W,
+    borderRightWidth:        CORNER_W,
+    borderBottomRightRadius: CORNER_R,
+  },
+
+  // ── Ambient particle
+  particle: {
+    position:        "absolute",
+    width:           3,
+    height:          3,
+    borderRadius:    2,
+    backgroundColor: "rgba(245,242,236,0.70)",
+  },
+
+  // ── AI mode indicator row (above frame)
+  modeRow: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    gap:            8,
+    marginBottom:   14,
+  },
+  modeDash: {
+    width:           16,
+    height:          StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  modeText: {
+    fontSize:      8,
+    fontFamily:    "Inter_500Medium",
+    color:         "rgba(255,255,255,0.28)",
+    letterSpacing: 2.4,
+  },
+
+  // ── Analysis label (below frame)
   labelWrap: {
-    marginTop:  18,
+    marginTop: 22,
     alignItems: "center",
   },
   labelCard: {
     flexDirection:     "row",
     alignItems:        "center",
-    gap:               7,
-    paddingHorizontal: 14,
-    paddingVertical:   7,
-    backgroundColor:   "rgba(255,255,255,0.065)",
-    borderRadius:      20,
+    gap:               8,
+    paddingHorizontal: 16,
+    paddingVertical:   9,
+    borderRadius:      24,
+    overflow:          "hidden",
     borderWidth:       StyleSheet.hairlineWidth,
-    borderColor:       "rgba(255,255,255,0.09)",
+    borderColor:       "rgba(255,255,255,0.08)",
   },
   labelDot: {
     width:           4,
     height:          4,
     borderRadius:    2,
-    backgroundColor: "rgba(200,220,255,0.65)",
+    backgroundColor: "rgba(210,225,255,0.70)",
   },
   labelText: {
     fontSize:      12,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.52)",
-    letterSpacing: 0.2,
+    color:         "rgba(235,232,225,0.68)",
+    letterSpacing: 0.1,
   },
 
   // ── Permission card
@@ -649,9 +840,7 @@ const ss = StyleSheet.create({
   // ── Bottom dock
   dock: {
     position:   "absolute",
-    bottom:     0,
-    left:       0,
-    right:      0,
+    bottom:     0, left: 0, right: 0,
     zIndex:     50,
     alignItems: "center",
   },
@@ -661,7 +850,7 @@ const ss = StyleSheet.create({
     gap:               8,
     paddingHorizontal: 20,
     paddingVertical:   14,
-    backgroundColor:   "rgba(8,8,12,0.80)",
+    backgroundColor:   "rgba(8,8,12,0.82)",
     borderRadius:      34,
     borderWidth:       StyleSheet.hairlineWidth,
     borderColor:       "rgba(255,255,255,0.07)",
@@ -679,7 +868,7 @@ const ss = StyleSheet.create({
   dockLabel: {
     fontSize:      9,
     fontFamily:    "Inter_500Medium",
-    color:         "rgba(255,255,255,0.44)",
+    color:         "rgba(255,255,255,0.42)",
     letterSpacing: 0.3,
   },
   dockCapture: {
@@ -692,7 +881,7 @@ const ss = StyleSheet.create({
     height:         70,
     borderRadius:   35,
     borderWidth:    2,
-    borderColor:    "rgba(255,255,255,0.38)",
+    borderColor:    "rgba(255,255,255,0.36)",
     alignItems:     "center",
     justifyContent: "center",
   },
