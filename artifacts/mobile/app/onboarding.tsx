@@ -88,26 +88,30 @@ type SlideIcon  = "voice" | "sparkle";
 type SlideAlign = "left" | "center";
 
 interface Slide {
-  id:          SlideId;
-  headline:    string;
-  subtitle?:   string;    // intro only — appears right after headline
-  tagline?:    string;    // intro only — appears after feature chips
-  body?:       string;    // voice / speed / ready
-  boldPhrase?: string;    // substring of body to render in semibold
-  cta:         string;
-  final?:      boolean;
-  align:       SlideAlign;
-  icon?:       SlideIcon;
+  id:             SlideId;
+  headline:       string;
+  subtitle?:      string;    // intro only — appears right after headline
+  subtitleBold?:  string;    // intro only — bold phrase within subtitle
+  tagline?:       string;    // intro only — appears after feature chips
+  taglineBold?:   string;    // intro only — bold phrase within tagline
+  body?:          string;    // voice / speed / ready
+  boldPhrase?:    string;    // substring of body to render in semibold
+  cta:            string;
+  final?:         boolean;
+  align:          SlideAlign;
+  icon?:          SlideIcon;
 }
 
 const SLIDES: Slide[] = [
   {
-    id:       "intro",
-    headline: "AkılCEP",
-    subtitle: "Cebindeki akıl,\nartık hep yanında.",
-    tagline:  "Yapay zekayı\ndoğal hisset.",
-    cta:      "Devam Et",
-    align:    "left",
+    id:           "intro",
+    headline:     "AkılCEP",
+    subtitle:     "Cebindeki akıl,\nartık hep yanında.",
+    subtitleBold: "artık hep yanında.",
+    tagline:      "Yapay zekayı\ndoğal hisset.",
+    taglineBold:  "doğal hisset.",
+    cta:          "Devam Et",
+    align:        "left",
   },
   {
     id:         "voice",
@@ -144,19 +148,21 @@ function BodyText({
   text,
   boldPhrase,
   style,
+  boldStyle,
 }: {
   text:        string;
   boldPhrase?: string;
-  style?:      object;
+  style?:      object | (object | false)[];
+  boldStyle?:  object;
 }) {
   if (!boldPhrase || !text.includes(boldPhrase)) {
-    return <Text style={style}>{text}</Text>;
+    return <Text style={style as any}>{text}</Text>;
   }
   const idx = text.indexOf(boldPhrase);
   return (
-    <Text style={style}>
+    <Text style={style as any}>
       {text.slice(0, idx)}
-      <Text style={ss.boldPhrase}>{boldPhrase}</Text>
+      <Text style={boldStyle ?? ss.boldPhrase}>{boldPhrase}</Text>
       {text.slice(idx + boldPhrase.length)}
     </Text>
   );
@@ -441,9 +447,14 @@ function SlideContent({
           {slide.headline}
         </Text>
 
-        {/* Intro: subtitle directly below headline */}
+        {/* Intro: subtitle directly below headline (second line is bolder) */}
         {slide.subtitle && (
-          <Text style={ss.introSubtitle}>{slide.subtitle}</Text>
+          <BodyText
+            text={slide.subtitle}
+            boldPhrase={slide.subtitleBold}
+            style={ss.introSubtitle}
+            boldStyle={ss.introBoldPhrase}
+          />
         )}
       </Animated.View>
 
@@ -456,12 +467,17 @@ function SlideContent({
           lowerStyle,
         ]}
       >
-        {/* Intro: feature chips + tagline */}
+        {/* Intro: feature chips + tagline (second line is bolder) */}
         {slide.id === "intro" && (
           <>
             <FeatureChips />
             {slide.tagline && (
-              <Text style={ss.introTagline}>{slide.tagline}</Text>
+              <BodyText
+                text={slide.tagline}
+                boldPhrase={slide.taglineBold}
+                style={ss.introTagline}
+                boldStyle={ss.introBoldPhrase}
+              />
             )}
           </>
         )}
@@ -740,11 +756,17 @@ const ss = StyleSheet.create({
   // Intro tagline ("Yapay zekayı doğal hisset.")
   introTagline: {
     fontSize:      16,
-    fontFamily:    "Inter_500Medium",
-    color:         "rgba(255,255,255,0.72)",
+    fontFamily:    "Inter_400Regular",
+    color:         "rgba(255,255,255,0.46)",
     letterSpacing: -0.2,
     lineHeight:    22,
     marginTop:     4,
+  },
+
+  // Bold phrase inside intro subtitle / tagline — bright white, semibold
+  introBoldPhrase: {
+    fontFamily: "Inter_600SemiBold",
+    color:      "#FFFFFF",
   },
 
   // Body text (voice / speed / ready)
@@ -758,9 +780,10 @@ const ss = StyleSheet.create({
   bodyCenter: {
     textAlign: "center",
   },
+  // Bold phrase inside body text — lifted but not full white
   boldPhrase: {
     fontFamily: "Inter_600SemiBold",
-    color:      "rgba(255,255,255,0.82)",
+    color:      "rgba(255,255,255,0.88)",
   },
 
   // Icon badge (voice / speed slides)
