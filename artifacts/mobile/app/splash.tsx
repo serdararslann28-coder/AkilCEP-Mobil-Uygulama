@@ -14,6 +14,7 @@
  * No spinners. No progress indicators. Pure emotion.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAudioPlayer } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import { router }         from "expo-router";
 import { StatusBar }      from "expo-status-bar";
@@ -80,6 +81,15 @@ const T_FADE_OUT   = 2700;
 const T_NAVIGATE   = 3000;
 
 export default function SplashScreen() {
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  // ffmpeg-processed: trimmed to 3.0 s, fade-in 0.5 s, fade-out 0.65 s @ 2.35 s,
+  // gentle compression + low-pass 11 kHz (removes harsh "movie trailer" peaks).
+  // Software volume ramp mirrors the fade timestamps for double insurance.
+  const player = useAudioPlayer(
+    require("@/assets/sounds/startup.mp3"),
+    { updateInterval: 80 },
+  );
+
   // ── Animated values ────────────────────────────────────────────────────────
   const logoOp        = useSharedValue(0);
   const eclipseOp     = useSharedValue(0);
@@ -173,12 +183,54 @@ export default function SplashScreen() {
       withTiming(0, { duration: 320, easing: Easing.in(Easing.ease) }),
     );
 
+    // ── Audio synchronization ──────────────────────────────────────────────
+    // Start at 0.3 s — matches logo fade-in, so first sound arrives with first visual.
+    // The ffmpeg audio envelope already handles fade-in (0–0.5 s) and fade-out (2.35–3.0 s).
+    // Software volume ramp below is a redundant second layer of silence insurance.
+    const audioStart = setTimeout(() => {
+      try {
+        player.volume = 0;
+        player.play();
+        // Ramp volume in over 500 ms — mirrors the logo fade feel
+        const steps    = 20;
+        const stepMs   = 500 / steps;
+        const targetVol = 0.85;
+        let   step = 0;
+        const rampIn = setInterval(() => {
+          step++;
+          player.volume = Math.min(targetVol, (step / steps) * targetVol);
+          if (step >= steps) clearInterval(rampIn);
+        }, stepMs);
+      } catch {}
+    }, T_LOGO_IN);
+
+    // Software fade-out at 2.35 s — 0.65 s ramp to silence, synced with master fade-out
+    const audioFade = setTimeout(() => {
+      try {
+        const startVol = player.volume;
+        const fadeMs   = 650;
+        const steps    = 26;
+        const stepMs   = fadeMs / steps;
+        let   step = 0;
+        const rampOut = setInterval(() => {
+          step++;
+          player.volume = Math.max(0, startVol * (1 - step / steps));
+          if (step >= steps) clearInterval(rampOut);
+        }, stepMs);
+      } catch {}
+    }, 2350);
+
     // 3.0 s — navigate
     const nav = setTimeout(() => {
       router.replace(destination.current);
     }, T_NAVIGATE);
 
-    return () => clearTimeout(nav);
+    return () => {
+      clearTimeout(audioStart);
+      clearTimeout(audioFade);
+      clearTimeout(nav);
+      try { player.remove(); } catch {}
+    };
   }, []);
 
   // ── Animated styles ─────────────────────────────────────────────────────────
