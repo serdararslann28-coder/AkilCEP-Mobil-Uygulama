@@ -15,9 +15,9 @@ function getClient(): GoogleGenAI {
 }
 
 const DEFAULT_PROMPT =
-  "Bu fotoğrafı detaylı biçimde Türkçe analiz et. " +
-  "Neler görüyorsun? Önemli detayları, nesneleri, renkleri ve bağlamı açıkla. " +
-  "Varsa dikkat çekici veya ilginç unsurların altını çiz.";
+  "Bu fotoğrafta ne görüyorsun? " +
+  "Maksimum 2-3 kısa cümleyle, yalnızca görselde olanı açıkla. " +
+  "Giriş yapma, hikaye anlatma, uzun açıklama yazma. Doğrudan ve net ol.";
 
 router.post("/vision", async (req, res) => {
   const { image, mimeType, prompt } = req.body as {
@@ -54,7 +54,9 @@ router.post("/vision", async (req, res) => {
           config: {
             systemInstruction:
               "Sen AkılCEP'sin. Türkçe konuşan, zeki ve yardımsever bir yapay zeka asistanısın. " +
-              "Görüntüleri net, anlaşılır ve samimi bir dille analiz et.",
+              "Görselleri her zaman maksimum 2-3 kısa cümleyle açıkla. " +
+              "Giriş cümlesi, hikaye, gereksiz detay veya uzun açıklama yazma. " +
+              "Sadece görselde ne olduğunu söyle; doğrudan, sade ve net ol.",
             maxOutputTokens: 8192,
           },
         });
