@@ -52,8 +52,9 @@ interface ChatContextType {
   sendMessage:          (content: string) => void;
   /** Inject a real voice exchange (user + AI) directly — no API call. */
   injectMessages:       (userText: string, aiText: string) => void;
-  /** Inject user photo message and call Gemini Vision in background. */
-  startVisionAnalysis:  (imageBase64: string, imageUri: string) => void;
+  /** Inject user photo message and call Gemini Vision in background.
+   *  Pass `question` to override the default analysis prompt (e.g. spoken voice question). */
+  startVisionAnalysis:  (imageBase64: string, imageUri: string, question?: string) => void;
   startNewConversation: () => void;
   loadConversation:     (id: string) => void;
   deleteConversation:   (id: string) => void;
@@ -278,7 +279,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
    * Navigate to chat before calling this — loading indicator appears there.
    */
   const startVisionAnalysis = useCallback(
-    (imageBase64: string, imageUri: string) => {
+    (imageBase64: string, imageUri: string, question?: string) => {
       // Cancel any in-flight request
       abortRef.current?.abort();
       const abort = new AbortController();
@@ -320,7 +321,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             signal:  abort.signal,
-            body:    JSON.stringify({ image: imageBase64, mimeType: "image/jpeg" }),
+            body:    JSON.stringify({
+              image:    imageBase64,
+              mimeType: "image/jpeg",
+              // When a spoken question is provided, override the default analysis prompt
+              ...(question ? { prompt: question } : {}),
+            }),
           });
 
           if (abort.signal.aborted) return;

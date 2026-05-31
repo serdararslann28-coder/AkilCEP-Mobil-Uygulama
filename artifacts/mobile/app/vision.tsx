@@ -2,20 +2,28 @@
  * VisionScreen — AKILCEP Vision Mode.
  *
  * Full-screen camera. Always dark. Never follows global theme.
- * Top:    ← AKILCEP VİZYON  ●  CANLI   [↺]
- * Center: detection frame — appears only when shutter fires (simulated lock)
- * Bottom: Analiz Et  |  Shutter  |  Sor
  *
- * Camera facing flips with a smooth card-flip animation (scaleX).
+ * "Analiz Et" — silently captures + sends to Gemini → chat.
+ * "Sor"       — records voice → Whisper STT → captures + sends image
+ *               + spoken question to Gemini → chat.
+ *
+ * Sor flow:
+ *   tap (idle)     → mic starts  → state: "listening"
+ *   tap (listening) → mic stops  → Whisper → state: "analyzing"
+ *                                → capture photo → Gemini Vision
+ *                                → router.replace("/chat")
  */
-import { Feather } from "@expo/vector-icons";
+import { Audio }        from "expo-av";
+import { BlurView }     from "expo-blur";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as Haptics from "expo-haptics";
+import * as FileSystem  from "expo-file-system";
+import * as Haptics     from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { Feather }      from "@expo/vector-icons";
+import { router }       from "expo-router";
+import { StatusBar }    from "expo-status-bar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useChat } from "@/context/ChatContext";
+import { useChat }      from "@/context/ChatContext";
 import {
   Alert,
   Dimensions,
@@ -54,6 +62,28 @@ const CORNER_W = 1.8;
 const CORNER_R = 6;
 const BRACKET_CLR = "rgba(255,255,255,0.92)";
 
+// API base — same pattern as ChatContext
+function getApiBase(): string {
+  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+  return domain ? `https://${domain}/api` : "/api";
+}
+
+// Fallback: blob → base64 string (strips data-url prefix)
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const r = reader.result;
+      if (typeof r === "string") resolve(r.split(",")[1] ?? "");
+      else reject(new Error("FileReader result was not a string"));
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+type AskState = "idle" | "listening" | "analyzing";
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function VisionScreen() {
   const insets = useSafeAreaInsets();
@@ -62,21 +92,34 @@ export default function VisionScreen() {
 
   const { startVisionAnalysis } = useChat();
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef       = useRef<CameraView>(null);
+  const askRecordingRef = useRef<Audio.Recording | null>(null);
 
   // Camera facing — persists for session lifetime
-  const [facing, setFacing] = useState<"back" | "front">("back");
+  const [facing,   setFacing]   = useState<"back" | "front">("back");
+  const [askState, setAskState] = useState<AskState>("idle");
 
   const permLoading = permission === null;
   const permGranted = permission?.granted === true;
   const permAskable = !permGranted && (permission?.canAskAgain ?? true);
 
-  // Auto-request on mount
+  // Auto-request camera permission on mount
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       void requestPermission();
     }
   }, [permission?.status]);
+
+  // Cleanup: stop any in-flight recording if user leaves the screen
+  useEffect(() => {
+    return () => {
+      const rec = askRecordingRef.current;
+      if (rec) {
+        askRecordingRef.current = null;
+        rec.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, []);
 
   // ── Entrance animations ──────────────────────────────────────────────────────
   const topOp  = useSharedValue(0);
@@ -105,10 +148,7 @@ export default function VisionScreen() {
   const handleFlip = useCallback(() => {
     if (!permGranted) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
     const next: "back" | "front" = facing === "back" ? "front" : "back";
-
-    // Fold → switch → unfold
     flipScaleX.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.ease) }, (done) => {
       if (done) {
         runOnJS(doSetFacing)(next);
@@ -132,18 +172,16 @@ export default function VisionScreen() {
     );
   }, []);
 
-  // ── Detection frame (shown on shutter/analyze) ───────────────────────────────
+  // ── Detection frame (shown on shutter/analyze/ask press) ────────────────────
   const frameOp      = useSharedValue(0);
   const frameBracket = useSharedValue(0);
 
   const triggerDetection = useCallback(() => {
-    // Frame fades in quickly, then lingers, then fades out
     frameOp.value = withSequence(
       withTiming(1, { duration: 120 }),
-      withTiming(1, { duration: 900 }),  // hold
+      withTiming(1, { duration: 900 }),
       withTiming(0, { duration: 500, easing: Easing.out(Easing.ease) }),
     );
-    // Brackets flash in with a pulse
     frameBracket.value = withSequence(
       withTiming(1,    { duration: 80  }),
       withTiming(0.55, { duration: 200 }),
@@ -158,6 +196,12 @@ export default function VisionScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleBack = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Stop any active recording before leaving
+    const rec = askRecordingRef.current;
+    if (rec) {
+      askRecordingRef.current = null;
+      rec.stopAndUnloadAsync().catch(() => {});
+    }
     router.back();
   }, []);
 
@@ -195,7 +239,6 @@ export default function VisionScreen() {
       }
 
       startVisionAnalysis(photo.base64, photo.uri);
-      // Replace vision in stack → chat shows photo + analysis result
       router.replace("/chat");
 
     } catch (err: unknown) {
@@ -204,16 +247,125 @@ export default function VisionScreen() {
     }
   }, [permGranted, startVisionAnalysis, triggerFlash, triggerDetection]);
 
-  const handleAsk = useCallback(() => {
-    Haptics.selectionAsync();
-  }, []);
+  // ── "Sor" — voice question pipeline ─────────────────────────────────────────
+  const handleAsk = useCallback(async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Sesli Soru", "Bu özellik yalnızca mobil cihazlarda çalışır.");
+      return;
+    }
+
+    // Debounce: ignore taps while processing
+    if (askState === "analyzing") return;
+
+    // ── Phase 2: tap again to stop and process ─────────────────────────────────
+    if (askState === "listening") {
+      const rec = askRecordingRef.current;
+      askRecordingRef.current = null;
+      setAskState("analyzing");
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      try {
+        // 1. Stop mic
+        await rec?.stopAndUnloadAsync();
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+        const audioUri = rec?.getURI();
+
+        // 2. Transcribe via Whisper
+        let question = "";
+        if (audioUri) {
+          let audioBase64: string;
+          try {
+            audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          } catch {
+            const resp = await fetch(audioUri);
+            const blob = await resp.blob();
+            audioBase64 = await blobToBase64(blob);
+          }
+
+          try {
+            const tRes = await fetch(`${getApiBase()}/openai/transcribe`, {
+              method:  "POST",
+              headers: { "Content-Type": "application/json" },
+              body:    JSON.stringify({ audio: audioBase64 }),
+            });
+            if (tRes.ok) {
+              const d = await tRes.json() as { text?: string };
+              question = d.text?.trim() ?? "";
+            }
+          } catch (err) {
+            // Transcription failed — proceed with image-only analysis
+            console.warn("[vision ask] transcription failed:", err);
+          }
+        }
+
+        // 3. Capture photo
+        if (!cameraRef.current) { setAskState("idle"); return; }
+
+        triggerFlash();
+        triggerDetection();
+
+        const photo = await cameraRef.current.takePictureAsync({
+          base64:         true,
+          quality:        0.70,
+          skipProcessing: Platform.OS === "android",
+        });
+
+        if (!photo?.base64) {
+          Alert.alert("Fotoğraf Hatası", "Fotoğraf çekilemedi. Tekrar deneyin.");
+          setAskState("idle");
+          return;
+        }
+
+        // 4. Send image + spoken question to Gemini, navigate to chat
+        // Format question so Gemini responds concisely in Turkish
+        const formattedQuestion = question
+          ? `Bu fotoğrafı incele ve şu soruyu Türkçe, kısaca (2-3 cümle) yanıtla: ${question}`
+          : undefined;
+
+        startVisionAnalysis(photo.base64, photo.uri, formattedQuestion);
+        router.replace("/chat");
+
+      } catch (err: unknown) {
+        console.warn("[vision ask] processing error:", err);
+        setAskState("idle");
+        Alert.alert("Sesli Soru Hatası", "İşlem tamamlanamadı. Tekrar deneyin.");
+      }
+      return;
+    }
+
+    // ── Phase 1: start mic recording ───────────────────────────────────────────
+    if (!permGranted) {
+      Alert.alert("Kamera İzni", "Sesli soru için kamera iznine de ihtiyaç var.");
+      return;
+    }
+
+    const { granted: micGranted } = await Audio.requestPermissionsAsync();
+    if (!micGranted) {
+      Alert.alert("Mikrofon İzni", "Sesli soru için mikrofon iznine ihtiyaç var.");
+      return;
+    }
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      );
+      askRecordingRef.current = recording;
+      setAskState("listening");
+    } catch {
+      Alert.alert("Mikrofon Hatası", "Ses kaydı başlatılamadı. Tekrar deneyin.");
+    }
+  }, [askState, permGranted, triggerFlash, triggerDetection, startVisionAnalysis]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <View style={ss.root}>
       <StatusBar hidden />
 
-      {/* ── Full-screen camera with flip animation wrapper ────────────────── */}
+      {/* Full-screen camera with flip animation wrapper */}
       <Animated.View style={[StyleSheet.absoluteFill, camFlipStyle]}>
         {permGranted ? (
           <CameraView
@@ -227,7 +379,7 @@ export default function VisionScreen() {
         )}
       </Animated.View>
 
-      {/* ── Subtle readability gradients ─────────────────────────────────── */}
+      {/* Subtle readability gradients */}
       <LinearGradient
         colors={["rgba(0,0,0,0.46)", "rgba(0,0,0,0.0)"]}
         style={ss.gradTop}
@@ -239,12 +391,9 @@ export default function VisionScreen() {
         pointerEvents="none"
       />
 
-      {/* ── Detection frame — appears on shutter/analyze press ───────────── */}
+      {/* Detection frame — appears on shutter/analyze/ask */}
       <View style={ss.frameWrap} pointerEvents="none">
-        {/* Frame outline */}
         <Animated.View style={[ss.frameOutline, frameStyle]} />
-
-        {/* Corner brackets — brighter than outline, double-flash on lock */}
         <Animated.View style={[ss.bracketContainer, bracketStyle]}>
           <View style={[ss.bracket, ss.bTL]} />
           <View style={[ss.bracket, ss.bTR]} />
@@ -253,15 +402,23 @@ export default function VisionScreen() {
         </Animated.View>
       </View>
 
-      {/* ── Capture flash ──────────────────────────────────────────────────── */}
+      {/* Capture flash */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.flash, flashStyle]}
         pointerEvents="none"
       />
 
-      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      {/* Ask overlay — shown while listening or analyzing */}
+      {askState !== "idle" && (
+        <AskOverlay
+          state={askState}
+          btmPad={btmPad}
+          onStop={() => void handleAsk()}
+        />
+      )}
+
+      {/* Top bar */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 6 }, topStyle]}>
-        {/* Back */}
         <TouchableOpacity
           style={ss.topIconBtn}
           onPress={handleBack}
@@ -271,7 +428,6 @@ export default function VisionScreen() {
           <Feather name="chevron-left" size={20} color="rgba(255,255,255,0.90)" />
         </TouchableOpacity>
 
-        {/* Title + live indicator */}
         <View style={ss.topCenter} pointerEvents="none">
           <Text style={ss.topTitle}>AKILCEP VİZYON</Text>
           {permGranted && (
@@ -287,7 +443,6 @@ export default function VisionScreen() {
           )}
         </View>
 
-        {/* Flip camera */}
         <TouchableOpacity
           style={ss.topIconBtn}
           onPress={handleFlip}
@@ -303,7 +458,7 @@ export default function VisionScreen() {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* ── Permission card ──────────────────────────────────────────────────── */}
+      {/* Permission card */}
       {!permGranted && !permLoading && (
         <View style={ss.permArea} pointerEvents="box-none">
           <View style={ss.permCard}>
@@ -338,7 +493,7 @@ export default function VisionScreen() {
         </View>
       )}
 
-      {/* ── Bottom dock — Analiz Et | Shutter | Sor ─────────────────────────── */}
+      {/* Bottom dock — Analiz Et | Shutter | Sor */}
       <Animated.View
         style={[ss.dock, { paddingBottom: btmPad + 20 }, dockStyle]}
         pointerEvents="box-none"
@@ -349,8 +504,9 @@ export default function VisionScreen() {
           onPress={() => void handleAnalyze()}
           hitSlop={10}
           activeOpacity={0.65}
+          disabled={askState !== "idle"}
         >
-          <View style={ss.sideBtnIcon}>
+          <View style={[ss.sideBtnIcon, askState !== "idle" && ss.sideBtnDimmed]}>
             <Feather name="zap" size={19} color="rgba(255,255,255,0.85)" />
           </View>
           <Text style={ss.sideBtnLabel}>Analiz Et</Text>
@@ -361,28 +517,211 @@ export default function VisionScreen() {
           style={ss.shutterWrap}
           onPress={handleCapture}
           activeOpacity={0.82}
+          disabled={askState !== "idle"}
         >
-          <View style={ss.shutterOuter}>
+          <View style={[ss.shutterOuter, askState !== "idle" && ss.shutterDimmed]}>
             <View style={[
               ss.shutterInner,
               !permGranted && { opacity: 0.28 },
+              askState !== "idle" && { opacity: 0.28 },
             ]} />
           </View>
         </TouchableOpacity>
 
-        {/* Sor */}
+        {/* Sor — mic icon, state-aware */}
         <TouchableOpacity
           style={ss.sideBtn}
-          onPress={handleAsk}
+          onPress={() => void handleAsk()}
           hitSlop={10}
           activeOpacity={0.65}
         >
-          <View style={ss.sideBtnIcon}>
-            <Feather name="mic" size={19} color="rgba(255,255,255,0.85)" />
-          </View>
-          <Text style={ss.sideBtnLabel}>Sor</Text>
+          <AskButton state={askState} />
+          <Text style={[
+            ss.sideBtnLabel,
+            askState === "listening" && { color: "rgba(255,100,100,0.90)" },
+          ]}>
+            {askState === "listening" ? "Durdur" : askState === "analyzing" ? "Analiz" : "Sor"}
+          </Text>
         </TouchableOpacity>
       </Animated.View>
+    </View>
+  );
+}
+
+// ─── AskButton ─────────────────────────────────────────────────────────────────
+// "Sor" dock icon — pulsing red ring when listening, spinner when analyzing.
+function AskButton({ state }: { state: AskState }) {
+  const pulse = useSharedValue(1);
+  const op    = useSharedValue(0.85);
+
+  useEffect(() => {
+    if (state === "listening") {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1.30, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.0,  { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      );
+      op.value = withRepeat(
+        withSequence(
+          withTiming(0.55, { duration: 700 }),
+          withTiming(0.85, { duration: 700 }),
+        ),
+        -1, false,
+      );
+    } else {
+      pulse.value = withTiming(1,    { duration: 200 });
+      op.value    = withTiming(0.85, { duration: 200 });
+    }
+  }, [state]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    opacity:   op.value,
+  }));
+
+  const isListening = state === "listening";
+  const isAnalyzing = state === "analyzing";
+
+  return (
+    <View style={ss.askBtnWrap}>
+      {/* Pulsing outer ring while listening */}
+      {isListening && (
+        <Animated.View style={[ss.askRing, ringStyle]} />
+      )}
+      <View style={[
+        ss.sideBtnIcon,
+        isListening && ss.sideBtnRed,
+        isAnalyzing && ss.sideBtnDimmed,
+      ]}>
+        {isAnalyzing ? (
+          <AnalyzingDots />
+        ) : (
+          <Feather
+            name="mic"
+            size={19}
+            color={isListening ? "rgba(255,120,120,0.95)" : "rgba(255,255,255,0.85)"}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── AnalyzingDots ─────────────────────────────────────────────────────────────
+// Three-dot pulsing indicator used inside the ask button while analyzing.
+function AnalyzingDots() {
+  const dots = [useSharedValue(0.25), useSharedValue(0.25), useSharedValue(0.25)];
+  const delays = [0, 160, 320];
+
+  useEffect(() => {
+    dots.forEach((sv, i) => {
+      sv.value = withDelay(delays[i]!, withRepeat(
+        withSequence(
+          withTiming(1,    { duration: 480, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.25, { duration: 480, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      ));
+    });
+  }, []);
+
+  return (
+    <View style={{ flexDirection: "row", gap: 3, alignItems: "center" }}>
+      {dots.map((sv, i) => (
+        <Animated.View
+          key={i}
+          style={[ss.analyzesDot, useAnimatedStyle(() => ({ opacity: sv.value }))]}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── AskOverlay ────────────────────────────────────────────────────────────────
+// Frosted glass pill floating above the dock — shows mic state + stop hint.
+function AskOverlay({
+  state,
+  btmPad,
+  onStop,
+}: {
+  state:   AskState;
+  btmPad:  number;
+  onStop:  () => void;
+}) {
+  const opAnim = useSharedValue(0);
+
+  useEffect(() => {
+    opAnim.value = withTiming(1, { duration: 260 });
+    return () => { opAnim.value = withTiming(0, { duration: 180 }); };
+  }, []);
+
+  const containerStyle = useAnimatedStyle(() => ({ opacity: opAnim.value }));
+
+  // Position just above the dock row
+  const bottom = btmPad + 20 + 78 + 12 + 28; // dock padding + shutter height + gap + label
+
+  return (
+    <Animated.View style={[ss.overlayWrap, { bottom }, containerStyle]} pointerEvents="box-none">
+      <BlurView intensity={22} tint="dark" style={ss.overlayPill}>
+        {state === "listening" ? (
+          <>
+            <MicRipple />
+            <Text style={ss.overlayText}>Dinleniyor…</Text>
+            <TouchableOpacity
+              style={ss.overlayStop}
+              onPress={onStop}
+              activeOpacity={0.70}
+            >
+              <Text style={ss.overlayStopText}>Gönder</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <View style={ss.overlaySpinWrap}>
+              <AnalyzingDots />
+            </View>
+            <Text style={ss.overlayText}>Analiz ediliyor…</Text>
+          </>
+        )}
+      </BlurView>
+    </Animated.View>
+  );
+}
+
+// ─── MicRipple ────────────────────────────────────────────────────────────────
+// Small pulsing red dot indicating active mic in the overlay.
+function MicRipple() {
+  const scale = useSharedValue(1);
+  const op    = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: 750, easing: Easing.out(Easing.ease) }),
+        withTiming(1.0, { duration: 0   }),
+      ),
+      -1, false,
+    );
+    op.value = withRepeat(
+      withSequence(
+        withTiming(0,   { duration: 750, easing: Easing.out(Easing.ease) }),
+        withTiming(1.0, { duration: 0   }),
+      ),
+      -1, false,
+    );
+  }, []);
+
+  const rippleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity:   op.value,
+  }));
+
+  return (
+    <View style={ss.micRippleWrap}>
+      <Animated.View style={[ss.micRipple, rippleStyle]} />
+      <View style={ss.micDot} />
     </View>
   );
 }
@@ -412,7 +751,6 @@ const ss = StyleSheet.create({
     backgroundColor: "#000",
   },
 
-  // Camera — absoluteFill + cover-scale
   camera: {
     ...StyleSheet.absoluteFillObject,
     transform: [{ scale: COVER_SCALE }],
@@ -423,7 +761,6 @@ const ss = StyleSheet.create({
     backgroundColor: "#0a0a0c",
   },
 
-  // Subtle gradients for text readability
   gradTop: {
     position: "absolute",
     top: 0, left: 0, right: 0,
@@ -435,20 +772,16 @@ const ss = StyleSheet.create({
     height:   SH * 0.28,
   },
 
-  // Capture flash
   flash: {
     backgroundColor: "#fff",
   },
 
   // ── Detection frame ─────────────────────────────────────────────────────────
-  // Centers the frame box in the screen
   frameWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems:     "center",
     justifyContent: "center",
   },
-
-  // Thin outline
   frameOutline: {
     position:     "absolute",
     width:        FRAME_W,
@@ -457,99 +790,66 @@ const ss = StyleSheet.create({
     borderWidth:  1,
     borderColor:  "rgba(255,255,255,0.85)",
   },
-
-  // Container for corner brackets, same size as frame
   bracketContainer: {
     position: "absolute",
     width:    FRAME_W,
     height:   FRAME_H,
   },
-
   bracket: {
     position:    "absolute",
     width:       CORNER_L,
     height:      CORNER_L,
     borderColor: BRACKET_CLR,
-    borderWidth: 0, // each side set individually below
+    borderWidth: 0,
   },
-
-  bTL: {
-    top: 0, left: 0,
-    borderTopWidth:      CORNER_W,
-    borderLeftWidth:     CORNER_W,
-    borderTopLeftRadius: CORNER_R,
-  },
-  bTR: {
-    top: 0, right: 0,
-    borderTopWidth:       CORNER_W,
-    borderRightWidth:     CORNER_W,
-    borderTopRightRadius: CORNER_R,
-  },
-  bBL: {
-    bottom: 0, left: 0,
-    borderBottomWidth:     CORNER_W,
-    borderLeftWidth:       CORNER_W,
-    borderBottomLeftRadius: CORNER_R,
-  },
-  bBR: {
-    bottom: 0, right: 0,
-    borderBottomWidth:      CORNER_W,
-    borderRightWidth:       CORNER_W,
-    borderBottomRightRadius: CORNER_R,
-  },
+  bTL: { top: 0, left: 0,   borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W,   borderTopLeftRadius:     CORNER_R },
+  bTR: { top: 0, right: 0,  borderTopWidth: CORNER_W, borderRightWidth: CORNER_W,  borderTopRightRadius:    CORNER_R },
+  bBL: { bottom: 0, left: 0,  borderBottomWidth: CORNER_W, borderLeftWidth: CORNER_W,  borderBottomLeftRadius:  CORNER_R },
+  bBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_W, borderRightWidth: CORNER_W, borderBottomRightRadius: CORNER_R },
 
   // ── Top bar ─────────────────────────────────────────────────────────────────
   topBar: {
     position:          "absolute",
-    top:               0,
-    left:              0,
-    right:             0,
+    top: 0, left: 0, right: 0,
     flexDirection:     "row",
     alignItems:        "center",
     paddingHorizontal: 8,
     paddingBottom:     12,
   },
-
   topIconBtn: {
-    width:           42,
-    height:          42,
-    alignItems:      "center",
-    justifyContent:  "center",
-  },
-
-  topCenter: {
-    flex:           1,
+    width:          42,
+    height:         42,
     alignItems:     "center",
-    gap:            4,
+    justifyContent: "center",
   },
-
+  topCenter: {
+    flex:       1,
+    alignItems: "center",
+    gap:        4,
+  },
   topTitle: {
     fontSize:      11,
     fontFamily:    "Inter_600SemiBold",
     color:         "rgba(255,255,255,0.88)",
     letterSpacing: 2.0,
   },
-
   liveRow: {
     flexDirection: "row",
     alignItems:    "center",
     gap:           5,
   },
-
   liveDot: {
     width:           5,
     height:          5,
     borderRadius:    2.5,
     backgroundColor: "#4CD964",
   },
-
   liveText: {
     fontSize:      9,
     fontFamily:    "Inter_600SemiBold",
     color:         "rgba(255,255,255,0.70)",
     letterSpacing: 1.4,
   },
-
   waitText: {
     fontSize:      9,
     fontFamily:    "Inter_400Regular",
@@ -560,21 +860,17 @@ const ss = StyleSheet.create({
   // ── Bottom dock ─────────────────────────────────────────────────────────────
   dock: {
     position:          "absolute",
-    bottom:            0,
-    left:              0,
-    right:             0,
+    bottom: 0, left: 0, right: 0,
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
     paddingHorizontal: 32,
   },
-
   sideBtn: {
     width:      72,
     alignItems: "center",
     gap:        8,
   },
-
   sideBtnIcon: {
     width:           44,
     height:          44,
@@ -585,7 +881,13 @@ const ss = StyleSheet.create({
     borderWidth:     StyleSheet.hairlineWidth,
     borderColor:     "rgba(255,255,255,0.15)",
   },
-
+  sideBtnDimmed: {
+    opacity: 0.30,
+  },
+  sideBtnRed: {
+    backgroundColor: "rgba(255,70,70,0.18)",
+    borderColor:     "rgba(255,100,100,0.30)",
+  },
   sideBtnLabel: {
     fontSize:      11,
     fontFamily:    "Inter_500Medium",
@@ -593,11 +895,33 @@ const ss = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
+  // Ask button wrapper (holds pulsing ring)
+  askBtnWrap: {
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  askRing: {
+    position:     "absolute",
+    width:        44,
+    height:       44,
+    borderRadius: 22,
+    borderWidth:  1.5,
+    borderColor:  "rgba(255,100,100,0.60)",
+  },
+
+  // Analyzing dots inside ask button
+  analyzesDot: {
+    width:           5,
+    height:          5,
+    borderRadius:    2.5,
+    backgroundColor: "rgba(255,255,255,0.88)",
+  },
+
+  // Shutter
   shutterWrap: {
     alignItems:     "center",
     justifyContent: "center",
   },
-
   shutterOuter: {
     width:          78,
     height:         78,
@@ -607,12 +931,77 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-
+  shutterDimmed: {
+    borderColor: "rgba(255,255,255,0.28)",
+  },
   shutterInner: {
     width:           62,
     height:          62,
     borderRadius:    31,
     backgroundColor: "rgba(255,255,255,0.92)",
+  },
+
+  // ── Ask overlay ─────────────────────────────────────────────────────────────
+  overlayWrap: {
+    position:       "absolute",
+    left:           0,
+    right:          0,
+    alignItems:     "center",
+  },
+  overlayPill: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               10,
+    paddingHorizontal: 20,
+    paddingVertical:   13,
+    borderRadius:      28,
+    overflow:          "hidden",
+    borderWidth:       StyleSheet.hairlineWidth,
+    borderColor:       "rgba(255,255,255,0.12)",
+  },
+  overlayText: {
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    color:         "rgba(255,255,255,0.88)",
+    letterSpacing: -0.1,
+  },
+  overlayStop: {
+    paddingHorizontal: 12,
+    paddingVertical:   5,
+    backgroundColor:   "rgba(255,255,255,0.14)",
+    borderRadius:      12,
+  },
+  overlayStopText: {
+    fontSize:      12,
+    fontFamily:    "Inter_600SemiBold",
+    color:         "rgba(255,255,255,0.80)",
+    letterSpacing: 0.2,
+  },
+  overlaySpinWrap: {
+    width:          18,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+
+  // Mic ripple in overlay
+  micRippleWrap: {
+    width:          18,
+    height:         18,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  micRipple: {
+    position:        "absolute",
+    width:           18,
+    height:          18,
+    borderRadius:    9,
+    backgroundColor: "rgba(255,80,80,0.45)",
+  },
+  micDot: {
+    width:           8,
+    height:          8,
+    borderRadius:    4,
+    backgroundColor: "#FF5252",
   },
 
   // ── Permission card ─────────────────────────────────────────────────────────
@@ -621,7 +1010,6 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-
   permCard: {
     width:             260,
     alignItems:        "center",
@@ -632,7 +1020,6 @@ const ss = StyleSheet.create({
     borderWidth:       StyleSheet.hairlineWidth,
     borderColor:       "rgba(255,255,255,0.10)",
   },
-
   permTitle: {
     fontSize:      16,
     fontFamily:    "Inter_600SemiBold",
@@ -641,7 +1028,6 @@ const ss = StyleSheet.create({
     textAlign:     "center",
     marginBottom:  8,
   },
-
   permSub: {
     fontSize:      13,
     fontFamily:    "Inter_400Regular",
@@ -650,7 +1036,6 @@ const ss = StyleSheet.create({
     textAlign:     "center",
     marginBottom:  22,
   },
-
   permBtn: {
     paddingHorizontal: 24,
     paddingVertical:   10,
@@ -659,7 +1044,6 @@ const ss = StyleSheet.create({
     borderWidth:       StyleSheet.hairlineWidth,
     borderColor:       "rgba(255,255,255,0.18)",
   },
-
   permBtnText: {
     fontSize:      14,
     fontFamily:    "Inter_500Medium",
