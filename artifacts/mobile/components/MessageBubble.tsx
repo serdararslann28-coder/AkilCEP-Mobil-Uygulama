@@ -150,18 +150,90 @@ function SpeakBtn({ text }: { text: string }) {
   );
 }
 
+// ─── Generated image card ──────────────────────────────────────────────────────
+// Shown inside AI message bubbles when imageData is present.
+function GeneratedImageCard({ imageData, caption }: { imageData: string; caption: string }) {
+  const { theme: T } = useTheme();
+  const [revealed, setRevealed] = useState(false);
+
+  const imgOp = useSharedValue(0);
+  const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value }));
+
+  return (
+    <View style={ss.imgCardWrap}>
+      {/* Skeleton shimmer while image loads */}
+      {!revealed && (
+        <View style={[ss.imgSkeleton, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)" }]}>
+          <ImageShimmer />
+        </View>
+      )}
+
+      <Animated.View style={[ss.imgReveal, imgStyle]}>
+        <Image
+          source={{ uri: imageData }}
+          style={ss.imgCard}
+          resizeMode="cover"
+          onLoad={() => {
+            setRevealed(true);
+            imgOp.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) });
+          }}
+        />
+      </Animated.View>
+
+      {/* Caption — revised prompt, dimmed */}
+      {caption ? (
+        <Text
+          style={[
+            ss.imgCaption,
+            { color: T.isDark ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.38)" },
+          ]}
+          numberOfLines={3}
+        >
+          {caption}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// ─── Shimmer skeleton while image is loading ───────────────────────────────────
+function ImageShimmer() {
+  const shimmer = useSharedValue(0);
+  useEffect(() => {
+    shimmer.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+  const shimStyle = useAnimatedStyle(() => ({ opacity: 0.28 + shimmer.value * 0.28 }));
+  return (
+    <Animated.View
+      style={[StyleSheet.absoluteFill, { backgroundColor: "#fff", borderRadius: 16 }, shimStyle]}
+    />
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function MessageBubble({ message, isLatest }: Props) {
   const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
-  // Typewriter for latest AI message
-  const [shown, setShown] = useState(isLatest && !isUser ? "" : message.content);
-  const idxR  = useRef(0);
-  const tmrR  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // For image messages, skip typewriter — show text immediately
+  const hasGeneratedImage = !isUser && !!message.imageData;
+
+  // Typewriter for latest AI text-only message
+  const [shown, setShown] = useState(
+    (isLatest && !isUser && !hasGeneratedImage) ? "" : message.content
+  );
+  const idxR = useRef(0);
+  const tmrR = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!isLatest || isUser) { setShown(message.content); return; }
+    if (!isLatest || isUser || hasGeneratedImage) { setShown(message.content); return; }
     idxR.current = 0;
     setShown("");
     const tick = () => {
@@ -175,7 +247,7 @@ export default function MessageBubble({ message, isLatest }: Props) {
     };
     tmrR.current = setTimeout(tick, 60);
     return () => { if (tmrR.current) clearTimeout(tmrR.current); };
-  }, [message.content, isLatest, isUser]);
+  }, [message.content, isLatest, isUser, hasGeneratedImage]);
 
   // Timestamp fade
   const tsOp   = useSharedValue(0);
@@ -215,7 +287,7 @@ export default function MessageBubble({ message, isLatest }: Props) {
     );
   }
 
-  // ── AI RESPONSE — no container ─────────────────────────────────────────────
+  // ── AI RESPONSE ─────────────────────────────────────────────────────────────
   const textClr = T.isDark ? "rgba(235,235,235,0.90)" : "#3A3A3C";
 
   return (
@@ -223,8 +295,16 @@ export default function MessageBubble({ message, isLatest }: Props) {
       entering={FadeInDown.duration(340).springify().damping(18)}
       style={ss.aiWrap}
     >
-      {/* Editorial text — no wrapping view, no background */}
-      <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
+      {/* Generated image card — shown instead of/before text */}
+      {message.imageData ? (
+        <GeneratedImageCard
+          imageData={message.imageData}
+          caption={message.content}
+        />
+      ) : (
+        /* Editorial text — no wrapping view, no background */
+        <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
+      )}
 
       {/* Action row */}
       <View style={ss.actionRow}>
@@ -232,9 +312,9 @@ export default function MessageBubble({ message, isLatest }: Props) {
           icon="copy"
           onPress={() => Clipboard.setStringAsync(message.content)}
         />
-        <ActionBtn icon="thumbs-up"   />
-        <ActionBtn icon="thumbs-down" />
-        <SpeakBtn  text={message.content} />
+        {!message.imageData && <ActionBtn icon="thumbs-up"   />}
+        {!message.imageData && <ActionBtn icon="thumbs-down" />}
+        {!message.imageData && <SpeakBtn  text={message.content} />}
         <ActionBtn icon="share-2" />
 
         <Animated.Text style={[ss.aiTs, { color: T.zinc }, tsAnim]}>
@@ -264,6 +344,35 @@ const ss = StyleSheet.create({
     shadowOpacity:           0.07,
     shadowRadius:            10,
   },
+  // Generated image card (AI message)
+  imgCardWrap: {
+    marginBottom: 10,
+    width:        "100%",
+  },
+  imgSkeleton: {
+    width:        "100%",
+    aspectRatio:  1,
+    borderRadius: 16,
+    overflow:     "hidden",
+  },
+  imgReveal: {
+    width:        "100%",
+    borderRadius: 16,
+    overflow:     "hidden",
+  },
+  imgCard: {
+    width:       "100%",
+    aspectRatio: 1,
+  },
+  imgCaption: {
+    marginTop:     8,
+    fontSize:      12,
+    fontFamily:    "Inter_400Regular",
+    lineHeight:    18,
+    letterSpacing: -0.1,
+    fontStyle:     "italic",
+  },
+
   // Photo message bubble — image thumbnail above caption
   photoBubble: {
     maxWidth:                "72%",

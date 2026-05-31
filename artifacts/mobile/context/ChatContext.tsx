@@ -13,7 +13,30 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
-  imageUri?: string;  // local photo URI for camera-captured messages
+  imageUri?:  string;  // local photo URI for camera-captured messages
+  imageData?: string;  // generated image as base64 data URI (data:image/png;base64,...)
+}
+
+// ── Image generation detection ────────────────────────────────────────────────
+// Returns true when the user's message is asking to generate/create/draw an image.
+// Conservative heuristic: requires both a creation verb AND a visual noun.
+function isImageRequest(text: string): boolean {
+  const t = text.toLowerCase().trim();
+
+  const generationVerbs = [
+    "oluştur", "üret", "yarat", "çiz", "tasarla", "çizdir",
+    "generate", "create", "draw", "design", "make",
+  ];
+  const imageNouns = [
+    "resim", "görsel", "fotoğraf", "görüntü", "çizim", "illüstrasyon",
+    "poster", "logo", "banner", "sanat", "tablo",
+    "image", "picture", "photo", "illustration", "painting", "artwork",
+    "manzara", "sahne", "arka plan", "landscape", "background",
+  ];
+
+  const hasVerb = generationVerbs.some((v) => t.includes(v));
+  const hasNoun = imageNouns.some((n) => t.includes(n));
+  return hasVerb && hasNoun;
 }
 
 export interface Conversation {
@@ -47,6 +70,8 @@ interface ChatContextType {
   isTyping:             boolean;
   /** True while Gemini Vision is processing a captured photo. */
   visionPending:        boolean;
+  /** True while an AI image is being generated (DALL-E / future provider). */
+  imagePending:         boolean;
   selectedModel:        string;
   setSelectedModel:     (model: string) => void;
   sendMessage:          (content: string) => void;
@@ -70,6 +95,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isTyping,            setIsTyping]            = useState(false);
   const [visionPending,       setVisionPending]       = useState(false);
+  const [imagePending,        setImagePending]        = useState(false);
   const [selectedModel,       setSelectedModel]       = useState("gemini-2.5-flash");
 
   // Abort controller for in-flight Gemini requests
@@ -200,6 +226,85 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       void (async () => {
         try {
+          // ── Image generation fast-path ────────────────────────────────────────
+          if (isImageRequest(content.trim())) {
+            setImagePending(true);
+            let aiMsg: Message;
+
+            try {
+              const imgRes = await fetch(`${getApiBase()}/image/generate`, {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                signal:  abort.signal,
+                body:    JSON.stringify({ prompt: content.trim() }),
+              });
+
+              if (abort.signal.aborted) return;
+
+              if (imgRes.status === 429) {
+                aiMsg = {
+                  id:        generateId(),
+                  role:      "assistant",
+                  content:   "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
+                  timestamp: Date.now(),
+                };
+              } else if (!imgRes.ok) {
+                aiMsg = {
+                  id:        generateId(),
+                  role:      "assistant",
+                  content:   "Görsel oluşturulamadı. Lütfen tekrar deneyin.",
+                  timestamp: Date.now(),
+                };
+              } else {
+                const d = await imgRes.json() as {
+                  imageData?:     string;
+                  revisedPrompt?: string;
+                  error?:         string;
+                };
+
+                if (d.imageData) {
+                  aiMsg = {
+                    id:           generateId(),
+                    role:         "assistant",
+                    content:      d.revisedPrompt ?? "Görsel oluşturuldu.",
+                    timestamp:    Date.now(),
+                    imageData:    d.imageData,
+                  };
+                } else {
+                  aiMsg = {
+                    id:        generateId(),
+                    role:      "assistant",
+                    content:   d.error === "rate_limited"
+                      ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                      : (d.error ?? "Görsel oluşturulamadı."),
+                    timestamp: Date.now(),
+                  };
+                }
+              }
+            } catch (imgErr: unknown) {
+              if ((imgErr as { name?: string })?.name === "AbortError") return;
+              aiMsg = {
+                id:        generateId(),
+                role:      "assistant",
+                content:   "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+                timestamp: Date.now(),
+              };
+            }
+
+            if (abort.signal.aborted) return;
+
+            const imgFinalConv: Conversation = {
+              ...updatedConv,
+              messages: [...updatedConv.messages, aiMsg],
+            };
+            setIsTyping(false);
+            setImagePending(false);
+            persistConversation(imgFinalConv);
+            if (abortRef.current === abort) abortRef.current = null;
+            return; // Skip regular Gemini chat flow
+          }
+
+          // ── Regular Gemini chat ───────────────────────────────────────────────
           const res = await fetch(`${getApiBase()}/gemini/chat`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
@@ -460,6 +565,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         currentConversation,
         isTyping,
         visionPending,
+        imagePending,
         selectedModel,
         setSelectedModel,
         sendMessage,

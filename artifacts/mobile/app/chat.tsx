@@ -69,6 +69,7 @@ export default function ChatScreen() {
     currentMessages,
     isTyping,
     visionPending,
+    imagePending,
     sendMessage,
     injectMessages,
     startNewConversation,
@@ -656,7 +657,11 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={ss.msgList}
           ListHeaderComponent={isTyping ? (
-            <TypingIndicator label={visionPending ? "Fotoğraf analiz ediliyor…" : undefined} />
+            <TypingIndicator label={
+              imagePending   ? "Görsel oluşturuluyor…"      :
+              visionPending  ? "Fotoğraf analiz ediliyor…"  :
+              undefined
+            } />
           ) : null}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
