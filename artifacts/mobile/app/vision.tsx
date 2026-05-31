@@ -217,6 +217,17 @@ export default function VisionScreen() {
         }),
       });
 
+      // Guard against non-JSON responses (e.g. 413 Payload Too Large returns HTML)
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        const statusText =
+          res.status === 413
+            ? "Fotoğraf çok büyük. Daha düşük kalitede tekrar deneyin."
+            : `Sunucu hatası (${res.status}). Lütfen tekrar deneyin.`;
+        Alert.alert("Analiz Hatası", statusText);
+        return;
+      }
+
       const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
 
       if (!res.ok || !data.ok || !data.analysis) {
