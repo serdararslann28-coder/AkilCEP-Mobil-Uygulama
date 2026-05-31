@@ -195,7 +195,8 @@ export default function VisionScreen() {
       }
 
       startVisionAnalysis(photo.base64, photo.uri);
-      router.back();
+      // Replace vision in stack → chat shows photo + analysis result
+      router.replace("/chat");
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata.";
