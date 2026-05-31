@@ -24,44 +24,35 @@ export interface Conversation {
 }
 
 export const AI_MODELS = [
-  { id: "gpt-4o",         name: "GPT-4o",      badge: "En güçlü" },
-  { id: "gpt-4-turbo",    name: "GPT-4 Turbo", badge: "Hızlı"    },
-  { id: "gpt-3.5-turbo",  name: "GPT-3.5",     badge: "Ekonomik" },
-  { id: "claude-3-opus",  name: "Claude 3",    badge: "Analitik" },
-];
-
-const AI_RESPONSES = [
-  "Elbette, bu konuda size yardımcı olmaktan mutluluk duyarım. Sorunuzu daha iyi anlamak için biraz daha detay verebilir misiniz?",
-  "Harika bir soru! Bu konuyu birkaç farklı perspektiften ele alabiliriz. İlk olarak temel kavramları inceleyelim.",
-  "Bu ilginç bir konu. Size adım adım açıklayayım: Öncelikle temel prensipleri anlamak önemli.",
-  "Tabii ki! İşte bu konuda bilmeniz gereken en önemli noktalar:\n\n1. Temel kavramları kavramak\n2. Pratik uygulamalar\n3. İleri düzey konular\n\nHerhangi bir konuyu daha detaylı açıklamamı ister misiniz?",
-  "Anlıyorum. Bu durumda size en doğru yaklaşımı önermek isterim. Genellikle bu tür sorunlar birkaç farklı yöntemle çözülebilir.",
-  "Mükemmel bir bakış açısı! Araştırmalar gösteriyor ki bu yaklaşım gerçekten etkili sonuçlar veriyor. Sizinle bu konuyu daha derinlemesine inceleyebiliriz.",
-  "Kesinlikle! Bu konuda düşünceleriniz çok değerli. İzninizle birkaç önemli noktanın altını çizmek istiyorum.",
-  "Bu soruya yanıt vermek için birkaç faktörü göz önünde bulundurmamız gerekiyor. Bağlamınıza göre size özel bir öneri sunabilirim.",
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", badge: "Hızlı"    },
+  { id: "gemini-2.5-pro",   name: "Gemini 2.5 Pro",   badge: "En güçlü" },
 ];
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 }
 
-function getAIResponse(): string {
-  return AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)]!;
+// Resolve API base — works both in dev (proxied) and production
+function getApiBase(): string {
+  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+  if (domain) return `https://${domain}/api`;
+  // Fallback for local dev without EXPO_PUBLIC_DOMAIN
+  return "/api";
 }
 
 interface ChatContextType {
-  conversations:       Conversation[];
-  currentConversation: Conversation | null;
-  isTyping:            boolean;
-  selectedModel:       string;
-  setSelectedModel:    (model: string) => void;
-  sendMessage:         (content: string) => void;
-  /** Inject a real voice exchange (user + AI) directly — no fake delay. */
-  injectMessages:      (userText: string, aiText: string) => void;
+  conversations:        Conversation[];
+  currentConversation:  Conversation | null;
+  isTyping:             boolean;
+  selectedModel:        string;
+  setSelectedModel:     (model: string) => void;
+  sendMessage:          (content: string) => void;
+  /** Inject a real voice exchange (user + AI) directly — no API call. */
+  injectMessages:       (userText: string, aiText: string) => void;
   startNewConversation: () => void;
-  loadConversation:    (id: string) => void;
-  deleteConversation:  (id: string) => void;
-  currentMessages:     Message[];
+  loadConversation:     (id: string) => void;
+  deleteConversation:   (id: string) => void;
+  currentMessages:      Message[];
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -72,11 +63,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [conversations,       setConversations]       = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isTyping,            setIsTyping]            = useState(false);
-  const [selectedModel,       setSelectedModel]       = useState("gpt-4o");
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedModel,       setSelectedModel]       = useState("gemini-2.5-flash");
+
+  // Abort controller for in-flight Gemini requests
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    loadConversations();
+    void loadConversations();
+  }, []);
+
+  // Cleanup on unmount — cancel any pending request
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   const loadConversations = async () => {
@@ -96,6 +96,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   };
 
   const startNewConversation = useCallback(() => {
+    // Cancel any in-flight request when starting fresh
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsTyping(false);
+
     const newConv: Conversation = {
       id:        generateId(),
       title:     "Yeni Sohbet",
@@ -118,15 +123,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       const updated = conversations.filter((c) => c.id !== id);
       setConversations(updated);
-      saveConversations(updated);
+      void saveConversations(updated);
       if (currentConversation?.id === id) setCurrentConversation(null);
     },
     [conversations, currentConversation]
   );
 
+  const persistConversation = useCallback(
+    (finalConv: Conversation) => {
+      setCurrentConversation(finalConv);
+      setConversations((prev) => {
+        const exists  = prev.find((c) => c.id === finalConv.id);
+        const updated = exists
+          ? prev.map((c) => (c.id === finalConv.id ? finalConv : c))
+          : [finalConv, ...prev];
+        void saveConversations(updated);
+        return updated;
+      });
+    },
+    []
+  );
+
   const sendMessage = useCallback(
     (content: string) => {
       if (!content.trim()) return;
+
+      // Cancel previous in-flight request
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
 
       const userMsg: Message = {
         id:        generateId(),
@@ -135,72 +160,118 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         timestamp: Date.now(),
       };
 
+      // Build or continue conversation
       let conv = currentConversation;
       if (!conv) {
         conv = {
           id:        generateId(),
-          title:     content.trim().slice(0, 40) + (content.trim().length > 40 ? "..." : ""),
+          title:     content.trim().slice(0, 40) + (content.trim().length > 40 ? "…" : ""),
           messages:  [],
           createdAt: Date.now(),
           model:     selectedModel,
         };
       }
 
+      // Previous messages become the history sent to Gemini
+      const historyForApi = conv.messages.map((m) => ({
+        role:    m.role,
+        content: m.content,
+      }));
+
       const updatedConv: Conversation = {
         ...conv,
         messages: [...conv.messages, userMsg],
+        // Auto-title from first message
         title:
           conv.messages.length === 0
-            ? content.trim().slice(0, 40) + (content.trim().length > 40 ? "..." : "")
+            ? content.trim().slice(0, 40) + (content.trim().length > 40 ? "…" : "")
             : conv.title,
       };
 
       setCurrentConversation(updatedConv);
       setIsTyping(true);
 
-      const delay = 800 + Math.random() * 1200;
-      typingTimer.current = setTimeout(() => {
-        const aiMsg: Message = {
-          id:        generateId(),
-          role:      "assistant",
-          content:   getAIResponse(),
-          timestamp: Date.now(),
-        };
+      void (async () => {
+        try {
+          const res = await fetch(`${getApiBase()}/gemini/chat`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            signal:  abort.signal,
+            body:    JSON.stringify({
+              message: content.trim(),
+              history: historyForApi,
+            }),
+          });
 
-        const finalConv: Conversation = {
-          ...updatedConv,
-          messages: [...updatedConv.messages, aiMsg],
-        };
+          if (abort.signal.aborted) return;
 
-        setCurrentConversation(finalConv);
-        setIsTyping(false);
+          let aiText: string;
 
-        setConversations((prev) => {
-          const exists  = prev.find((c) => c.id === finalConv.id);
-          const updated = exists
-            ? prev.map((c) => (c.id === finalConv.id ? finalConv : c))
-            : [finalConv, ...prev];
-          saveConversations(updated);
-          return updated;
-        });
-      }, delay);
+          if (!res.ok) {
+            aiText = "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
+          } else {
+            const data = await res.json() as { ok: boolean; response?: string; error?: string };
+            aiText =
+              data.ok && data.response
+                ? data.response
+                : (data.error ?? "Beklenmedik bir hata oluştu.");
+          }
+
+          if (abort.signal.aborted) return;
+
+          const aiMsg: Message = {
+            id:        generateId(),
+            role:      "assistant",
+            content:   aiText,
+            timestamp: Date.now(),
+          };
+
+          const finalConv: Conversation = {
+            ...updatedConv,
+            messages: [...updatedConv.messages, aiMsg],
+          };
+
+          setIsTyping(false);
+          persistConversation(finalConv);
+
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name === "AbortError") return;
+
+          if (abort.signal.aborted) return;
+
+          const aiMsg: Message = {
+            id:        generateId(),
+            role:      "assistant",
+            content:   "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+            timestamp: Date.now(),
+          };
+
+          const finalConv: Conversation = {
+            ...updatedConv,
+            messages: [...updatedConv.messages, aiMsg],
+          };
+
+          setIsTyping(false);
+          persistConversation(finalConv);
+        } finally {
+          if (abortRef.current === abort) abortRef.current = null;
+        }
+      })();
     },
-    [currentConversation, selectedModel]
+    [currentConversation, selectedModel, persistConversation]
   );
 
   /**
    * Inject a voice exchange (Whisper user text + GPT reply) directly into
-   * the current conversation without triggering the fake typing delay.
+   * the current conversation — bypasses Gemini, no typing delay.
    */
   const injectMessages = useCallback(
     (userText: string, aiText: string) => {
       if (!userText.trim() && !aiText.trim()) return;
 
-      // Cancel any pending fake-AI timer
-      if (typingTimer.current) {
-        clearTimeout(typingTimer.current);
-        typingTimer.current = null;
-      }
+      // Cancel any in-flight text request
+      abortRef.current?.abort();
+      abortRef.current = null;
       setIsTyping(false);
 
       const now = Date.now();
@@ -220,10 +291,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setCurrentConversation((prev) => {
         const base: Conversation = prev ?? {
           id:        generateId(),
-          title:     userText.trim().slice(0, 40) + (userText.trim().length > 40 ? "..." : ""),
+          title:     userText.trim().slice(0, 40) + (userText.trim().length > 40 ? "…" : ""),
           messages:  [],
           createdAt: now,
-          model:     "gpt-4o",
+          model:     "gemini-2.5-flash",
         };
 
         const updated: Conversation = {
@@ -237,7 +308,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const next    = exists
             ? convs.map((c) => (c.id === updated.id ? updated : c))
             : [updated, ...convs];
-          saveConversations(next);
+          void saveConversations(next);
           return next;
         });
 
