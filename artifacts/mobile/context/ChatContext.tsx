@@ -70,8 +70,12 @@ interface ChatContextType {
   isTyping:             boolean;
   /** True while Gemini Vision is processing a captured photo. */
   visionPending:        boolean;
-  /** True while an AI image is being generated (DALL-E / future provider). */
+  /** True while an AI image is being generated or edited. */
   imagePending:         boolean;
+  /** Label shown in TypingIndicator while imagePending is true. */
+  imagePendingLabel:    string;
+  /** Edit an existing generated image with a new instruction. */
+  editImage:            (sourceImageData: string, instruction: string) => void;
   selectedModel:        string;
   setSelectedModel:     (model: string) => void;
   sendMessage:          (content: string) => void;
@@ -96,6 +100,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isTyping,            setIsTyping]            = useState(false);
   const [visionPending,       setVisionPending]       = useState(false);
   const [imagePending,        setImagePending]        = useState(false);
+  const [imagePendingLabel,   setImagePendingLabel]   = useState("Görsel oluşturuluyor…");
   const [selectedModel,       setSelectedModel]       = useState("gemini-2.5-flash");
 
   // Abort controller for in-flight Gemini requests
@@ -228,6 +233,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         try {
           // ── Image generation fast-path ────────────────────────────────────────
           if (isImageRequest(content.trim())) {
+            setImagePendingLabel("Görsel oluşturuluyor…");
             setImagePending(true);
             let aiMsg: Message;
 
@@ -554,6 +560,124 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  /**
+   * Edit an existing generated image.
+   * Adds user instruction message + calls /api/image/edit → injects edited image as AI message.
+   */
+  const editImage = useCallback(
+    (sourceImageData: string, instruction: string) => {
+      if (!instruction.trim()) return;
+
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
+
+      const userMsg: Message = {
+        id:        generateId(),
+        role:      "user",
+        content:   `Görseli düzenle: ${instruction.trim()}`,
+        timestamp: Date.now(),
+      };
+
+      let conv = currentConversation;
+      if (!conv) {
+        conv = {
+          id:        generateId(),
+          title:     "Görsel Düzenleme",
+          messages:  [],
+          createdAt: Date.now(),
+          model:     selectedModel,
+        };
+      }
+
+      const updatedConv: Conversation = {
+        ...conv,
+        messages: [...conv.messages, userMsg],
+      };
+
+      setCurrentConversation(updatedConv);
+      setImagePendingLabel("Görsel düzenleniyor…");
+      setImagePending(true);
+      setIsTyping(true);
+
+      // Strip data-URI prefix — only raw base64 goes over the wire
+      const rawBase64 = sourceImageData.replace(/^data:image\/\w+;base64,/, "");
+
+      void (async () => {
+        let aiMsg: Message;
+
+        try {
+          const res = await fetch(`${getApiBase()}/image/edit`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            signal:  abort.signal,
+            body:    JSON.stringify({ imageBase64: rawBase64, prompt: instruction.trim() }),
+          });
+
+          if (abort.signal.aborted) return;
+
+          if (res.status === 429) {
+            aiMsg = {
+              id:        generateId(),
+              role:      "assistant",
+              content:   "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
+              timestamp: Date.now(),
+            };
+          } else if (!res.ok) {
+            aiMsg = {
+              id:        generateId(),
+              role:      "assistant",
+              content:   "Görsel düzenlenemedi. Lütfen tekrar deneyin.",
+              timestamp: Date.now(),
+            };
+          } else {
+            const d = await res.json() as { imageData?: string; error?: string };
+
+            if (d.imageData) {
+              aiMsg = {
+                id:        generateId(),
+                role:      "assistant",
+                content:   instruction.trim(),
+                timestamp: Date.now(),
+                imageData: d.imageData,
+              };
+            } else {
+              aiMsg = {
+                id:        generateId(),
+                role:      "assistant",
+                content:   d.error === "rate_limited"
+                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  : "Görsel düzenlenemedi. Lütfen tekrar deneyin.",
+                timestamp: Date.now(),
+              };
+            }
+          }
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name === "AbortError") return;
+
+          aiMsg = {
+            id:        generateId(),
+            role:      "assistant",
+            content:   "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+            timestamp: Date.now(),
+          };
+        }
+
+        if (abort.signal.aborted) return;
+
+        setIsTyping(false);
+        setImagePending(false);
+        persistConversation({
+          ...updatedConv,
+          messages: [...updatedConv.messages, aiMsg!],
+        });
+
+        if (abortRef.current === abort) abortRef.current = null;
+      })();
+    },
+    [currentConversation, selectedModel, persistConversation]
+  );
+
   const currentMessages = currentConversation
     ? [...currentConversation.messages].reverse()
     : [];
@@ -566,6 +690,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         isTyping,
         visionPending,
         imagePending,
+        imagePendingLabel,
+        editImage,
         selectedModel,
         setSelectedModel,
         sendMessage,

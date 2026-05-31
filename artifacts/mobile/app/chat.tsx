@@ -70,6 +70,8 @@ export default function ChatScreen() {
     isTyping,
     visionPending,
     imagePending,
+    imagePendingLabel,
+    editImage,
     sendMessage,
     injectMessages,
     startNewConversation,
@@ -651,6 +653,7 @@ export default function ChatScreen() {
             <MessageBubble
               message={item}
               isLatest={index === 0 && item.role === "assistant"}
+              onEditImage={(imageData, instruction) => editImage(imageData, instruction)}
             />
           )}
           inverted
@@ -658,8 +661,8 @@ export default function ChatScreen() {
           contentContainerStyle={ss.msgList}
           ListHeaderComponent={isTyping ? (
             <TypingIndicator label={
-              imagePending   ? "Görsel oluşturuluyor…"      :
-              visionPending  ? "Fotoğraf analiz ediliyor…"  :
+              imagePending  ? imagePendingLabel            :
+              visionPending ? "Fotoğraf analiz ediliyor…"  :
               undefined
             } />
           ) : null}

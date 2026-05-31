@@ -10,7 +10,19 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   FadeInDown,
@@ -26,8 +38,9 @@ import { Message } from "@/context/ChatContext";
 import { useTheme } from "@/context/ThemeContext";
 
 interface Props {
-  message:   Message;
-  isLatest?: boolean;
+  message:       Message;
+  isLatest?:     boolean;
+  onEditImage?:  (imageData: string, instruction: string) => void;
 }
 
 function fmt(ts: number) {
@@ -150,14 +163,59 @@ function SpeakBtn({ text }: { text: string }) {
   );
 }
 
+// ─── Edit instruction hints ─────────────────────────────────────────────────────
+const EDIT_HINTS = [
+  "Siyah yap",
+  "Arka planı beyaz yap",
+  "Daha gerçekçi yap",
+  "Altın detaylar ekle",
+  "Karikatür stiline çevir",
+  "Aydınlat",
+  "Arka planı kaldır",
+];
+
 // ─── Generated image card ──────────────────────────────────────────────────────
 // Shown inside AI message bubbles when imageData is present.
-function GeneratedImageCard({ imageData, caption }: { imageData: string; caption: string }) {
+function GeneratedImageCard({
+  imageData,
+  caption,
+  onEdit,
+}: {
+  imageData: string;
+  caption:   string;
+  onEdit?:   (instruction: string) => void;
+}) {
   const { theme: T } = useTheme();
-  const [revealed, setRevealed] = useState(false);
+  const [revealed,     setRevealed]     = useState(false);
+  const [editVisible,  setEditVisible]  = useState(false);
+  const [instruction,  setInstruction]  = useState("");
 
-  const imgOp = useSharedValue(0);
+  const imgOp    = useSharedValue(0);
   const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value }));
+
+  const handleApply = () => {
+    if (!instruction.trim()) return;
+    setEditVisible(false);
+    onEdit?.(instruction.trim());
+    setInstruction("");
+  };
+
+  const handleCancel = () => {
+    setEditVisible(false);
+    setInstruction("");
+  };
+
+  // Colors adapted to current theme
+  const overlayBg  = "rgba(0,0,0,0.72)";
+  const cardBg     = T.isDark ? "#161616" : "#FFFFFF";
+  const labelClr   = T.isDark ? "rgba(255,255,255,0.90)" : "rgba(10,10,10,0.90)";
+  const subClr     = T.isDark ? "rgba(255,255,255,0.38)" : "rgba(10,10,10,0.38)";
+  const inputBg    = T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
+  const inputClr   = T.isDark ? "rgba(255,255,255,0.90)" : "rgba(10,10,10,0.90)";
+  const placeholdr = T.isDark ? "rgba(255,255,255,0.28)" : "rgba(10,10,10,0.28)";
+  const pillBg     = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const pillClr    = T.isDark ? "rgba(255,255,255,0.68)" : "rgba(10,10,10,0.68)";
+  const accentClr  = T.isDark ? T.accent : T.accent;
 
   return (
     <View style={ss.imgCardWrap}>
@@ -180,7 +238,7 @@ function GeneratedImageCard({ imageData, caption }: { imageData: string; caption
         />
       </Animated.View>
 
-      {/* Caption — revised prompt, dimmed */}
+      {/* Caption — dimmed */}
       {caption ? (
         <Text
           style={[
@@ -192,6 +250,97 @@ function GeneratedImageCard({ imageData, caption }: { imageData: string; caption
           {caption}
         </Text>
       ) : null}
+
+      {/* Edit button — only shown after image loads */}
+      {revealed && onEdit ? (
+        <TouchableOpacity
+          style={[ss.editBtn, { borderColor: T.isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.12)" }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setEditVisible(true);
+          }}
+          activeOpacity={0.7}
+        >
+          <Feather name="edit-2" size={11} color={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.50)"} />
+          <Text style={[ss.editBtnLabel, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.50)" }]}>
+            Düzenle
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Edit modal */}
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={handleCancel}
+      >
+        <TouchableWithoutFeedback onPress={handleCancel}>
+          <View style={[ss.editOverlay, { backgroundColor: overlayBg }]}>
+            <TouchableWithoutFeedback>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={0}
+              >
+                <View style={[ss.editCard, { backgroundColor: cardBg }]}>
+                  {/* Header */}
+                  <Text style={[ss.editTitle, { color: labelClr }]}>Görseli Düzenle</Text>
+                  <Text style={[ss.editSub, { color: subClr }]}>Ne değiştirilsin?</Text>
+
+                  {/* Text input */}
+                  <TextInput
+                    style={[ss.editInput, { backgroundColor: inputBg, color: inputClr }]}
+                    placeholder="Örn: Arka planı beyaz yap"
+                    placeholderTextColor={placeholdr}
+                    value={instruction}
+                    onChangeText={setInstruction}
+                    multiline
+                    maxLength={500}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleApply}
+                  />
+
+                  {/* Hint pills */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={ss.hintsScroll}
+                    contentContainerStyle={ss.hintsContent}
+                  >
+                    {EDIT_HINTS.map((hint) => (
+                      <TouchableOpacity
+                        key={hint}
+                        style={[ss.hintPill, { backgroundColor: pillBg }]}
+                        onPress={() => setInstruction(hint)}
+                        activeOpacity={0.65}
+                      >
+                        <Text style={[ss.hintPillText, { color: pillClr }]}>{hint}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {/* Action row */}
+                  <View style={ss.editActions}>
+                    <TouchableOpacity style={ss.editCancelBtn} onPress={handleCancel} activeOpacity={0.7}>
+                      <Text style={[ss.editCancelLabel, { color: subClr }]}>İptal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[ss.editApplyBtn, { backgroundColor: accentClr, opacity: instruction.trim() ? 1 : 0.38 }]}
+                      onPress={handleApply}
+                      activeOpacity={0.8}
+                      disabled={!instruction.trim()}
+                    >
+                      <Text style={ss.editApplyLabel}>Uygula</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -218,7 +367,7 @@ function ImageShimmer() {
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export default function MessageBubble({ message, isLatest }: Props) {
+export default function MessageBubble({ message, isLatest, onEditImage }: Props) {
   const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
@@ -300,6 +449,7 @@ export default function MessageBubble({ message, isLatest }: Props) {
         <GeneratedImageCard
           imageData={message.imageData}
           caption={message.content}
+          onEdit={onEditImage ? (instr) => onEditImage(message.imageData!, instr) : undefined}
         />
       ) : (
         /* Editorial text — no wrapping view, no background */
@@ -432,5 +582,105 @@ const ss = StyleSheet.create({
     fontFamily:    "Inter_400Regular",
     marginTop:     5,
     letterSpacing: 0.1,
+  },
+
+  // ── Edit button below image card ──────────────────────────────────────────
+  editBtn: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    alignSelf:      "flex-start",
+    marginTop:      8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius:   20,
+    borderWidth:    1,
+    gap:            5,
+  },
+  editBtnLabel: {
+    fontSize:   11,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.2,
+  },
+
+  // ── Edit modal ─────────────────────────────────────────────────────────────
+  editOverlay: {
+    flex:            1,
+    justifyContent:  "center",
+    alignItems:      "center",
+    paddingHorizontal: 20,
+  },
+  editCard: {
+    width:         "100%",
+    borderRadius:  24,
+    padding:       24,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 12 },
+    shadowOpacity: 0.30,
+    shadowRadius:  32,
+    elevation:     20,
+  },
+  editTitle: {
+    fontSize:      18,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.4,
+    marginBottom:  4,
+  },
+  editSub: {
+    fontSize:      13,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: -0.1,
+    marginBottom:  16,
+  },
+  editInput: {
+    borderRadius:   14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize:       15,
+    fontFamily:     "Inter_400Regular",
+    lineHeight:     22,
+    minHeight:      72,
+    textAlignVertical: "top",
+  },
+  hintsScroll: {
+    marginTop: 12,
+  },
+  hintsContent: {
+    gap:              8,
+    paddingHorizontal: 0,
+  },
+  hintPill: {
+    borderRadius:      30,
+    paddingHorizontal: 12,
+    paddingVertical:   6,
+  },
+  hintPillText: {
+    fontSize:   12,
+    fontFamily: "Inter_400Regular",
+    letterSpacing: 0.1,
+  },
+  editActions: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "flex-end",
+    marginTop:      20,
+    gap:            12,
+  },
+  editCancelBtn: {
+    paddingVertical:   10,
+    paddingHorizontal: 16,
+  },
+  editCancelLabel: {
+    fontSize:   14,
+    fontFamily: "Inter_500Medium",
+  },
+  editApplyBtn: {
+    borderRadius:      22,
+    paddingVertical:   10,
+    paddingHorizontal: 22,
+  },
+  editApplyLabel: {
+    fontSize:   14,
+    fontFamily: "Inter_600SemiBold",
+    color:      "#000",
   },
 });
