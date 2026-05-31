@@ -14,7 +14,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useChat } from "@/context/ChatContext";
 import {
+  Alert,
   Dimensions,
   Platform,
   StyleSheet,
@@ -86,14 +88,24 @@ const DOCK = [
 ] as const;
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
+// Resolve API base — same pattern as ChatContext
+function getApiBase(): string {
+  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
+  return domain ? `https://${domain}/api` : "/api";
+}
+
 export default function VisionScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
+  const { injectMessages } = useChat();
+
   const [permission, requestPermission] = useCameraPermissions();
-  const [labelIdx, setLabelIdx] = useState(0);
-  const cyclerId = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [labelIdx,   setLabelIdx]   = useState(0);
+  const [analyzing,  setAnalyzing]  = useState(false);
+  const cyclerId  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cameraRef = useRef<CameraView>(null);
 
   // Auto-request permission on mount
   useEffect(() => {
@@ -160,10 +172,78 @@ export default function VisionScreen() {
     );
   }, []);
 
+  // ── Gemini Vision: capture → encode → analyse → inject into chat ───────────
+  const handleAnalyze = useCallback(async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Kamera Analizi", "Bu özellik yalnızca mobil cihazlarda çalışır.");
+      return;
+    }
+    if (!permission?.granted) {
+      Alert.alert("Kamera İzni", "Analiz için kamera iznine ihtiyaç var.");
+      return;
+    }
+    if (!cameraRef.current) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    // Flash effect to signal capture
+    flashOp.value = withSequence(
+      withTiming(0.45, { duration: 55 }),
+      withTiming(0,    { duration: 340, easing: Easing.out(Easing.ease) }),
+    );
+
+    setAnalyzing(true);
+
+    try {
+      // 1. Capture photo as base64
+      const photo = await cameraRef.current.takePictureAsync({
+        base64:          true,
+        quality:         0.70,
+        skipProcessing:  Platform.OS === "android",
+      });
+
+      if (!photo?.base64) {
+        Alert.alert("Fotoğraf Hatası", "Fotoğraf çekilemedi. Tekrar deneyin.");
+        return;
+      }
+
+      // 2. Send to Gemini Vision API
+      const res = await fetch(`${getApiBase()}/gemini/vision`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          image:    photo.base64,
+          mimeType: "image/jpeg",
+        }),
+      });
+
+      const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
+
+      if (!res.ok || !data.ok || !data.analysis) {
+        Alert.alert(
+          "Analiz Hatası",
+          data.error ?? "Gemini yanıt vermedi. Lütfen tekrar deneyin.",
+        );
+        return;
+      }
+
+      // 3. Inject user + AI messages into chat then navigate back
+      injectMessages("Bu fotoğrafı analiz et.", data.analysis);
+      router.back();
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Bilinmeyen hata.";
+      Alert.alert("Bağlantı Hatası", `Sunucuya ulaşılamadı.\n\n${msg}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [permission?.granted, injectMessages, flashOp]);
+
   const handleDock = useCallback((id: string) => {
     if (id === "capture") { handleCapture(); return; }
+    if (id === "analyze") { void handleAnalyze(); return; }
     Haptics.selectionAsync();
-  }, [handleCapture]);
+  }, [handleCapture, handleAnalyze]);
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -183,6 +263,7 @@ export default function VisionScreen() {
       {/* ── LAYER 1: Camera (absoluteFill + cover-scale, no wrapper) ───────── */}
       {permGranted ? (
         <CameraView
+          ref={cameraRef}
           style={ss.camera}
           facing="back"
           animateShutter={false}
@@ -202,6 +283,17 @@ export default function VisionScreen() {
         style={[StyleSheet.absoluteFill, ss.flash, flashStyle]}
         pointerEvents="none"
       />
+
+      {/* ── LAYER 3b: Gemini Vision analysis overlay ─────────────────────────── */}
+      {analyzing && (
+        <View style={ss.analyzeOverlay} pointerEvents="box-none">
+          <BlurView intensity={28} tint="dark" style={ss.analyzeCard}>
+            <AnalyzingSpinner />
+            <Text style={ss.analyzeTitle}>Analiz ediliyor</Text>
+            <Text style={ss.analyzeSub}>Gemini görüntüyü inceliyor…</Text>
+          </BlurView>
+        </View>
+      )}
 
       {/* ── LAYER 4: Top bar ────────────────────────────────────────────────── */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 10 }, topStyle]}>
@@ -502,6 +594,39 @@ function AnalysisLabel({ text }: { text: string }) {
   );
 }
 
+// ─── AnalyzingSpinner ─────────────────────────────────────────────────────────
+// Three-dot pulsing indicator shown during Gemini Vision analysis.
+function AnalyzingSpinner() {
+  const dots = [useSharedValue(0.25), useSharedValue(0.25), useSharedValue(0.25)];
+  const DELAYS = [0, 220, 440];
+
+  useEffect(() => {
+    dots.forEach((sv, i) => {
+      sv.value = withDelay(
+        DELAYS[i]!,
+        withRepeat(
+          withSequence(
+            withTiming(1,    { duration: 520, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.25, { duration: 520, easing: Easing.inOut(Easing.ease) }),
+          ),
+          -1, false,
+        ),
+      );
+    });
+  }, []);
+
+  return (
+    <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
+      {dots.map((sv, i) => (
+        <Animated.View
+          key={i}
+          style={[ss.spinDot, useAnimatedStyle(() => ({ opacity: sv.value }))]}
+        />
+      ))}
+    </View>
+  );
+}
+
 // ─── LiveDot ──────────────────────────────────────────────────────────────────
 function LiveDot() {
   const op = useSharedValue(1);
@@ -532,6 +657,45 @@ const ss = StyleSheet.create({
   root: {
     flex:            1,
     backgroundColor: "#060608",
+  },
+
+  // ── Gemini Vision analysis overlay
+  analyzeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex:          80,
+    alignItems:      "center",
+    justifyContent:  "center",
+    backgroundColor: "rgba(4,4,8,0.55)",
+  },
+  analyzeCard: {
+    alignItems:        "center",
+    paddingHorizontal: 40,
+    paddingVertical:   32,
+    borderRadius:      24,
+    overflow:          "hidden",
+    borderWidth:       StyleSheet.hairlineWidth,
+    borderColor:       "rgba(255,255,255,0.10)",
+  },
+  analyzeTitle: {
+    fontSize:      16,
+    fontFamily:    "Inter_600SemiBold",
+    color:         "rgba(255,255,255,0.90)",
+    letterSpacing: -0.3,
+    marginBottom:  6,
+  },
+  analyzeSub: {
+    fontSize:      12,
+    fontFamily:    "Inter_400Regular",
+    color:         "rgba(255,255,255,0.42)",
+    letterSpacing: 0.1,
+  },
+
+  // ── Analyzing spinner dots
+  spinDot: {
+    width:           7,
+    height:          7,
+    borderRadius:    4,
+    backgroundColor: "rgba(255,255,255,0.88)",
   },
 
   // ── Camera — absoluteFill + cover-scale (screen edge clips overflow)
