@@ -213,14 +213,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           let aiText: string;
 
-          if (!res.ok) {
+          if (res.status === 429) {
+            // Rate-limit: technical details stay in server logs
+            aiText = "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
+          } else if (!res.ok) {
             aiText = "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
           } else {
             const data = await res.json() as { ok: boolean; response?: string; error?: string };
             aiText =
               data.ok && data.response
                 ? data.response
-                : (data.error ?? "Beklenmedik bir hata oluştu.");
+                : data.error === "rate_limited"
+                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  : (data.error ?? "Beklenmedik bir hata oluştu.");
           }
 
           if (abort.signal.aborted) return;
@@ -321,16 +326,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (abort.signal.aborted) return;
 
           let aiText: string;
-          const ct = res.headers.get("content-type") ?? "";
-          if (!ct.includes("application/json")) {
-            aiText = res.status === 413
-              ? "Fotoğraf çok büyük. Daha düşük kalitede tekrar deneyin."
-              : `Sunucu hatası (${res.status}). Lütfen tekrar deneyin.`;
+
+          if (res.status === 429) {
+            // Rate-limit: server already retried 3×; technical details stay in logs
+            aiText = "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
           } else {
-            const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
-            aiText = data.ok && data.analysis
-              ? data.analysis
-              : (data.error ?? "Analiz tamamlanamadı. Tekrar deneyin.");
+            const ct = res.headers.get("content-type") ?? "";
+            if (!ct.includes("application/json")) {
+              aiText = res.status === 413
+                ? "Fotoğraf çok büyük. Daha düşük kalitede tekrar deneyin."
+                : `Sunucu hatası (${res.status}). Lütfen tekrar deneyin.`;
+            } else {
+              const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
+              aiText = data.ok && data.analysis
+                ? data.analysis
+                : data.error === "rate_limited"
+                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  : (data.error ?? "Analiz tamamlanamadı. Tekrar deneyin.");
+            }
           }
 
           if (abort.signal.aborted) return;
