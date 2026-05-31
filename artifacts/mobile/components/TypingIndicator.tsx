@@ -3,7 +3,7 @@
  * Matches the AI editorial text position (same left padding).
  */
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -34,7 +34,7 @@ function usePulse(delay: number): SharedValue<number> {
   return op;
 }
 
-export default function TypingIndicator() {
+export default function TypingIndicator({ label }: { label?: string }) {
   const { theme: T } = useTheme();
 
   const d1 = usePulse(0);
@@ -46,23 +46,37 @@ export default function TypingIndicator() {
   const s3 = useAnimatedStyle(() => ({ opacity: d3.value }));
 
   const dotClr = T.isDark ? "rgba(255,255,255,0.55)" : "rgba(40,40,40,0.40)";
+  const lblClr = T.isDark ? "rgba(255,255,255,0.38)" : "rgba(40,40,40,0.38)";
 
   return (
     <View style={ss.wrap}>
-      <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s1]} />
-      <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s2]} />
-      <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s3]} />
+      {label ? (
+        <Text style={[ss.label, { color: lblClr }]}>{label}</Text>
+      ) : null}
+      <View style={ss.dotsRow}>
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s1]} />
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s2]} />
+        <Animated.View style={[ss.dot, { backgroundColor: dotClr }, s3]} />
+      </View>
     </View>
   );
 }
 
 const ss = StyleSheet.create({
   wrap: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    gap:               7,
-    paddingHorizontal: 24,   // matches aiWrap padding
+    paddingHorizontal: 24,
     marginBottom:      24,
+  },
+  label: {
+    fontSize:      12,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: 0.1,
+    marginBottom:  8,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           7,
   },
   dot: {
     width:        7,

@@ -88,22 +88,15 @@ const DOCK = [
 ] as const;
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
-// Resolve API base — same pattern as ChatContext
-function getApiBase(): string {
-  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
-  return domain ? `https://${domain}/api` : "/api";
-}
-
 export default function VisionScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
-  const { injectMessages } = useChat();
+  const { startVisionAnalysis } = useChat();
 
   const [permission, requestPermission] = useCameraPermissions();
-  const [labelIdx,   setLabelIdx]   = useState(0);
-  const [analyzing,  setAnalyzing]  = useState(false);
+  const [labelIdx, setLabelIdx] = useState(0);
   const cyclerId  = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraRef = useRef<CameraView>(null);
 
@@ -172,7 +165,7 @@ export default function VisionScreen() {
     );
   }, []);
 
-  // ── Gemini Vision: capture → encode → analyse → inject into chat ───────────
+  // ── Gemini Vision: capture → hand off to ChatContext → navigate to chat ────
   const handleAnalyze = useCallback(async () => {
     if (Platform.OS === "web") {
       Alert.alert("Kamera Analizi", "Bu özellik yalnızca mobil cihazlarda çalışır.");
@@ -192,14 +185,12 @@ export default function VisionScreen() {
       withTiming(0,    { duration: 340, easing: Easing.out(Easing.ease) }),
     );
 
-    setAnalyzing(true);
-
     try {
-      // 1. Capture photo as base64
+      // 1. Capture photo — need both base64 (for API) and uri (for thumbnail)
       const photo = await cameraRef.current.takePictureAsync({
-        base64:          true,
-        quality:         0.70,
-        skipProcessing:  Platform.OS === "android",
+        base64:         true,
+        quality:        0.70,
+        skipProcessing: Platform.OS === "android",
       });
 
       if (!photo?.base64) {
@@ -207,48 +198,17 @@ export default function VisionScreen() {
         return;
       }
 
-      // 2. Send to Gemini Vision API
-      const res = await fetch(`${getApiBase()}/gemini/vision`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          image:    photo.base64,
-          mimeType: "image/jpeg",
-        }),
-      });
+      // 2. Hand off to ChatContext — injects photo message + fires API in background
+      startVisionAnalysis(photo.base64, photo.uri);
 
-      // Guard against non-JSON responses (e.g. 413 Payload Too Large returns HTML)
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        const statusText =
-          res.status === 413
-            ? "Fotoğraf çok büyük. Daha düşük kalitede tekrar deneyin."
-            : `Sunucu hatası (${res.status}). Lütfen tekrar deneyin.`;
-        Alert.alert("Analiz Hatası", statusText);
-        return;
-      }
-
-      const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
-
-      if (!res.ok || !data.ok || !data.analysis) {
-        Alert.alert(
-          "Analiz Hatası",
-          data.error ?? "Gemini yanıt vermedi. Lütfen tekrar deneyin.",
-        );
-        return;
-      }
-
-      // 3. Inject user + AI messages into chat then navigate back
-      injectMessages("Bu fotoğrafı analiz et.", data.analysis);
+      // 3. Navigate immediately — chat shows "Fotoğraf analiz ediliyor…" indicator
       router.back();
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Bilinmeyen hata.";
-      Alert.alert("Bağlantı Hatası", `Sunucuya ulaşılamadı.\n\n${msg}`);
-    } finally {
-      setAnalyzing(false);
+      Alert.alert("Fotoğraf Hatası", `Fotoğraf çekilemedi.\n\n${msg}`);
     }
-  }, [permission?.granted, injectMessages, flashOp]);
+  }, [permission?.granted, startVisionAnalysis, flashOp]);
 
   const handleDock = useCallback((id: string) => {
     if (id === "capture") { handleCapture(); return; }
@@ -295,16 +255,6 @@ export default function VisionScreen() {
         pointerEvents="none"
       />
 
-      {/* ── LAYER 3b: Gemini Vision analysis overlay ─────────────────────────── */}
-      {analyzing && (
-        <View style={ss.analyzeOverlay} pointerEvents="box-none">
-          <BlurView intensity={28} tint="dark" style={ss.analyzeCard}>
-            <AnalyzingSpinner />
-            <Text style={ss.analyzeTitle}>Analiz ediliyor</Text>
-            <Text style={ss.analyzeSub}>Gemini görüntüyü inceliyor…</Text>
-          </BlurView>
-        </View>
-      )}
 
       {/* ── LAYER 4: Top bar ────────────────────────────────────────────────── */}
       <Animated.View style={[ss.topBar, { paddingTop: topPad + 10 }, topStyle]}>

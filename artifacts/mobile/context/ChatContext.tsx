@@ -13,6 +13,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  imageUri?: string;  // local photo URI for camera-captured messages
 }
 
 export interface Conversation {
@@ -44,11 +45,15 @@ interface ChatContextType {
   conversations:        Conversation[];
   currentConversation:  Conversation | null;
   isTyping:             boolean;
+  /** True while Gemini Vision is processing a captured photo. */
+  visionPending:        boolean;
   selectedModel:        string;
   setSelectedModel:     (model: string) => void;
   sendMessage:          (content: string) => void;
   /** Inject a real voice exchange (user + AI) directly — no API call. */
   injectMessages:       (userText: string, aiText: string) => void;
+  /** Inject user photo message and call Gemini Vision in background. */
+  startVisionAnalysis:  (imageBase64: string, imageUri: string) => void;
   startNewConversation: () => void;
   loadConversation:     (id: string) => void;
   deleteConversation:   (id: string) => void;
@@ -63,6 +68,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [conversations,       setConversations]       = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isTyping,            setIsTyping]            = useState(false);
+  const [visionPending,       setVisionPending]       = useState(false);
   const [selectedModel,       setSelectedModel]       = useState("gemini-2.5-flash");
 
   // Abort controller for in-flight Gemini requests
@@ -262,6 +268,112 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * Capture a photo → inject user message with imageUri → call Gemini Vision
+   * in the background → inject AI analysis when done.
+   * Navigate to chat before calling this — loading indicator appears there.
+   */
+  const startVisionAnalysis = useCallback(
+    (imageBase64: string, imageUri: string) => {
+      // Cancel any in-flight request
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
+
+      const now = Date.now();
+      const userMsg: Message = {
+        id:        generateId(),
+        role:      "user",
+        content:   "Bu fotoğrafı analiz et.",
+        timestamp: now,
+        imageUri,
+      };
+
+      let conv = currentConversation;
+      if (!conv) {
+        conv = {
+          id:        generateId(),
+          title:     "Fotoğraf Analizi",
+          messages:  [],
+          createdAt: now,
+          model:     selectedModel,
+        };
+      }
+
+      const withUser: Conversation = {
+        ...conv,
+        title:    conv.messages.length === 0 ? "Fotoğraf Analizi" : conv.title,
+        messages: [...conv.messages, userMsg],
+      };
+
+      setCurrentConversation(withUser);
+      setIsTyping(true);
+      setVisionPending(true);
+
+      void (async () => {
+        try {
+          const res = await fetch(`${getApiBase()}/gemini/vision`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            signal:  abort.signal,
+            body:    JSON.stringify({ image: imageBase64, mimeType: "image/jpeg" }),
+          });
+
+          if (abort.signal.aborted) return;
+
+          let aiText: string;
+          const ct = res.headers.get("content-type") ?? "";
+          if (!ct.includes("application/json")) {
+            aiText = res.status === 413
+              ? "Fotoğraf çok büyük. Daha düşük kalitede tekrar deneyin."
+              : `Sunucu hatası (${res.status}). Lütfen tekrar deneyin.`;
+          } else {
+            const data = await res.json() as { ok: boolean; analysis?: string; error?: string };
+            aiText = data.ok && data.analysis
+              ? data.analysis
+              : (data.error ?? "Analiz tamamlanamadı. Tekrar deneyin.");
+          }
+
+          if (abort.signal.aborted) return;
+
+          const aiMsg: Message = {
+            id:        generateId(),
+            role:      "assistant",
+            content:   aiText,
+            timestamp: Date.now(),
+          };
+
+          setIsTyping(false);
+          setVisionPending(false);
+          persistConversation({
+            ...withUser,
+            messages: [...withUser.messages, aiMsg],
+          });
+
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name === "AbortError") return;
+          if (abort.signal.aborted) return;
+
+          const aiMsg: Message = {
+            id:        generateId(),
+            role:      "assistant",
+            content:   "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+            timestamp: Date.now(),
+          };
+          setIsTyping(false);
+          setVisionPending(false);
+          persistConversation({
+            ...withUser,
+            messages: [...withUser.messages, aiMsg],
+          });
+        } finally {
+          if (abortRef.current === abort) abortRef.current = null;
+        }
+      })();
+    },
+    [currentConversation, selectedModel, persistConversation]
+  );
+
+  /**
    * Inject a voice exchange (Whisper user text + GPT reply) directly into
    * the current conversation — bypasses Gemini, no typing delay.
    */
@@ -328,10 +440,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         conversations,
         currentConversation,
         isTyping,
+        visionPending,
         selectedModel,
         setSelectedModel,
         sendMessage,
         injectMessages,
+        startVisionAnalysis,
         startNewConversation,
         loadConversation,
         deleteConversation,

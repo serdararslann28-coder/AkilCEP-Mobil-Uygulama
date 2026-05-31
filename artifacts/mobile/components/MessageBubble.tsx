@@ -10,7 +10,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
   FadeInDown,
@@ -191,9 +191,23 @@ export default function MessageBubble({ message, isLatest }: Props) {
         entering={FadeInDown.duration(280).springify().damping(18)}
         style={ss.userWrap}
       >
-        <View style={[ss.userBubble, { backgroundColor: bg }]}>
-          <Text style={[ss.userText, { color: T.fg }]}>{message.content}</Text>
-        </View>
+        {/* Photo thumbnail — shown when message was sent from camera */}
+        {message.imageUri ? (
+          <View style={[ss.photoBubble, { backgroundColor: bg }]}>
+            <Image
+              source={{ uri: message.imageUri }}
+              style={ss.photoThumb}
+              resizeMode="cover"
+            />
+            <Text style={[ss.userText, ss.photoCaption, { color: T.fg }]}>
+              {message.content}
+            </Text>
+          </View>
+        ) : (
+          <View style={[ss.userBubble, { backgroundColor: bg }]}>
+            <Text style={[ss.userText, { color: T.fg }]}>{message.content}</Text>
+          </View>
+        )}
         <Animated.Text style={[ss.ts, { color: T.zinc, marginRight: 4 }, tsAnim]}>
           {fmt(message.timestamp)}
         </Animated.Text>
@@ -249,6 +263,27 @@ const ss = StyleSheet.create({
     shadowOffset:            { width: 0, height: 2 },
     shadowOpacity:           0.07,
     shadowRadius:            10,
+  },
+  // Photo message bubble — image thumbnail above caption
+  photoBubble: {
+    maxWidth:                "72%",
+    borderRadius:            18,
+    borderBottomRightRadius: 4,
+    overflow:                "hidden",
+    shadowColor:             "#000",
+    shadowOffset:            { width: 0, height: 2 },
+    shadowOpacity:           0.10,
+    shadowRadius:            12,
+  },
+  photoThumb: {
+    width:       "100%" as any,
+    aspectRatio: 4 / 3,
+  },
+  photoCaption: {
+    paddingHorizontal: 14,
+    paddingVertical:   10,
+    fontSize:          13,
+    opacity:           0.72,
   },
   userText: {
     fontSize:   15,
