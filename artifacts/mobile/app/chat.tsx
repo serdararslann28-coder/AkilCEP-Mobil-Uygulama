@@ -629,42 +629,33 @@ export default function ChatScreen() {
         />
       </View>
 
-      {/* ════ HEADER — invisible, icons only ════ */}
-      <View style={[ss.header, { paddingTop: topPad + 10 }]}>
+      {/* ════ FLOATING ICONS — sit directly on the screen surface ════ */}
+      {/* Left: Menu */}
+      <TouchableOpacity
+        style={[ss.floatBtn, { top: topPad + 10, left: 18 }]}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
+        hitSlop={14} activeOpacity={0.55}
+      >
+        <Feather name="menu" size={18} color={T.fgSoft} />
+      </TouchableOpacity>
 
-        {/* ── Left: Menu ── */}
-        <TouchableOpacity
-          style={ss.hBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
-          hitSlop={14} activeOpacity={0.55}
-        >
-          <Feather name="menu" size={18} color={T.fgSoft} />
-        </TouchableOpacity>
-
-        {/* ── Right: Secret Chat → New Chat crossfade ── */}
-        <TouchableOpacity
-          style={ss.hBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (hasMessages) {
-              startNewConversation();
-            } else {
-              startSecretConversation();
-            }
-          }}
-          hitSlop={14} activeOpacity={0.55}
-        >
-          {/* Lock icon — Secret Chat (visible when no messages) */}
-          <Animated.View style={lockStyle}>
-            <Feather name="lock" size={18} color={T.fgSoft} />
-          </Animated.View>
-          {/* Edit icon — New Chat (visible once conversation is active) */}
-          <Animated.View style={editStyle}>
-            <Feather name="edit-3" size={18} color={T.fgSoft} />
-          </Animated.View>
-        </TouchableOpacity>
-
-      </View>{/* end header */}
+      {/* Right: Secret Chat (lock) → New Chat (edit-3) crossfade */}
+      <TouchableOpacity
+        style={[ss.floatBtn, { top: topPad + 10, right: 18 }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (hasMessages) { startNewConversation(); }
+          else              { startSecretConversation(); }
+        }}
+        hitSlop={14} activeOpacity={0.55}
+      >
+        <Animated.View style={lockStyle}>
+          <Feather name="lock" size={18} color={T.fgSoft} />
+        </Animated.View>
+        <Animated.View style={editStyle}>
+          <Feather name="edit-3" size={18} color={T.fgSoft} />
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* ════ MESSAGES ════ */}
       <KeyboardAvoidingView style={ss.flex} behavior="padding">
@@ -691,7 +682,7 @@ export default function ChatScreen() {
           ) : null}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
-          ListFooterComponent={<View style={{ height: 12 }} />}
+          ListFooterComponent={<View style={{ height: topPad + 64 }} />}
         />
 
         {/* ════ VOICE ORB PANEL — slides in above input ════ */}
@@ -883,19 +874,14 @@ const ss = StyleSheet.create({
   },
   logoImg: { width: 300, height: 300 },
 
-  // Header — fully transparent row
-  header: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    paddingHorizontal: 18,
-    paddingBottom:     14,
-  },
-  hBtn: {
+  // Floating icon buttons — absolutely placed on the screen surface
+  floatBtn: {
+    position:       "absolute",
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
+    zIndex:         10,
   },
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
