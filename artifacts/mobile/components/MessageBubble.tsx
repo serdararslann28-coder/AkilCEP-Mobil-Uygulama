@@ -1,5 +1,5 @@
 /**
- * MessageBubble — AKILCEP premium chat bubbles.
+ * MessageBubble — AkılCEP premium chat bubbles.
  *
  * USER → floating soft-gray glass bubble
  * AI   → bare editorial text on background, NO container/card/box

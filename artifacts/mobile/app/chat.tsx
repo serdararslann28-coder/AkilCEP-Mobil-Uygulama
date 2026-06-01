@@ -1,5 +1,5 @@
 /**
- * ChatScreen — AKILCEP premium AI chat with inline Voice Mode.
+ * ChatScreen — AkılCEP premium AI chat with inline Voice Mode.
  *
  * Voice flow (expo-av → Whisper → GPT → expo-speech):
  *   idle → [mic tap] → listening → [tap / silence] → thinking
@@ -739,7 +739,7 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Smart arrow — send when typing, dark AKILCEP-branded voice orb when empty */}
+              {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
               <Animated.View style={[ss.sendWrap, sendStyle]}>
                 {/* Outer warm amber bloom — pulses in voice mode */}
                 <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
@@ -766,7 +766,7 @@ export default function ChatScreen() {
                   <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
                     <Feather name="arrow-up" size={16} color={T.primaryForeground} />
                   </Animated.View>
-                  {/* AKILCEP leaf logo — visible when input is empty (voice mode) */}
+                  {/* AkılCEP leaf logo — visible when input is empty (voice mode) */}
                   <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
                     <Image
                       source={leafOnly}

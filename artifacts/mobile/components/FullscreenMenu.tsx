@@ -35,7 +35,7 @@ const avatar   = require("@/assets/images/avatar.png");
 
 // ─── Static example data ────────────────────────────────────────────────────────
 const PINNED = [
-  { id: "pin1", title: "AKILCEP UI Tasarımı" },
+  { id: "pin1", title: "AkılCEP UI Tasarımı" },
   { id: "pin2", title: "Ses Asistanı Deneyimi" },
   { id: "pin3", title: "Premium Sistemi" },
 ];
@@ -169,7 +169,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
           {/* Logo — top-right */}
           <TouchableOpacity style={ss.logoWrap} hitSlop={10} activeOpacity={0.80}>
             <Image source={leafLogo} style={[ss.logoImg, { tintColor: T.logoTint }]} resizeMode="contain" />
-            <Text style={[ss.logoText, { color: T.fg }]}>AKILCEP</Text>
+            <Text style={[ss.logoText, { color: T.fg }]}>AkılCEP</Text>
           </TouchableOpacity>
 
         </View>

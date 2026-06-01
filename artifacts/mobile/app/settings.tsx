@@ -1,5 +1,5 @@
 /**
- * Settings — AKILCEP app settings.
+ * Settings — AkılCEP app settings.
  * Sections: Görünüm (theme), Dil, Bildirimler, Hesap, Gizlilik, Çıkış Yap.
  * Fully theme-aware: PURE / VOID.
  */

@@ -1,5 +1,5 @@
 /**
- * About — AKILCEP about screen.
+ * About — AkılCEP about screen.
  * Shows brand identity, feature list, version and copyright.
  * Fully theme-aware: PURE / VOID.
  */
@@ -28,7 +28,7 @@ const FEATURES: {
   desc:  string;
 }[] = [
   { icon: "message-circle", label: "Yapay Zeka Sohbet",  desc: "Türkçe ile sınırsız sohbet"       },
-  { icon: "camera",         label: "AKILCEP Vision",     desc: "Fotoğraf ve görsel analizi"        },
+  { icon: "camera",         label: "AkılCEP Vision",     desc: "Fotoğraf ve görsel analizi"        },
   { icon: "mic",            label: "Sesli Sohbet",       desc: "Doğal ses asistanı"               },
   { icon: "image",          label: "Görsel Üretme",      desc: "Yapay zeka ile görsel oluşturma"  },
   { icon: "globe",          label: "Web Arama",          desc: "Güncel bilgiye erişim"            },
@@ -74,7 +74,7 @@ export default function AboutScreen() {
               resizeMode="contain"
             />
           </View>
-          <Text style={[ss.heroTitle, { color: T.fg }]}>AKILCEP</Text>
+          <Text style={[ss.heroTitle, { color: T.fg }]}>AkılCEP</Text>
           <Text style={[ss.heroSub, { color: muted }]}>Cebindeki Akıl</Text>
           <Text style={[ss.heroDesc, { color: T.fgSoft }]}>
             Türkçe konuşan yapay zeka asistanı.
@@ -110,7 +110,7 @@ export default function AboutScreen() {
         <View style={ss.footer}>
           <Text style={[ss.version, { color: muted }]}>v1.0</Text>
           <View style={[ss.footerDivider, { backgroundColor: divider }]} />
-          <Text style={[ss.copyright, { color: muted }]}>© AKILCEP</Text>
+          <Text style={[ss.copyright, { color: muted }]}>© AkılCEP</Text>
         </View>
 
       </ScrollView>

@@ -1,5 +1,5 @@
 /**
- * SideMenu — Premium AKILCEP side drawer.
+ * SideMenu — Premium AkılCEP side drawer.
  *
  * Layout (sticky → scrollable → sticky):
  *   [HEADER]   logo + brand + theme/search icons
@@ -213,7 +213,7 @@ export default function SideMenu({ visible, onClose }: Props) {
                   style={[ss.brandLogo, { tintColor: T.logoTint }]}
                   resizeMode="contain"
                 />
-                <Text style={[ss.brandName, { color: T.fg }]}>AKILCEP</Text>
+                <Text style={[ss.brandName, { color: T.fg }]}>AkılCEP</Text>
               </View>
               <Text style={[ss.brandSub, { color: muted }]}>Cebindeki Akıl</Text>
             </View>

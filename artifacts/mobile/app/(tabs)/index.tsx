@@ -1,5 +1,5 @@
 /**
- * HomeScreen — premium AKILCEP AI home with integrated ambient Voice Mode.
+ * HomeScreen — premium AkılCEP AI home with integrated ambient Voice Mode.
  *
  * Voice flow (fully inline — no separate page):
  *   idle → [mic tap] → listening → [tap] → thinking
@@ -869,7 +869,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Smart arrow — send when typing, dark AKILCEP-branded voice orb when empty */}
+          {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
           <View style={ss.sendWrap}>
             {/* Outer warm amber bloom — pulses in voice mode */}
             <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
@@ -896,7 +896,7 @@ export default function HomeScreen() {
               <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
                 <Feather name="arrow-up" size={16} color={T.primaryForeground} />
               </Animated.View>
-              {/* AKILCEP leaf logo — visible when input is empty (voice mode) */}
+              {/* AkılCEP leaf logo — visible when input is empty (voice mode) */}
               <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
                 <Image
                   source={leafLogo}
@@ -1191,7 +1191,7 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-  // AKILCEP leaf logo inside voice orb
+  // AkılCEP leaf logo inside voice orb
   orbLeaf: {
     width:  18,
     height: 18,

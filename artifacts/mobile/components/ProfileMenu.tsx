@@ -129,7 +129,7 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
               <Feather name="star" size={11} color={T.isDark ? T.green : T.fgSoft} />
               <Text style={[ss.premiumBadgeText, { color: T.isDark ? T.green : T.fgSoft }]}>PREMIUM</Text>
             </View>
-            <Text style={[ss.premiumTitle, { color: T.fg }]}>AKILCEP Premium</Text>
+            <Text style={[ss.premiumTitle, { color: T.fg }]}>AkılCEP Premium</Text>
             <Text style={[ss.premiumSub,   { color: T.muted }]}>Daha güçlü yapay zeka deneyimi</Text>
             <View style={ss.featurePills}>
               {["Sınırsız Voice Mode","Gelişmiş AI Modeller","Akıllı Hafıza","PDF Analizi","Hızlı Yanıtlar"].map(f => (

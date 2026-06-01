@@ -251,7 +251,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 aiMsg = {
                   id:        generateId(),
                   role:      "assistant",
-                  content:   "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
+                  content:   "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
                   timestamp: Date.now(),
                 };
               } else if (!imgRes.ok) {
@@ -281,7 +281,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                     id:        generateId(),
                     role:      "assistant",
                     content:   d.error === "rate_limited"
-                      ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                      ? "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
                       : (d.error ?? "Görsel oluşturulamadı."),
                     timestamp: Date.now(),
                   };
@@ -327,7 +327,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           if (res.status === 429) {
             // Rate-limit: technical details stay in server logs
-            aiText = "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
+            aiText = "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
           } else if (!res.ok) {
             aiText = "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
           } else {
@@ -336,7 +336,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               data.ok && data.response
                 ? data.response
                 : data.error === "rate_limited"
-                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  ? "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
                   : (data.error ?? "Beklenmedik bir hata oluştu.");
           }
 
@@ -446,7 +446,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           if (res.status === 429) {
             // Rate-limit: server already retried 3×; technical details stay in logs
-            aiText = "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
+            aiText = "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
           } else {
             const ct = res.headers.get("content-type") ?? "";
             if (!ct.includes("application/json")) {
@@ -458,7 +458,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               aiText = data.ok && data.analysis
                 ? data.analysis
                 : data.error === "rate_limited"
-                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  ? "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
                   : (data.error ?? "Analiz tamamlanamadı. Tekrar deneyin.");
             }
           }
@@ -620,7 +620,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             aiMsg = {
               id:        generateId(),
               role:      "assistant",
-              content:   "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
+              content:   "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.",
               timestamp: Date.now(),
             };
           } else if (!res.ok) {
@@ -646,7 +646,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 id:        generateId(),
                 role:      "assistant",
                 content:   d.error === "rate_limited"
-                  ? "AKILCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
+                  ? "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
                   : "Görsel düzenlenemedi. Lütfen tekrar deneyin.",
                 timestamp: Date.now(),
               };

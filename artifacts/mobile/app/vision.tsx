@@ -1,5 +1,5 @@
 /**
- * VisionScreen — AKILCEP Vision Mode.
+ * VisionScreen — AkılCEP Vision Mode.
  *
  * Full-screen camera. Always dark. Never follows global theme.
  *
@@ -429,7 +429,7 @@ export default function VisionScreen() {
         </TouchableOpacity>
 
         <View style={ss.topCenter} pointerEvents="none">
-          <Text style={ss.topTitle}>AKILCEP VİZYON</Text>
+          <Text style={ss.topTitle}>AkılCEP Vizyon</Text>
           {permGranted && (
             <View style={ss.liveRow}>
               <LiveDot />
