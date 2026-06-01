@@ -19,19 +19,57 @@ export interface Message {
 
 // ── Image generation detection ────────────────────────────────────────────────
 // Returns true when the user's message is asking to generate/create/draw an image.
-// Conservative heuristic: requires both a creation verb AND a visual noun.
+// Two-signal heuristic: requires both a creation/delivery verb AND a visual noun.
+// Visual nouns include both explicit image words ("resim", "görsel") and common
+// describable subjects ("gül", "araba", "manzara") that imply a picture when
+// paired with a generation verb.
 function isImageRequest(text: string): boolean {
   const t = text.toLowerCase().trim();
 
-  const generationVerbs = [
-    "oluştur", "üret", "yarat", "çiz", "tasarla", "çizdir",
-    "generate", "create", "draw", "design", "make",
+  // Explicit text / code / reasoning intent — bail immediately
+  const textKeywords = [
+    "kod ", "code", "script", "program", "makale", "rapor", "özet",
+    "açıkla", "anlat", "tarif et", "hesapla", "çevir",
+    "nedir", "neden", "nasıl", "ne zaman", "kim", "kaç",
+    "what is", "how to", "explain", "summarize",
   ];
+  if (textKeywords.some((k) => t.includes(k))) return false;
+
+  // ── Creation / delivery verbs ─────────────────────────────────────────────
+  const generationVerbs = [
+    // Turkish — creation
+    "oluştur", "üret", "yarat", "çiz", "tasarla", "çizdir", "resmet",
+    // Turkish — delivery / request (common in "X'ini ver / göster")
+    "ver", "getir", "göster", "hazırla", "yap",
+    // English
+    "generate", "create", "draw", "design", "make", "show", "give",
+  ];
+
+  // ── Visual nouns ──────────────────────────────────────────────────────────
   const imageNouns = [
+    // Explicit image words
     "resim", "görsel", "fotoğraf", "görüntü", "çizim", "illüstrasyon",
-    "poster", "logo", "banner", "sanat", "tablo",
-    "image", "picture", "photo", "illustration", "painting", "artwork",
-    "manzara", "sahne", "arka plan", "landscape", "background",
+    "poster", "logo", "banner", "sanat", "tablo", "duvar kağıdı",
+    "image", "picture", "photo", "illustration", "painting", "artwork", "wallpaper",
+    // Scenes / settings
+    "manzara", "sahne", "arka plan", "peyzaj", "ortam",
+    "landscape", "background", "scene",
+    // Nature
+    "gül", "çiçek", "ağaç", "orman", "dağ", "deniz", "göl", "nehir",
+    "şelale", "çimen", "plaj", "ada", "gökyüzü", "bulut", "gün batımı",
+    "gün doğumu", "ay", "yıldız", "güneş", "kar", "yağmur",
+    // Animals
+    "köpek", "kedi", "kuş", "at", "aslan", "kaplan", "ayı", "fil",
+    "balık", "kelebek", "ejderha", "canavar",
+    // Objects / places
+    "araba", "araç", "ev", "bina", "kule", "köprü", "şehir", "köy",
+    "kale", "uzay", "gezegen", "robot",
+    // Food / fashion
+    "yemek", "pasta", "pizza", "kahve", "çay",
+    "ayakkabı", "elbise", "kıyafet", "çanta",
+    // People / characters
+    "insan", "adam", "kadın", "çocuk", "karakter", "kahraman", "ninja",
+    "astronot", "savaşçı",
   ];
 
   const hasVerb = generationVerbs.some((v) => t.includes(v));
