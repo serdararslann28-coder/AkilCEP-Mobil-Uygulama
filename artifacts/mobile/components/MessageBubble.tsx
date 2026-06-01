@@ -61,12 +61,14 @@ function ActionBtn({
 }) {
   const { theme: T } = useTheme();
 
-  const scale  = useSharedValue(1);
-  const op     = useSharedValue(active ? 0.80 : 0.40);
+  // Idle: clearly visible but not shouting. Press: full opacity snap.
+  const idleOp  = active ? 0.92 : 0.72;
+  const scale   = useSharedValue(1);
+  const op      = useSharedValue(idleOp);
 
   // sync opacity when active state changes
   useEffect(() => {
-    op.value = withTiming(active ? 0.82 : 0.40, { duration: 250 });
+    op.value = withTiming(active ? 0.92 : 0.72, { duration: 250 });
   }, [active]);
 
   const aStyle = useAnimatedStyle(() => ({
@@ -80,12 +82,13 @@ function ActionBtn({
       scale.value = withSpring(1, { damping: 14, stiffness: 200 });
     });
     op.value = withTiming(1, { duration: 80 }, () => {
-      op.value = withTiming(active ? 0.82 : 0.40, { duration: 500 });
+      op.value = withTiming(active ? 0.92 : 0.72, { duration: 500 });
     });
     onPress?.();
   };
 
-  const clr = T.isDark ? "rgba(255,255,255,0.80)" : "rgba(40,40,40,0.80)";
+  // Light: #484848 idle → near-black on press. Dark: #C8C8C8 idle → white on press.
+  const clr = T.isDark ? "#C8C8C8" : "#484848";
 
   return (
     <TouchableOpacity onPress={press} hitSlop={12} activeOpacity={1}>
@@ -102,7 +105,7 @@ function SpeakBtn({ text }: { text: string }) {
   const [speaking, setSpeaking] = useState(false);
 
   const scale = useSharedValue(1);
-  const op    = useSharedValue(0.40);
+  const op    = useSharedValue(0.72);
 
   // Gentle pulse while speaking
   useEffect(() => {
@@ -117,15 +120,15 @@ function SpeakBtn({ text }: { text: string }) {
       );
       op.value = withRepeat(
         withSequence(
-          withTiming(0.95, { duration: 550 }),
-          withTiming(0.60, { duration: 550 }),
+          withTiming(1.00, { duration: 550 }),
+          withTiming(0.65, { duration: 550 }),
         ),
         -1,
         false,
       );
     } else {
       scale.value = withSpring(1, { damping: 12, stiffness: 180 });
-      op.value    = withTiming(0.40, { duration: 300 });
+      op.value    = withTiming(0.72, { duration: 300 });
     }
   }, [speaking]);
 
@@ -154,7 +157,7 @@ function SpeakBtn({ text }: { text: string }) {
 
   const clr = speaking
     ? T.green
-    : T.isDark ? "rgba(255,255,255,0.80)" : "rgba(40,40,40,0.80)";
+    : T.isDark ? "#C8C8C8" : "#484848";
 
   return (
     <TouchableOpacity onPress={toggle} hitSlop={12} activeOpacity={1}>
