@@ -184,12 +184,10 @@ export default function ChatScreen() {
     transform: [{ scale: 1 + micGlow.value * 0.35 }],
   }));
 
-  // Arrow animated styles — pearl ivory ambient glow (matches home screen)
-  const arrowGlowOuterAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.09 + arrowGlowPulse.value * 0.13),
-  }));
-  const arrowGlowInnerAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.16 + arrowGlowPulse.value * 0.22),
+  // Arrow animated styles
+  // Gentle scale pulse — only active in voice mode, no rings
+  const voicePulseAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + voiceModeSV.value * arrowGlowPulse.value * 0.038 }],
   }));
   const arrowVoiceBgAnim = useAnimatedStyle(() => ({
     opacity: voiceModeSV.value,
@@ -740,11 +738,7 @@ export default function ChatScreen() {
               </View>
 
               {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
-              <Animated.View style={[ss.sendWrap, sendStyle]}>
-                {/* Outer warm amber bloom — pulses in voice mode */}
-                <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
-                {/* Inner glow ring */}
-                <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
+              <Animated.View style={[ss.sendWrap, sendStyle, voicePulseAnim]}>
                 {/* Dark graphite bg — voice mode */}
                 <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#161616" }, arrowVoiceBgAnim]} />
                 {/* Primary-color bg — send mode */}
@@ -966,28 +960,23 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Smart send/voice-orb button — same system as home screen
+  // Smart send/voice-orb button — 56 px single circle, no rings
   sendWrap: {
-    width: 38, height: 38,
+    width: 56, height: 56,
     alignItems:     "center",
     justifyContent: "center",
   },
-  arrowGlowOuter: {
-    position:        "absolute",
-    width:           76, height: 76, borderRadius: 38,
-    backgroundColor: "rgba(248, 245, 240, 1)",
-  },
-  arrowGlowInner: {
-    position:        "absolute",
-    width:           56, height: 56, borderRadius: 28,
-    backgroundColor: "rgba(255, 253, 250, 1)",
-  },
   sendBtnBg: {
-    position:     "absolute",
-    width:        38, height: 38, borderRadius: 19,
+    position:      "absolute",
+    width:         56, height: 56, borderRadius: 28,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius:  12,
+    elevation:     6,
   },
   sendBtnTouch: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 56, height: 56, borderRadius: 28,
     alignItems:     "center",
     justifyContent: "center",
   },
@@ -997,7 +986,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   orbLeaf: {
-    width:  18,
-    height: 18,
+    width:  22,
+    height: 22,
   },
 });

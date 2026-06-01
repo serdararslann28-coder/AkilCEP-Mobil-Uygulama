@@ -551,13 +551,9 @@ export default function HomeScreen() {
   }));
 
   // Arrow button animated styles
-  // Outer pearl-ivory haze — wide, ultra-soft ambient bloom
-  const arrowGlowOuterAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.09 + arrowGlowPulse.value * 0.13),
-  }));
-  // Inner champagne mist — tighter, slightly more visible
-  const arrowGlowInnerAnim = useAnimatedStyle(() => ({
-    opacity: voiceModeSV.value * (0.16 + arrowGlowPulse.value * 0.22),
+  // Gentle scale pulse — only active in voice mode
+  const voicePulseAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + voiceModeSV.value * arrowGlowPulse.value * 0.038 }],
   }));
   // Dark graphite bg fades in (voice mode)
   const arrowVoiceBgAnim = useAnimatedStyle(() => ({
@@ -870,11 +866,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
-          <View style={ss.sendWrap}>
-            {/* Outer warm amber bloom — pulses in voice mode */}
-            <Animated.View style={[ss.arrowGlowOuter, arrowGlowOuterAnim]} />
-            {/* Inner glow ring */}
-            <Animated.View style={[ss.arrowGlowInner, arrowGlowInnerAnim]} />
+          <Animated.View style={[ss.sendWrap, voicePulseAnim]}>
             {/* Dark graphite circle — voice mode bg */}
             <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#161616" }, arrowVoiceBgAnim]} />
             {/* Primary-color circle — send mode bg */}
@@ -906,7 +898,7 @@ export default function HomeScreen() {
                 />
               </Animated.View>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
         </View>
       </View>
@@ -1157,32 +1149,26 @@ const ss = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical:   6,
   },
-  // Smart send/voice-orb button system
+  // Smart send/voice-orb button — 56 px single circle, no rings
   sendWrap: {
-    width: 38, height: 38,
-    alignItems: "center",
+    width: 56, height: 56,
+    alignItems:     "center",
     justifyContent: "center",
-  },
-  // Concentric glow rings — absolutely behind the button
-  arrowGlowOuter: {
-    position:        "absolute",
-    width:           76, height: 76, borderRadius: 38,
-    backgroundColor: "rgba(248, 245, 240, 1)",
-  },
-  arrowGlowInner: {
-    position:        "absolute",
-    width:           56, height: 56, borderRadius: 28,
-    backgroundColor: "rgba(255, 253, 250, 1)",
   },
   // Background circles — layered, animated opacity
   sendBtnBg: {
-    position:     "absolute",
-    width:        38, height: 38, borderRadius: 19,
+    position:      "absolute",
+    width:         56, height: 56, borderRadius: 28,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius:  12,
+    elevation:     6,
   },
   // Transparent circle that receives touches
   sendBtnTouch: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems:  "center",
+    width: 56, height: 56, borderRadius: 28,
+    alignItems:     "center",
     justifyContent: "center",
   },
   // Absolutely stacked icons — only one visible at a time
@@ -1193,7 +1179,7 @@ const ss = StyleSheet.create({
   },
   // AkılCEP leaf logo inside voice orb
   orbLeaf: {
-    width:  18,
-    height: 18,
+    width:  22,
+    height: 22,
   },
 });
