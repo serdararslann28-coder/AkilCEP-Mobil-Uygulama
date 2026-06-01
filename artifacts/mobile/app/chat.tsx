@@ -904,8 +904,8 @@ const ss = StyleSheet.create({
     zIndex:         9,
   },
   floatLogo: {
-    width:  16,
-    height: 16,
+    width:  20,
+    height: 20,
   },
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
