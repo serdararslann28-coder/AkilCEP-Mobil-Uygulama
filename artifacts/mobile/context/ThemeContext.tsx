@@ -3,6 +3,7 @@
  * "Silent Intelligence" — Apple × OpenAI luxury monochrome aesthetic.
  * No colorful greens, no neon, no warm amber. Black, white, and their shadows only.
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -16,7 +17,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet } from "react-native";
+import { StyleSheet, useColorScheme } from "react-native";
 
 // ─── Token shape ──────────────────────────────────────────────────────────────
 export interface ThemeTokens {
@@ -125,15 +126,24 @@ export const VOID: ThemeTokens = {
   accent:            "rgba(255,255,255,0.075)",
 };
 
+// ─── Theme mode type ──────────────────────────────────────────────────────────
+export type ThemeMode = "light" | "dark" | "system";
+
+const STORAGE_KEY = "akilcep_theme_mode";
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 interface ThemeContextValue {
-  theme:  ThemeTokens;
-  toggle: () => void;
+  theme:        ThemeTokens;
+  themeMode:    ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
+  toggle:       () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme:  PURE,
-  toggle: () => {},
+  theme:        PURE,
+  themeMode:    "system",
+  setThemeMode: () => {},
+  toggle:       () => {},
 });
 
 export function useTheme() {
@@ -172,16 +182,37 @@ function ThemeFlash({ themeName }: FlashProps) {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeName, setThemeName] = useState<"PURE" | "VOID">("PURE");
+  const systemScheme                          = useColorScheme();
+  const [themeMode, setThemeModeState]        = useState<ThemeMode>("system");
 
-  const toggle = useCallback(() => {
-    setThemeName(n => (n === "PURE" ? "VOID" : "PURE"));
+  // Load persisted mode on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((val) => {
+        if (val === "light" || val === "dark" || val === "system") {
+          setThemeModeState(val);
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const theme = themeName === "PURE" ? PURE : VOID;
+  const setThemeMode = useCallback((mode: ThemeMode) => {
+    setThemeModeState(mode);
+    void AsyncStorage.setItem(STORAGE_KEY, mode);
+  }, []);
+
+  // Resolve actual dark/light from mode + device system preference
+  const isDark    = themeMode === "system" ? systemScheme === "dark" : themeMode === "dark";
+  const themeName = isDark ? "VOID" : "PURE";
+  const theme     = isDark ? VOID   : PURE;
+
+  // Keep toggle() for backward compatibility — cycles explicit light ↔ dark
+  const toggle = useCallback(() => {
+    setThemeMode(isDark ? "light" : "dark");
+  }, [isDark, setThemeMode]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
+    <ThemeContext.Provider value={{ theme, themeMode, setThemeMode, toggle }}>
       {children}
       <ThemeFlash themeName={themeName} />
     </ThemeContext.Provider>

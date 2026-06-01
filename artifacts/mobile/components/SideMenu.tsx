@@ -5,10 +5,11 @@
  * Bottom: large FAB "Yeni Sohbet".
  * Fully reactive to PURE (white) / VOID (dark) theme.
  */
-import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
-import React, { useEffect, useMemo } from "react";
+import { BlurView }  from "expo-blur";
+import { Feather }    from "@expo/vector-icons";
+import * as Haptics   from "expo-haptics";
+import { router }     from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -30,7 +31,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Conversation, useChat } from "@/context/ChatContext";
-import { useTheme }              from "@/context/ThemeContext";
+import { ThemeMode, useTheme }   from "@/context/ThemeContext";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 360);
@@ -123,14 +124,119 @@ function ConvRow({
   );
 }
 
+// ─── Theme picker options ──────────────────────────────────────────────────────
+const THEME_MODES: {
+  mode:  ThemeMode;
+  label: string;
+  icon:  React.ComponentProps<typeof Feather>["name"];
+}[] = [
+  { mode: "light",  label: "Açık Tema",  icon: "sun"     },
+  { mode: "dark",   label: "Koyu Tema",  icon: "moon"    },
+  { mode: "system", label: "Sistem",     icon: "monitor" },
+];
+
+// ─── Glassmorphism theme picker popup ─────────────────────────────────────────
+function ThemePickerPopup({
+  visible,
+  themeMode,
+  topOffset,
+  isDark,
+  onSelect,
+}: {
+  visible:   boolean;
+  themeMode: ThemeMode;
+  topOffset: number;
+  isDark:    boolean;
+  onSelect:  (mode: ThemeMode) => void;
+}) {
+  const scale   = useSharedValue(0.88);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      scale.value   = withSpring(1, { damping: 18, stiffness: 320, mass: 0.7 });
+      opacity.value = withTiming(1, { duration: 150 });
+    } else {
+      scale.value   = withTiming(0.88, { duration: 130, easing: Easing.in(Easing.ease) });
+      opacity.value = withTiming(0, { duration: 130 });
+    }
+  }, [visible]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity:   opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const borderClr = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const fgClr     = isDark ? "rgba(255,255,255,0.88)" : "rgba(10,10,10,0.88)";
+  const activeClr = isDark ? "#FFFFFF"                : "#000000";
+  const rowHover  = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  const divClr    = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
+
+  return (
+    <Animated.View
+      style={[ss.pickerWrap, { top: topOffset }, animStyle]}
+      pointerEvents={visible ? "box-none" : "none"}
+    >
+      {/* Glassmorphism base */}
+      <BlurView
+        intensity={75}
+        tint={isDark ? "dark" : "light"}
+        style={[StyleSheet.absoluteFill, ss.pickerBlur]}
+      />
+      {/* Border ring */}
+      <View style={[StyleSheet.absoluteFill, ss.pickerBorderRing, { borderColor: borderClr }]} />
+
+      {THEME_MODES.map((item, idx) => {
+        const active = themeMode === item.mode;
+        return (
+          <TouchableOpacity
+            key={item.mode}
+            style={[
+              ss.pickerRow,
+              idx < THEME_MODES.length - 1 && {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: divClr,
+              },
+              active && { backgroundColor: rowHover },
+            ]}
+            onPress={() => { Haptics.selectionAsync(); onSelect(item.mode); }}
+            activeOpacity={0.70}
+          >
+            <Feather
+              name={item.icon}
+              size={15}
+              color={active ? activeClr : fgClr}
+              style={{ opacity: active ? 1 : 0.52 }}
+            />
+            <Text
+              style={[
+                ss.pickerLabel,
+                {
+                  color:      active ? activeClr : fgClr,
+                  opacity:    active ? 1 : 0.68,
+                  fontFamily: active ? "Inter_600SemiBold" : "Inter_400Regular",
+                },
+              ]}
+            >
+              {item.label}
+            </Text>
+            {active && <Feather name="check" size={13} color={activeClr} />}
+          </TouchableOpacity>
+        );
+      })}
+    </Animated.View>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; }
 
 export default function SideMenu({ visible, onClose }: Props) {
-  const { theme: T }  = useTheme();
-  const insets        = useSafeAreaInsets();
-  const topPad        = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad        = Platform.OS === "web" ? 34 : insets.bottom;
+  const { theme: T, themeMode, setThemeMode } = useTheme();
+  const insets  = useSafeAreaInsets();
+  const topPad  = Platform.OS === "web" ? 20 : insets.top;
+  const btmPad  = Platform.OS === "web" ? 34 : insets.bottom;
 
   const {
     conversations,
@@ -138,6 +244,11 @@ export default function SideMenu({ visible, onClose }: Props) {
     loadConversation,
     startNewConversation,
   } = useChat();
+
+  // Theme picker state
+  const [themePicker, setThemePicker] = useState(false);
+  // Header measured height — used to position the picker popup just below the header
+  const [headerH,     setHeaderH]     = useState(88);
 
   // ── Animations ───────────────────────────────────────────────────────────────
   const translateX = useSharedValue(-MENU_W);
@@ -148,6 +259,8 @@ export default function SideMenu({ visible, onClose }: Props) {
       translateX.value = withSpring(0, { damping: 24, stiffness: 220, mass: 0.85 });
       backdropOp.value = withTiming(1, { duration: 300 });
     } else {
+      // Close picker when menu closes
+      setThemePicker(false);
       translateX.value = withTiming(-MENU_W, { duration: 240, easing: Easing.in(Easing.ease) });
       backdropOp.value = withTiming(0, { duration: 220 });
     }
@@ -219,7 +332,10 @@ export default function SideMenu({ visible, onClose }: Props) {
       >
 
         {/* ════ HEADER ════ */}
-        <View style={[ss.header, { paddingTop: topPad + 18, borderBottomColor: divider }]}>
+        <View
+          style={[ss.header, { paddingTop: topPad + 18, borderBottomColor: divider }]}
+          onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+        >
           {/* Left — branding */}
           <View style={ss.headerLeft}>
             <View style={ss.brandRow}>
@@ -233,18 +349,44 @@ export default function SideMenu({ visible, onClose }: Props) {
             <Text style={[ss.appSub, { color: sectionClr }]}>Cebindeki Akıl</Text>
           </View>
 
-          {/* Right — search + avatar */}
+          {/* Right — theme toggle + search + avatar */}
           <View style={ss.headerRight}>
+            {/* Theme switcher button */}
+            <TouchableOpacity
+              style={[
+                ss.hIconBtn,
+                { backgroundColor: themePicker ? (T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.09)") : hBtnBg },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setThemePicker((v) => !v);
+              }}
+              activeOpacity={0.65}
+              hitSlop={10}
+            >
+              <Feather
+                name={themeMode === "light" ? "sun" : themeMode === "dark" ? "moon" : "monitor"}
+                size={15}
+                color={T.fg}
+              />
+            </TouchableOpacity>
+
+            {/* Search */}
             <TouchableOpacity
               style={[ss.hIconBtn, { backgroundColor: hBtnBg }]}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              onPress={() => {
+                setThemePicker(false);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               activeOpacity={0.65}
               hitSlop={10}
             >
               <Feather name="search" size={15} color={T.fg} />
             </TouchableOpacity>
+
+            {/* Avatar → profile */}
             <TouchableOpacity
-              onPress={() => go("/profile")}
+              onPress={() => { setThemePicker(false); go("/profile"); }}
               activeOpacity={0.75}
               hitSlop={10}
             >
@@ -351,6 +493,25 @@ export default function SideMenu({ visible, onClose }: Props) {
             <Text style={[ss.fabLabel, { color: fabClr }]}>Yeni Sohbet</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ════ THEME PICKER ════ */}
+        {/* Transparent dismiss layer — sits above scroll, below popup */}
+        {themePicker && (
+          <Pressable
+            style={[StyleSheet.absoluteFill, { zIndex: 402 }]}
+            onPress={() => setThemePicker(false)}
+          />
+        )}
+        <ThemePickerPopup
+          visible={themePicker}
+          themeMode={themeMode}
+          topOffset={headerH + 4}
+          isDark={T.isDark}
+          onSelect={(mode) => {
+            setThemeMode(mode);
+            setThemePicker(false);
+          }}
+        />
 
       </Animated.View>
     </>
@@ -529,6 +690,40 @@ const ss = StyleSheet.create({
     fontFamily:    "Inter_400Regular",
     letterSpacing: -0.1,
     fontStyle:     "italic",
+  },
+
+  // ── Theme picker popup ────────────────────────────────────────────────────
+  pickerWrap: {
+    position:      "absolute",
+    right:         14,
+    width:         196,
+    borderRadius:  18,
+    overflow:      "hidden",
+    zIndex:        403,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius:  20,
+    elevation:     12,
+  },
+  pickerBlur: {
+    borderRadius: 18,
+  },
+  pickerBorderRing: {
+    borderRadius: 18,
+    borderWidth:  StyleSheet.hairlineWidth,
+  },
+  pickerRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 14,
+    paddingVertical:   13,
+    gap:               10,
+  },
+  pickerLabel: {
+    flex:          1,
+    fontSize:      14,
+    letterSpacing: -0.1,
   },
 
   // Bottom FAB
