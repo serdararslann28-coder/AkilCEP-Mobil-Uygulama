@@ -41,7 +41,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import FullscreenMenu    from "@/components/FullscreenMenu";
+import SideMenu          from "@/components/SideMenu";
 import MultimodalPanel   from "@/components/MultimodalPanel";
 import ProfileMenu       from "@/components/ProfileMenu";
 import { useChat }   from "@/context/ChatContext";
@@ -920,7 +920,7 @@ export default function HomeScreen() {
         bottomOffset={btmPad + 68}
         T={T}
       />
-      <FullscreenMenu visible={sidebar}     onClose={() => setSidebar(false)} />
+      <SideMenu visible={sidebar}     onClose={() => setSidebar(false)} />
       <ProfileMenu   visible={profileMenu}  onClose={() => setProfileMenu(false)} />
     </View>
   );

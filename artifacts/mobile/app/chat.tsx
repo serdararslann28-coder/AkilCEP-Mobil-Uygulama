@@ -44,7 +44,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import FullscreenMenu   from "@/components/FullscreenMenu";
+import SideMenu         from "@/components/SideMenu";
 import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import TypingIndicator  from "@/components/TypingIndicator";
@@ -609,7 +609,7 @@ export default function ChatScreen() {
         bottomOffset={bottomPad + 68}
         T={T}
       />
-      <FullscreenMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
+      <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
 
       {/* ════ WATERMARK LOGO ════ */}
       <View style={ss.logoFrame} pointerEvents="none">
