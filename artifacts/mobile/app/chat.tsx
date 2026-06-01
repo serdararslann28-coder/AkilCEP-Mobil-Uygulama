@@ -630,6 +630,7 @@ export default function ChatScreen() {
       </View>
 
       {/* ════ FLOATING ICONS — sit directly on the screen surface ════ */}
+
       {/* Left: Menu */}
       <TouchableOpacity
         style={[ss.floatBtn, { top: topPad + 10, left: 18 }]}
@@ -639,7 +640,16 @@ export default function ChatScreen() {
         <Feather name="menu" size={18} color={T.fgSoft} />
       </TouchableOpacity>
 
-      {/* Right: Secret Chat (lock) → New Chat (edit-3) crossfade */}
+      {/* Center: leaf logo — non-interactive */}
+      <View style={[ss.floatCenter, { top: topPad + 10 }]} pointerEvents="none">
+        <Image
+          source={leafOnly}
+          style={[ss.floatLogo, { tintColor: T.isDark ? "#FFFFFF" : "#111111" }]}
+          resizeMode="contain"
+        />
+      </View>
+
+      {/* Right: Secret Chat (message-circle) → New Chat (edit-3) crossfade */}
       <TouchableOpacity
         style={[ss.floatBtn, { top: topPad + 10, right: 18 }]}
         onPress={() => {
@@ -650,7 +660,7 @@ export default function ChatScreen() {
         hitSlop={14} activeOpacity={0.55}
       >
         <Animated.View style={lockStyle}>
-          <Feather name="lock" size={18} color={T.fgSoft} />
+          <Feather name="message-circle" size={18} color={T.fgSoft} />
         </Animated.View>
         <Animated.View style={editStyle}>
           <Feather name="edit-3" size={18} color={T.fgSoft} />
@@ -882,6 +892,20 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
     zIndex:         10,
+  },
+  // Center leaf logo — horizontally centered, non-interactive
+  floatCenter: {
+    position:       "absolute",
+    left:           0,
+    right:          0,
+    height:         36,
+    alignItems:     "center",
+    justifyContent: "center",
+    zIndex:         9,
+  },
+  floatLogo: {
+    width:  16,
+    height: 16,
   },
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
