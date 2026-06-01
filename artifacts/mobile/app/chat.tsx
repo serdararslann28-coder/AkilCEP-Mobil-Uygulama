@@ -98,10 +98,19 @@ export default function ChatScreen() {
     setVoicePhase(p);
   };
 
-  const hasText    = inputText.trim().length > 0;
-  const topPad     = Platform.OS === "web" ? 60 : insets.top;
-  const bottomPad  = Platform.OS === "web" ? 34 : insets.bottom;
-  const isSpeaking = voicePhase === "speaking";
+  const hasText     = inputText.trim().length > 0;
+  const hasMessages = currentMessages.length > 0;
+  const topPad      = Platform.OS === "web" ? 60 : insets.top;
+  const bottomPad   = Platform.OS === "web" ? 34 : insets.bottom;
+  const isSpeaking  = voicePhase === "speaking";
+
+  // ── Header right-button crossfade: 0 = Secret Chat, 1 = New Chat ────────────
+  const btnAnim = useSharedValue(hasMessages ? 1 : 0);
+  useEffect(() => {
+    btnAnim.value = withTiming(hasMessages ? 1 : 0, { duration: 260 });
+  }, [hasMessages]);
+  const secretStyle  = useAnimatedStyle(() => ({ opacity: 1 - btnAnim.value, transform: [{ scale: 0.70 + (1 - btnAnim.value) * 0.30 }] }));
+  const newChatStyle = useAnimatedStyle(() => ({ opacity: btnAnim.value,     transform: [{ scale: 0.70 + btnAnim.value * 0.30 }] }));
   const isListening= voicePhase === "listening";
 
   // ── Send button spring ─────────────────────────────────────────────────────
@@ -620,6 +629,8 @@ export default function ChatScreen() {
 
       {/* ════ HEADER ════ */}
       <View style={[ss.header, { paddingTop: topPad + 10, backgroundColor: headerBg }]}>
+
+        {/* ── Menu ── */}
         <TouchableOpacity
           style={[ss.hBtn, { backgroundColor: btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
@@ -628,17 +639,31 @@ export default function ChatScreen() {
           <Feather name="menu" size={16} color={T.fgSoft} />
         </TouchableOpacity>
 
-        <Text style={[ss.headerTitle, { color: T.fgSoft }]}>
-          C E B İ N D E K İ {"  "} A K I L
-        </Text>
+        {/* ── Center leaf logo ── */}
+        <View style={ss.headerLogoWrap} pointerEvents="none">
+          <Image
+            source={leafOnly}
+            style={[ss.headerLogoImg, { tintColor: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.28)" }]}
+            resizeMode="contain"
+          />
+        </View>
 
+        {/* ── Right button — crossfades between Secret Chat and New Chat ── */}
         <TouchableOpacity
           style={[ss.hBtn, { backgroundColor: btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startNewConversation(); }}
           hitSlop={12} activeOpacity={0.62}
         >
-          <Feather name="edit-3" size={16} color={T.fgSoft} />
+          {/* Secret Chat icon — shown when conversation is empty */}
+          <Animated.View style={[ss.hBtnIcon, secretStyle]}>
+            <Feather name="shield" size={16} color={T.fgSoft} />
+          </Animated.View>
+          {/* New Chat icon — shown when conversation has messages */}
+          <Animated.View style={[ss.hBtnIcon, newChatStyle]}>
+            <Feather name="edit-3" size={16} color={T.fgSoft} />
+          </Animated.View>
         </TouchableOpacity>
+
       </View>
 
       {/* ════ MESSAGES ════ */}
@@ -876,13 +901,22 @@ const ss = StyleSheet.create({
     shadowOpacity:  0.06,
     shadowRadius:   8,
   },
-  headerTitle: {
-    flex:              1,
-    textAlign:         "center",
-    fontSize:          11,
-    fontFamily:        "Inter_400Regular",
-    letterSpacing:     1.8,
-    paddingHorizontal: 6,
+  // Two icons stacked — positioned absolute so they overlap in the same 36×36 cell
+  hBtnIcon: {
+    position:       "absolute",
+    alignItems:     "center",
+    justifyContent: "center",
+    width:          36,
+    height:         36,
+  },
+  headerLogoWrap: {
+    flex:           1,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  headerLogoImg: {
+    width:  22,
+    height: 22,
   },
 
   // Messages
