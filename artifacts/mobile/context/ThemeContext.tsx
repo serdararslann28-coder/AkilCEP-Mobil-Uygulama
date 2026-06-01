@@ -14,10 +14,12 @@ import React, {
 } from "react";
 import Animated, {
   Easing,
+  useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, useColorScheme } from "react-native";
+import { Platform, StyleSheet, Text } from "react-native";
 
 // ─── Token shape ──────────────────────────────────────────────────────────────
 export interface ThemeTokens {
@@ -127,7 +129,8 @@ export const VOID: ThemeTokens = {
 };
 
 // ─── Theme mode type ──────────────────────────────────────────────────────────
-export type ThemeMode = "light" | "dark" | "system";
+// Only explicit light / dark — no system mode.
+export type ThemeMode = "light" | "dark";
 
 const STORAGE_KEY = "akilcep_theme_mode";
 
@@ -137,13 +140,15 @@ interface ThemeContextValue {
   themeMode:    ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
   toggle:       () => void;
+  showToast:    (msg: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme:        PURE,
-  themeMode:    "system",
+  themeMode:    "light",
   setThemeMode: () => {},
   toggle:       () => {},
+  showToast:    () => {},
 });
 
 export function useTheme() {
@@ -151,11 +156,7 @@ export function useTheme() {
 }
 
 // ─── Flash overlay (cross-screen cinematic transition) ────────────────────────
-interface FlashProps {
-  themeName: "PURE" | "VOID";
-}
-
-function ThemeFlash({ themeName }: FlashProps) {
+function ThemeFlash({ themeName }: { themeName: "PURE" | "VOID" }) {
   const opacity  = useSharedValue(0);
   const prevName = useRef(themeName);
 
@@ -168,28 +169,86 @@ function ThemeFlash({ themeName }: FlashProps) {
   }, [themeName]);
 
   const flashColor = themeName === "VOID" ? "#000000" : "#FFFFFF";
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { backgroundColor: flashColor, zIndex: 9999, opacity: opacity as any }]}
+    />
+  );
+}
+
+// ─── Toast notification (appears on theme change) ─────────────────────────────
+function ThemeToast({ message, visible }: { message: string; visible: boolean }) {
+  const translateY = useSharedValue(24);
+  const opacity    = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      translateY.value = withSpring(0, { damping: 22, stiffness: 300 });
+      opacity.value    = withTiming(1, { duration: 180 });
+    } else {
+      translateY.value = withTiming(16, { duration: 220, easing: Easing.in(Easing.ease) });
+      opacity.value    = withTiming(0, { duration: 220 });
+    }
+  }, [visible]);
+
+  const anim = useAnimatedStyle(() => ({
+    opacity:   opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
 
   return (
     <Animated.View
       pointerEvents="none"
       style={[
-        StyleSheet.absoluteFill,
-        { backgroundColor: flashColor, zIndex: 9999, opacity: opacity as any },
+        toast.wrap,
+        { bottom: Platform.OS === "web" ? 40 : 72 },
+        anim,
       ]}
-    />
+    >
+      <Text style={toast.label}>{message}</Text>
+    </Animated.View>
   );
 }
 
+const toast = StyleSheet.create({
+  wrap: {
+    position:          "absolute",
+    alignSelf:         "center",
+    backgroundColor:   "rgba(18,18,20,0.90)",
+    paddingHorizontal: 18,
+    paddingVertical:   11,
+    borderRadius:      99,
+    zIndex:            9998,
+    shadowColor:       "#000",
+    shadowOffset:      { width: 0, height: 4 },
+    shadowOpacity:     0.24,
+    shadowRadius:      14,
+    elevation:         10,
+  },
+  label: {
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    color:         "#FFFFFF",
+    letterSpacing: -0.1,
+  },
+});
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme                          = useColorScheme();
-  const [themeMode, setThemeModeState]        = useState<ThemeMode>("system");
+  // Default to "light" — first launch is always Light Mode
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
 
-  // Load persisted mode on mount
+  // Toast state
+  const [toastMsg,     setToastMsg]     = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load persisted mode on mount (only "light" or "dark" accepted)
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((val) => {
-        if (val === "light" || val === "dark" || val === "system") {
+        if (val === "light" || val === "dark") {
           setThemeModeState(val);
         }
       })
@@ -201,20 +260,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.setItem(STORAGE_KEY, mode);
   }, []);
 
-  // Resolve actual dark/light from mode + device system preference
-  const isDark    = themeMode === "system" ? systemScheme === "dark" : themeMode === "dark";
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMsg(msg);
+    setToastVisible(true);
+    toastTimer.current = setTimeout(() => setToastVisible(false), 1800);
+  }, []);
+
+  const isDark    = themeMode === "dark";
   const themeName = isDark ? "VOID" : "PURE";
   const theme     = isDark ? VOID   : PURE;
 
-  // Keep toggle() for backward compatibility — cycles explicit light ↔ dark
+  // toggle() — single tap to switch Light ↔ Dark with toast feedback
   const toggle = useCallback(() => {
-    setThemeMode(isDark ? "light" : "dark");
-  }, [isDark, setThemeMode]);
+    const next = isDark ? "light" : "dark";
+    setThemeMode(next);
+    showToast(next === "light" ? "☀️  Açık Tema Aktif" : "🌙  Koyu Tema Aktif");
+  }, [isDark, setThemeMode, showToast]);
 
   return (
-    <ThemeContext.Provider value={{ theme, themeMode, setThemeMode, toggle }}>
+    <ThemeContext.Provider value={{ theme, themeMode, setThemeMode, toggle, showToast }}>
       {children}
       <ThemeFlash themeName={themeName} />
+      <ThemeToast message={toastMsg} visible={toastVisible} />
     </ThemeContext.Provider>
   );
 }

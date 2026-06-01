@@ -43,8 +43,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useChat }           from "@/context/ChatContext";
-import { ThemeMode, useTheme } from "@/context/ThemeContext";
+import { useChat }    from "@/context/ChatContext";
+import { useTheme }   from "@/context/ThemeContext";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -70,96 +70,11 @@ function getDateGroup(ts: number): string {
 }
 const GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Daha Önce"];
 
-// ─── Theme picker options ──────────────────────────────────────────────────────
-const THEME_MODES: {
-  mode:  ThemeMode;
-  label: string;
-  icon:  React.ComponentProps<typeof Feather>["name"];
-}[] = [
-  { mode: "light",  label: "Açık Tema",  icon: "sun"     },
-  { mode: "dark",   label: "Koyu Tema",  icon: "moon"    },
-  { mode: "system", label: "Sistem",     icon: "monitor" },
-];
-
-// ─── Glassmorphism theme picker popup ──────────────────────────────────────────
-function ThemePickerPopup({
-  visible, themeMode, topOffset, isDark, onSelect,
-}: {
-  visible:   boolean;
-  themeMode: ThemeMode;
-  topOffset: number;
-  isDark:    boolean;
-  onSelect:  (m: ThemeMode) => void;
-}) {
-  const scale   = useSharedValue(0.88);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    if (visible) {
-      scale.value   = withSpring(1, { damping: 18, stiffness: 320, mass: 0.7 });
-      opacity.value = withTiming(1, { duration: 150 });
-    } else {
-      scale.value   = withTiming(0.88, { duration: 130, easing: Easing.in(Easing.ease) });
-      opacity.value = withTiming(0, { duration: 130 });
-    }
-  }, [visible]);
-
-  const anim = useAnimatedStyle(() => ({
-    opacity:   opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  const border   = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-  const fg       = isDark ? "rgba(255,255,255,0.88)" : "rgba(10,10,10,0.88)";
-  const active   = isDark ? "#FFFFFF"                : "#000000";
-  const rowHover = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
-  const div      = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-
-  return (
-    <Animated.View
-      style={[ss.pickerWrap, { top: topOffset }, anim]}
-      pointerEvents={visible ? "box-none" : "none"}
-    >
-      <BlurView
-        intensity={75}
-        tint={isDark ? "dark" : "light"}
-        style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
-      />
-      <View style={[StyleSheet.absoluteFill, ss.pickerRing, { borderColor: border }]} />
-      {THEME_MODES.map((item, idx) => {
-        const isActive = themeMode === item.mode;
-        return (
-          <TouchableOpacity
-            key={item.mode}
-            style={[
-              ss.pickerRow,
-              idx < THEME_MODES.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: div },
-              isActive && { backgroundColor: rowHover },
-            ]}
-            onPress={() => { Haptics.selectionAsync(); onSelect(item.mode); }}
-            activeOpacity={0.70}
-          >
-            <Feather name={item.icon} size={14} color={isActive ? active : fg} style={{ opacity: isActive ? 1 : 0.50 }} />
-            <Text style={[ss.pickerLabel, {
-              color:      isActive ? active : fg,
-              opacity:    isActive ? 1 : 0.68,
-              fontFamily: isActive ? "Inter_600SemiBold" : "Inter_400Regular",
-            }]}>
-              {item.label}
-            </Text>
-            {isActive && <Feather name="check" size={12} color={active} />}
-          </TouchableOpacity>
-        );
-      })}
-    </Animated.View>
-  );
-}
-
 // ─── Main component ─────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; }
 
 export default function SideMenu({ visible, onClose }: Props) {
-  const { theme: T, themeMode, setThemeMode } = useTheme();
+  const { theme: T, toggle } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -170,8 +85,6 @@ export default function SideMenu({ visible, onClose }: Props) {
   // UI state
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [themePicker, setThemePicker] = useState(false);
-  const [stickyH,     setStickyH]     = useState(100);   // measured height of header + search
 
   // ── Slide-in animation ────────────────────────────────────────────────────────
   const translateX = useSharedValue(-MENU_W);
@@ -182,7 +95,6 @@ export default function SideMenu({ visible, onClose }: Props) {
       translateX.value = withSpring(0, { damping: 26, stiffness: 200, mass: 0.9 });
       backdropOp.value = withTiming(1, { duration: 280 });
     } else {
-      setThemePicker(false);
       setSearchOpen(false);
       setSearchQuery("");
       translateX.value = withTiming(-MENU_W, { duration: 260, easing: Easing.in(Easing.ease) });
@@ -255,9 +167,8 @@ export default function SideMenu({ visible, onClose }: Props) {
   const profileBg     = isDark ? "rgba(255,255,255,0.05)"   : "rgba(0,0,0,0.032)";
   const profileBorder = isDark ? "rgba(255,255,255,0.09)"   : "rgba(0,0,0,0.07)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
-  const iconActiveBg  = isDark ? "rgba(255,255,255,0.13)"   : "rgba(0,0,0,0.09)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
-  const themeIconName = themeMode === "light" ? "sun" : themeMode === "dark" ? "moon" : "monitor";
+  const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
@@ -290,10 +201,7 @@ export default function SideMenu({ visible, onClose }: Props) {
         <View style={[ss.edgeLine, { backgroundColor: divider }]} />
 
         {/* ═══ STICKY TOP — header + search bar ═══════════════════════════════ */}
-        <View
-          onLayout={e => setStickyH(e.nativeEvent.layout.height)}
-          style={[ss.stickyTop, { borderBottomColor: divider }]}
-        >
+        <View style={[ss.stickyTop, { borderBottomColor: divider }]}>
 
           {/* ── Header ────────────────────────────────────────────────────────── */}
           <View style={[ss.header, { paddingTop: topPad + 18 }]}>
@@ -312,13 +220,12 @@ export default function SideMenu({ visible, onClose }: Props) {
 
             {/* Action icons */}
             <View style={ss.headerIcons}>
-              {/* Theme switcher */}
+              {/* Theme toggle — single tap Light ↔ Dark */}
               <TouchableOpacity
-                style={[ss.iconBtn, { backgroundColor: themePicker ? iconActiveBg : iconIdleBg }]}
+                style={[ss.iconBtn, { backgroundColor: iconIdleBg }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setThemePicker(v => !v);
-                  setSearchOpen(false);
+                  toggle();
                 }}
                 hitSlop={10}
                 activeOpacity={0.65}
@@ -328,12 +235,11 @@ export default function SideMenu({ visible, onClose }: Props) {
 
               {/* Search toggle */}
               <TouchableOpacity
-                style={[ss.iconBtn, { backgroundColor: searchOpen ? iconActiveBg : iconIdleBg }]}
+                style={[ss.iconBtn, { backgroundColor: searchOpen ? "rgba(0,0,0,0.09)" : iconIdleBg }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setSearchOpen(v => !v);
                   if (searchOpen) setSearchQuery("");
-                  setThemePicker(false);
                 }}
                 hitSlop={10}
                 activeOpacity={0.65}
@@ -483,20 +389,6 @@ export default function SideMenu({ visible, onClose }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* ═══ THEME PICKER POPUP ════════════════════════════════════════════════ */}
-        {themePicker && (
-          <Pressable
-            style={[StyleSheet.absoluteFill, { zIndex: 402 }]}
-            onPress={() => setThemePicker(false)}
-          />
-        )}
-        <ThemePickerPopup
-          visible={themePicker}
-          themeMode={themeMode}
-          topOffset={stickyH + 8}
-          isDark={isDark}
-          onSelect={mode => { setThemeMode(mode); setThemePicker(false); }}
-        />
       </Animated.View>
     </>
   );
@@ -778,37 +670,4 @@ const ss = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  // ── Theme picker popup ────────────────────────────────────────────────────────
-  pickerWrap: {
-    position:      "absolute",
-    right:         14,
-    width:         188,
-    borderRadius:  16,
-    overflow:      "hidden",
-    zIndex:        403,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 8 },
-    shadowOpacity: 0.20,
-    shadowRadius:  18,
-    elevation:     12,
-  },
-
-  pickerRing: {
-    borderRadius: 16,
-    borderWidth:  StyleSheet.hairlineWidth,
-  },
-
-  pickerRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    paddingHorizontal: 14,
-    paddingVertical:   13,
-    gap:               10,
-  },
-
-  pickerLabel: {
-    flex:          1,
-    fontSize:      14,
-    letterSpacing: -0.1,
-  },
 });

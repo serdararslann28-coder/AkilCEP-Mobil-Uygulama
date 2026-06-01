@@ -26,9 +26,8 @@ const THEME_OPTIONS: {
   label: string;
   icon:  React.ComponentProps<typeof Feather>["name"];
 }[] = [
-  { mode: "light",  label: "Açık",   icon: "sun"     },
-  { mode: "dark",   label: "Koyu",   icon: "moon"    },
-  { mode: "system", label: "Sistem", icon: "monitor" },
+  { mode: "light", label: "Açık",  icon: "sun"  },
+  { mode: "dark",  label: "Koyu",  icon: "moon" },
 ];
 
 // ─── Reusable row components ───────────────────────────────────────────────────
@@ -93,7 +92,7 @@ function ToggleRow({
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
-  const { theme: T, themeMode, setThemeMode } = useTheme();
+  const { theme: T, themeMode, setThemeMode, showToast } = useTheme();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -140,7 +139,10 @@ export default function SettingsScreen() {
                       backgroundColor: active ? themeActiveBg : "transparent",
                     },
                   ]}
-                  onPress={() => setThemeMode(opt.mode)}
+                  onPress={() => {
+                setThemeMode(opt.mode);
+                showToast(opt.mode === "light" ? "☀️  Açık Tema Aktif" : "🌙  Koyu Tema Aktif");
+              }}
                   activeOpacity={0.72}
                 >
                   <Feather
