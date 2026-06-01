@@ -660,7 +660,7 @@ export default function ChatScreen() {
         <View style={ss.headerCenter}>
           <Image
             source={leafOnly}
-            style={[ss.headerLogoImg, { tintColor: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.28)" }]}
+            style={[ss.headerLogoImg, { tintColor: T.isDark ? "#FFFFFF" : "#111111" }]}
             resizeMode="contain"
           />
           <Animated.View style={[ss.secretBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)", borderColor: T.isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)" }, badgeStyle]}>
