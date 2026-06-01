@@ -23,6 +23,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -80,8 +81,10 @@ export default function ChatScreen() {
   } = useChat();
 
   const [inputText,    setInputText]    = useState("");
-  const [menuVisible,  setMenuVisible]  = useState(false);
-  const [voicePhase,   setVoicePhase]   = useState<VoicePhase>("idle");
+  const [menuVisible,      setMenuVisible]  = useState(false);
+  const [secretModal,      setSecretModal]  = useState(false);
+  const [exitSecretModal,  setExitModal]    = useState(false);
+  const [voicePhase,       setVoicePhase]   = useState<VoicePhase>("idle");
 
   const isSecretChat = !!currentConversation?.isPrivate;
 
@@ -111,10 +114,21 @@ export default function ChatScreen() {
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
   const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
   useEffect(() => {
-    rightIconAnim.value = withTiming(hasMessages ? 1 : 0, { duration: 200 });
-  }, [hasMessages]);
-  const lockStyle    = useAnimatedStyle(() => ({ opacity: 1 - rightIconAnim.value, position: "absolute" }));
-  const editStyle    = useAnimatedStyle(() => ({ opacity: rightIconAnim.value,     position: "absolute" }));
+    // Show edit-3 only when messages exist AND not in secret mode
+    rightIconAnim.value = withTiming((hasMessages && !isSecretChat) ? 1 : 0, { duration: 200 });
+  }, [hasMessages, isSecretChat]);
+  const lockStyle = useAnimatedStyle(() => ({ opacity: 1 - rightIconAnim.value, position: "absolute" }));
+  const editStyle = useAnimatedStyle(() => ({ opacity: rightIconAnim.value,     position: "absolute" }));
+
+  // ── Secret active badge: fades in when isSecretChat = true ──────────────────
+  const badgeAnim = useSharedValue(0);
+  useEffect(() => {
+    badgeAnim.value = withTiming(isSecretChat ? 1 : 0, { duration: 280 });
+  }, [isSecretChat]);
+  const badgeStyle = useAnimatedStyle(() => ({
+    opacity:   badgeAnim.value,
+    transform: [{ scale: 0.82 + badgeAnim.value * 0.18 }],
+  }));
 
   const isListening= voicePhase === "listening";
 
@@ -640,27 +654,39 @@ export default function ChatScreen() {
         <Feather name="menu" size={18} color={T.fgSoft} />
       </TouchableOpacity>
 
-      {/* Center: leaf logo — non-interactive */}
-      <View style={[ss.floatCenter, { top: topPad + 10 }]} pointerEvents="none">
+      {/* Center: leaf logo + secret active badge — non-interactive */}
+      <View style={[ss.floatCenter, { top: topPad + 6 }]} pointerEvents="none">
         <Image
           source={leafOnly}
           style={[ss.floatLogo, { tintColor: T.isDark ? "#FFFFFF" : "#111111" }]}
           resizeMode="contain"
         />
+        {/* "Gizli" badge — slides in below logo when secret mode is active */}
+        <Animated.View style={[ss.secretBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.055)", borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.09)" }, badgeStyle]}>
+          <Feather name="lock" size={7} color={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"} />
+          <Text style={[ss.secretBadgeText, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)" }]}>Gizli</Text>
+        </Animated.View>
       </View>
 
-      {/* Right: Secret Chat (message-circle) → New Chat (edit-3) crossfade */}
+      {/* Right: message-circle (secret/empty) ↔ edit-3 (new chat) */}
       <TouchableOpacity
         style={[ss.floatBtn, { top: topPad + 10, right: 18 }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          if (hasMessages) { startNewConversation(); }
-          else              { startSecretConversation(); }
+          if (isSecretChat)              { setExitModal(true); }
+          else if (!hasMessages)         { setSecretModal(true); }
+          else                           { startNewConversation(); }
         }}
         hitSlop={14} activeOpacity={0.55}
       >
         <Animated.View style={lockStyle}>
-          <Feather name="message-circle" size={18} color={T.fgSoft} />
+          <Feather
+            name="message-circle"
+            size={18}
+            color={isSecretChat
+              ? (T.isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.66)")
+              : T.fgSoft}
+          />
         </Animated.View>
         <Animated.View style={editStyle}>
           <Feather name="edit-3" size={18} color={T.fgSoft} />
@@ -802,6 +828,61 @@ export default function ChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
+      {/* ════ SECRET CHAT — START MODAL ════ */}
+      <Modal visible={secretModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSecretModal(false)}>
+        <View style={ss.modalOverlay}>
+          <View style={[ss.modalCard, { backgroundColor: T.isDark ? "#111111" : "#F7F7F5", borderColor: T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)" }]}>
+            <View style={[ss.modalIconCircle, { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }]}>
+              <Feather name="lock" size={20} color={T.isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.50)"} />
+            </View>
+            <Text style={[ss.modalTitle, { color: T.fg }]}>Gizli Sohbet</Text>
+            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>Bu sohbet geçmişe kaydedilmez.</Text>
+            <TouchableOpacity
+              style={[ss.modalBtn, { backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)" }]}
+              activeOpacity={0.70}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setSecretModal(false);
+                startSecretConversation();
+              }}
+            >
+              <Feather name="lock" size={13} color={T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)"} />
+              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>Gizli Sohbet Başlat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.modalBtnGhost} activeOpacity={0.55} onPress={() => setSecretModal(false)}>
+              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>İptal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ════ SECRET CHAT — EXIT MODAL ════ */}
+      <Modal visible={exitSecretModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setExitModal(false)}>
+        <View style={ss.modalOverlay}>
+          <View style={[ss.modalCard, { backgroundColor: T.isDark ? "#111111" : "#F7F7F5", borderColor: T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)" }]}>
+            <View style={[ss.modalIconCircle, { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }]}>
+              <Feather name="shield-off" size={20} color={T.isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.50)"} />
+            </View>
+            <Text style={[ss.modalTitle, { color: T.fg }]}>Gizli sohbet sonlandırılsın mı?</Text>
+            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>Tüm mesajlar silinecek ve sohbet geçmişe kaydedilmeyecek.</Text>
+            <TouchableOpacity
+              style={[ss.modalBtn, { backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)" }]}
+              activeOpacity={0.70}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setExitModal(false);
+                startNewConversation();
+              }}
+            >
+              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>Sonlandır</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.modalBtnGhost} activeOpacity={0.55} onPress={() => setExitModal(false)}>
+              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>Devam Et</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -907,6 +988,90 @@ const ss = StyleSheet.create({
     width:  20,
     height: 20,
   },
+  // Secret active badge — shown below center logo
+  secretBadge: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               3,
+    marginTop:         4,
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+    borderRadius:      99,
+    borderWidth:       1,
+  },
+  secretBadgeText: {
+    fontSize:      9,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: 0.3,
+  },
+
+  // Modals
+  modalOverlay: {
+    flex:            1,
+    backgroundColor: "rgba(0,0,0,0.50)",
+    alignItems:      "center",
+    justifyContent:  "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width:         "100%",
+    borderRadius:  22,
+    borderWidth:   1,
+    padding:       28,
+    alignItems:    "center",
+    gap:           10,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 20 },
+    shadowOpacity: 0.28,
+    shadowRadius:  40,
+    elevation:     24,
+  },
+  modalIconCircle: {
+    width:          52,
+    height:         52,
+    borderRadius:   26,
+    alignItems:     "center",
+    justifyContent: "center",
+    marginBottom:   2,
+  },
+  modalTitle: {
+    fontSize:      17,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.3,
+    textAlign:     "center",
+  },
+  modalDesc: {
+    fontSize:    13,
+    fontFamily:  "Inter_400Regular",
+    lineHeight:  19,
+    textAlign:   "center",
+    marginBottom: 4,
+  },
+  modalBtn: {
+    width:          "100%",
+    height:         48,
+    borderRadius:   14,
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "center",
+    gap:            7,
+  },
+  modalBtnText: {
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.1,
+  },
+  modalBtnGhost: {
+    height:         40,
+    alignItems:     "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modalBtnGhostText: {
+    fontSize:   13.5,
+    fontFamily: "Inter_400Regular",
+  },
+
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
 
