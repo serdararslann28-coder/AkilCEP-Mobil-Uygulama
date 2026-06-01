@@ -463,11 +463,10 @@ const FAB_SIZE = 50;
 
 const ss = StyleSheet.create({
 
-  // ── Header
+  // ── Header (invisible — no border, no background bar)
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   hBtn: {
     width: 34, height: 34, borderRadius: 17,

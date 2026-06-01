@@ -51,17 +51,18 @@ export default function AboutScreen() {
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <View style={[ss.header, { paddingTop: topPad + 10, borderBottomColor: divider }]}>
-        <TouchableOpacity onPress={() => router.back()} style={ss.backBtn} hitSlop={14}>
-          <Feather name="chevron-left" size={24} color={T.fg} />
-        </TouchableOpacity>
-        <Text style={[ss.headerTitle, { color: T.fg }]}>Hakkımızda</Text>
-        <View style={ss.headerSpacer} />
-      </View>
+      {/* ── Floating back button (invisible header) ───────────────────────── */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={[ss.floatBack, { top: topPad + 10, backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)" }]}
+        hitSlop={14}
+        activeOpacity={0.60}
+      >
+        <Feather name="chevron-left" size={18} color={T.fg} />
+      </TouchableOpacity>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: btmPad + 48 }}
+        contentContainerStyle={{ paddingBottom: btmPad + 48, paddingTop: topPad + 52 }}
         showsVerticalScrollIndicator={false}
       >
 
@@ -124,31 +125,16 @@ const ss = StyleSheet.create({
     flex: 1,
   },
 
-  // Header
-  header: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    paddingHorizontal: 8,
-    paddingBottom:     14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-
-  backBtn: {
-    width:          44,
-    height:         44,
+  // Floating back button (invisible header)
+  floatBack: {
+    position:       "absolute",
+    left:           16,
+    zIndex:         10,
+    width:          36,
+    height:         36,
+    borderRadius:   18,
     alignItems:     "center",
     justifyContent: "center",
-  },
-
-  headerTitle: {
-    fontSize:      17,
-    fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.3,
-  },
-
-  headerSpacer: {
-    width: 44,
   },
 
   // Section label

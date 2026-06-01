@@ -102,26 +102,29 @@ export default function ProfileScreen() {
     : ["#FFFFFF", "#F0F0F2", "#E8E8EC"];
 
   return (
-    <View style={[ss.root, { backgroundColor: T.bg, paddingTop: topPad }]}>
+    <View style={[ss.root, { backgroundColor: T.bg }]}>
 
-      {/* Nav bar */}
-      <View style={ss.navBar}>
-        <TouchableOpacity onPress={() => router.back()} style={[ss.navBtn, { backgroundColor: cardBg }]} hitSlop={14} activeOpacity={0.65}>
-          <Feather name="chevron-left" size={20} color={T.fg} />
-        </TouchableOpacity>
-        <Text style={[ss.navTitle, { color: T.fg }]}>Profil</Text>
-        <TouchableOpacity
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.back(); }}
-          style={[ss.saveBtn, { backgroundColor: T.fg }]}
-          activeOpacity={0.75}
-        >
-          <Text style={[ss.saveBtnText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>Kaydet</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ── Floating back button (invisible header) ───────────────────────── */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={[ss.floatBack, { top: topPad + 10, backgroundColor: cardBg }]}
+        hitSlop={14} activeOpacity={0.65}
+      >
+        <Feather name="chevron-left" size={18} color={T.fg} />
+      </TouchableOpacity>
+
+      {/* ── Floating save button ──────────────────────────────────────────── */}
+      <TouchableOpacity
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.back(); }}
+        style={[ss.floatSave, { top: topPad + 10, backgroundColor: T.fg }]}
+        activeOpacity={0.75}
+      >
+        <Text style={[ss.floatSaveText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>Kaydet</Text>
+      </TouchableOpacity>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
-          contentContainerStyle={[ss.scroll, { paddingBottom: btmPad + 24 }]}
+          contentContainerStyle={[ss.scroll, { paddingBottom: btmPad + 24, paddingTop: topPad + 56 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -247,12 +250,39 @@ export default function ProfileScreen() {
 
 const ss = StyleSheet.create({
   root: { flex: 1 },
-  navBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14 },
-  navBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
-  navTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
-  saveBtn:  { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20 },
-  saveBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  scroll: { paddingHorizontal: 20, paddingTop: 8, gap: 28 },
+
+  // Floating back button (invisible header)
+  floatBack: {
+    position:       "absolute",
+    left:           16,
+    zIndex:         10,
+    width:          36,
+    height:         36,
+    borderRadius:   18,
+    alignItems:     "center",
+    justifyContent: "center",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.06,
+    shadowRadius:   8,
+    elevation:      3,
+  },
+
+  // Floating save button (top-right)
+  floatSave: {
+    position:          "absolute",
+    right:             16,
+    zIndex:            10,
+    paddingHorizontal: 16,
+    paddingVertical:   8,
+    borderRadius:      20,
+  },
+  floatSaveText: {
+    fontSize:   14,
+    fontFamily: "Inter_600SemiBold",
+  },
+
+  scroll: { paddingHorizontal: 20, gap: 28 },
 
   avatarSection:   { alignItems: "center", gap: 12, paddingTop: 12 },
   avatarTouchable: { width: 100, height: 100 },
