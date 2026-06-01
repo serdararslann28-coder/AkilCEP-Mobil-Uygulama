@@ -61,6 +61,7 @@
     "expo-camera": "^17.0.10",
     "expo-clipboard": "^56.0.3",
     "expo-file-system": "^56.0.7",
+    "expo-media-library": "^56.0.6",
     "expo-speech": "^56.0.3",
     "react-native-webview": "^13.15.0"
   }

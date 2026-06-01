@@ -11,6 +11,7 @@ import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActionSheetIOS,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -23,6 +24,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import ImageViewer from "@/components/ImageViewer";
 import Animated, {
   Easing,
   FadeInDown,
@@ -186,9 +188,10 @@ function GeneratedImageCard({
   onEdit?:   (instruction: string) => void;
 }) {
   const { theme: T } = useTheme();
-  const [revealed,     setRevealed]     = useState(false);
-  const [editVisible,  setEditVisible]  = useState(false);
-  const [instruction,  setInstruction]  = useState("");
+  const [revealed,      setRevealed]      = useState(false);
+  const [editVisible,   setEditVisible]   = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [instruction,   setInstruction]   = useState("");
 
   const imgOp    = useSharedValue(0);
   const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value }));
@@ -203,6 +206,36 @@ function GeneratedImageCard({
   const handleCancel = () => {
     setEditVisible(false);
     setInstruction("");
+  };
+
+  // Open full-screen viewer
+  const handleImagePress = () => {
+    if (!revealed) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setViewerVisible(true);
+  };
+
+  // Long-press action sheet
+  const handleLongPress = () => {
+    if (!revealed) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["İptal", "Görseli Kaydet", "Paylaş", ...(onEdit ? ["Düzenle"] : [])],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) setViewerVisible(true);      // viewer → download
+          if (idx === 2) setViewerVisible(true);      // viewer → share
+          if (idx === 3 && onEdit) setEditVisible(true);
+        },
+      );
+    } else {
+      // On Android open the viewer which contains all actions
+      setViewerVisible(true);
+    }
   };
 
   // Colors adapted to current theme
@@ -226,17 +259,26 @@ function GeneratedImageCard({
         </View>
       )}
 
-      <Animated.View style={[ss.imgReveal, imgStyle]}>
-        <Image
-          source={{ uri: imageData }}
-          style={ss.imgCard}
-          resizeMode="cover"
-          onLoad={() => {
-            setRevealed(true);
-            imgOp.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) });
-          }}
-        />
-      </Animated.View>
+      {/* Tappable image — opens full-screen viewer */}
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={handleImagePress}
+        onLongPress={handleLongPress}
+        delayLongPress={380}
+        disabled={!revealed}
+      >
+        <Animated.View style={[ss.imgReveal, imgStyle]}>
+          <Image
+            source={{ uri: imageData }}
+            style={ss.imgCard}
+            resizeMode="cover"
+            onLoad={() => {
+              setRevealed(true);
+              imgOp.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) });
+            }}
+          />
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* Caption — dimmed */}
       {caption ? (
@@ -341,6 +383,14 @@ function GeneratedImageCard({
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Full-screen image viewer */}
+      <ImageViewer
+        visible={viewerVisible}
+        imageData={imageData}
+        onClose={() => setViewerVisible(false)}
+        onEditOpen={onEdit ? () => setEditVisible(true) : undefined}
+      />
     </View>
   );
 }

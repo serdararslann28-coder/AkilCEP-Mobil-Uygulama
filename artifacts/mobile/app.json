@@ -17,13 +17,17 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "AkılCEP AI, kameranızı AI Vizyon Modu için kullanmak istiyor.",
-        "NSMicrophoneUsageDescription": "AkılCEP AI, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor."
+        "NSMicrophoneUsageDescription": "AkılCEP AI, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor.",
+        "NSPhotoLibraryAddUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor.",
+        "NSPhotoLibraryUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor."
       }
     },
     "android": {
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
