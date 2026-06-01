@@ -100,11 +100,13 @@ export default function SplashScreen() {
   const masterOp      = useSharedValue(1);
 
   // Where to navigate — resolved from AsyncStorage before 3 s
-  const destination = useRef<"/(tabs)" | "/onboarding">("/onboarding");
+  const destination = useRef<"/chat" | "/onboarding">("/onboarding");
 
   useEffect(() => {
-    // TEST MODE: always show onboarding regardless of saved state
-    destination.current = "/onboarding";
+    // Resolve destination early: returning users go straight to chat
+    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
+      if (val) destination.current = "/chat";
+    }).catch(() => {});
 
     // ── Animation sequence ─────────────────────────────────────────────────
 

@@ -14,9 +14,9 @@ export default function NotFoundScreen() {
           This screen doesn&apos;t exist.
         </Text>
 
-        <Link href="/" style={styles.link}>
+        <Link href="/chat" style={styles.link}>
           <Text style={[styles.linkText, { color: colors.primary }]}>
-            Go to home screen!
+            Sohbete git
           </Text>
         </Link>
       </View>

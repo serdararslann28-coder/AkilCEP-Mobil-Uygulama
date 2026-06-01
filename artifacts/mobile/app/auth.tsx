@@ -78,7 +78,7 @@ const STARS = Array.from({ length: 28 }, (_, i) => ({
 // ── Complete onboarding + auth flow ──────────────────────────────────────────
 async function enterApp() {
   try { await AsyncStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-  router.replace("/(tabs)");
+  router.replace("/chat");
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
