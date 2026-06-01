@@ -9,7 +9,6 @@
  */
 import { Feather } from "@expo/vector-icons";
 import { Audio } from "expo-av";
-import { BlurView } from "expo-blur";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -592,8 +591,7 @@ export default function ChatScreen() {
   };
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
-  const headerBg        = T.isDark ? "rgba(8,8,8,0.10)"        : "rgba(250,250,248,0.10)";
-  const headerBorderClr = "transparent";
+
   const inputBg      = T.isDark ? "rgba(255,255,255,0.055)" : "#F1F1EE";
   const sendBtnBg    = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
   const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
@@ -646,20 +644,14 @@ export default function ChatScreen() {
         />
       </View>
 
-      {/* ════ HEADER ════ */}
-      <View style={[ss.headerContainer, { borderBottomColor: headerBorderClr }]}>
-        <BlurView
-          intensity={Platform.OS === "android" ? 0 : 68}
-          tint={T.isDark ? "dark" : "light"}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[ss.header, { paddingTop: topPad + 10, backgroundColor: headerBg }]}>
+      {/* ════ HEADER — transparent, icons only ════ */}
+      <View style={[ss.header, { paddingTop: topPad + 10 }]}>
 
         {/* ── Menu ── */}
         <TouchableOpacity
-          style={[ss.hBtn, { backgroundColor: btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
+          style={ss.hBtn}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
-          hitSlop={12} activeOpacity={0.62}
+          hitSlop={12} activeOpacity={0.55}
         >
           <Feather name="menu" size={16} color={T.fgSoft} />
         </TouchableOpacity>
@@ -681,7 +673,7 @@ export default function ChatScreen() {
 
         {/* ── Right button — crossfades between Secret Chat (empty) and New Chat (active) ── */}
         <TouchableOpacity
-          style={[ss.hBtn, { backgroundColor: isSecretChat ? (T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)") : btnBg, borderColor: btnBorderClr, borderWidth: btnBorder }]}
+          style={ss.hBtn}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             if (hasMessages) {
@@ -690,7 +682,7 @@ export default function ChatScreen() {
               setSecretModal(true);
             }
           }}
-          hitSlop={12} activeOpacity={0.62}
+          hitSlop={12} activeOpacity={0.55}
         >
           {/* Secret Chat shield — visible when conversation is empty */}
           <Animated.View style={[ss.hBtnIcon, secretStyle]}>
@@ -702,8 +694,7 @@ export default function ChatScreen() {
           </Animated.View>
         </TouchableOpacity>
 
-        </View>{/* end ss.header */}
-      </View>{/* end ss.headerContainer */}
+      </View>{/* end header */}
 
       {/* ════ MESSAGES ════ */}
       <KeyboardAvoidingView style={ss.flex} behavior="padding">
@@ -970,13 +961,7 @@ const ss = StyleSheet.create({
   },
   logoImg: { width: 300, height: 300 },
 
-  // Header — floating glass, no card
-  headerContainer: {
-    overflow:          "hidden",
-    borderBottomWidth: 0,
-    shadowOpacity:     0,
-    elevation:         0,
-  },
+  // Header — fully transparent row
   header: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -987,13 +972,8 @@ const ss = StyleSheet.create({
   hBtn: {
     width:          36,
     height:         36,
-    borderRadius:   18,
     alignItems:     "center",
     justifyContent: "center",
-    shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 2 },
-    shadowOpacity:  0.06,
-    shadowRadius:   8,
   },
   // Two icons stacked — positioned absolute so they overlap in the same 36×36 cell
   hBtnIcon: {
