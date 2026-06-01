@@ -667,12 +667,6 @@ export default function HomeScreen() {
           <Feather name="menu" size={16} color={T.fg} />
         </TouchableOpacity>
 
-        {/* Two-line brand center */}
-        <View style={ss.brandCenter}>
-          <Text style={[ss.brandName, { color: T.fg }]}>A K I L C E P</Text>
-          <Text style={[ss.brandSub,  { color: T.zinc }]}>C E B İ N D E K İ  A K I L</Text>
-        </View>
-
         <TouchableOpacity
           style={ss.avatarWrap}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setProfileMenu(true); }}
@@ -740,7 +734,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Brand wordmark */}
-        <Text style={[ss.wordmark, { color: T.fg }]}>A K I L C E P</Text>
+        <Text style={[ss.wordmark, { color: T.fg }]}>AkılCEP</Text>
 
         {/* Subtitle — fades slightly when voice active */}
         <Text
@@ -749,7 +743,7 @@ export default function HomeScreen() {
             { color: T.zinc, opacity: voicePhase !== "idle" ? 0.40 : 1 },
           ]}
         >
-          size nasıl yardımcı olabilirim?
+          Cebindeki Akıl
         </Text>
 
         {/* ════ INLINE VOICE LAYER ════ */}
@@ -950,17 +944,6 @@ const ss = StyleSheet.create({
     shadowRadius: 8,
     elevation:    4,
   },
-  brandCenter: { flex: 1, alignItems: "center", gap: 2 },
-  brandName: {
-    fontSize:      15,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: 5,
-  },
-  brandSub: {
-    fontSize:      9,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 2.4,
-  },
   avatarWrap: {
     width: 44, height: 44, borderRadius: 22,
     shadowOffset: { width: 0, height: 3 },
@@ -1004,15 +987,15 @@ const ss = StyleSheet.create({
   },
 
   wordmark: {
-    fontSize:      18,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 8,
+    fontSize:      26,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.5,
     marginTop:     -8,   // pull up slightly — halo wrap has extra visual space below
   },
   subtitle: {
     fontSize:      13,
     fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.5,
+    letterSpacing: 1.8,
     textAlign:     "center",
   },
 
