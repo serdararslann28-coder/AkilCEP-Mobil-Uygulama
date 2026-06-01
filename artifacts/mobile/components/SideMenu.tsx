@@ -1,23 +1,36 @@
 /**
- * SideMenu — ChatGPT-inspired sliding side drawer.
- * Slides in from the left at ~82 % of screen width.
- * Sections: Quick Access, Sabitlenenler, Yakın Zamandakiler (grouped by date).
- * Bottom: large FAB "Yeni Sohbet".
- * Fully reactive to PURE (white) / VOID (dark) theme.
+ * SideMenu — Premium AKILCEP side drawer.
+ *
+ * Layout (sticky → scrollable → sticky):
+ *   [HEADER]   logo + brand + theme/search icons
+ *   [SEARCH]   collapsible instant-filter row
+ *   [PROFILE]  card — avatar, name, online status
+ *   [HISTORY]  date-grouped conversation list
+ *   [FAB]      "Yeni Sohbet" pill button
+ *
+ * Visual: Glassmorphism panel (BlurView) over a blurred backdrop.
+ * Gesture: Swipe-left closes the drawer.
  */
 import { BlurView }  from "expo-blur";
-import { Feather }    from "@expo/vector-icons";
-import * as Haptics   from "expo-haptics";
-import { router }     from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { Feather }   from "@expo/vector-icons";
+import * as Haptics  from "expo-haptics";
+import { router }    from "expo-router";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dimensions,
   Image,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -30,99 +43,32 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Conversation, useChat } from "@/context/ChatContext";
-import { ThemeMode, useTheme }   from "@/context/ThemeContext";
+import { useChat }           from "@/context/ChatContext";
+import { ThemeMode, useTheme } from "@/context/ThemeContext";
 
+// ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
-const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 360);
+const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 340);
 
-const leafLogo = require("@/assets/images/leaf-only-transparent.png");
-const avatar   = require("@/assets/images/avatar.png");
+const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
+const defaultAvatar = require("@/assets/images/avatar.png");
 
-// ─── Quick access tiles ────────────────────────────────────────────────────────
-const QUICK_ACCESS = [
-  { label: "Görseller",    icon: "image",  route: "/chat",   desc: "Görsel üret"      },
-  { label: "Vision",       icon: "camera", route: "/vision", desc: "Fotoğraf analiz"  },
-  { label: "Sesli Sohbet", icon: "mic",    route: "/voice",  desc: "Sesli asistan"    },
-  { label: "Daha Fazla",   icon: "grid",   route: null,      desc: "Tüm araçlar"      },
-] as const;
-
-// ─── Static pinned items (no pin data model yet) ───────────────────────────────
-const STATIC_PINNED = [
-  { id: "p1", title: "AKILCEP UI Tasarımı"     },
-  { id: "p2", title: "Ses Asistanı Deneyimi"   },
-];
-
-// ─── Date grouping helpers ─────────────────────────────────────────────────────
-function getGroup(ts: number): string {
-  const diff = Date.now() - ts;
-  const d    = 86_400_000;
-  if (diff < d)       return "Bugün";
-  if (diff < 2 * d)   return "Dün";
-  if (diff < 7 * d)   return "Bu Hafta";
-  if (diff < 30 * d)  return "Bu Ay";
+// ─── Date grouping helpers (createdAt is a number/ms timestamp) ────────────────
+function getDateGroup(ts: number): string {
+  const now  = new Date();
+  const date = new Date(ts);
+  const isSameDay =
+    now.getDate()     === date.getDate()     &&
+    now.getMonth()    === date.getMonth()    &&
+    now.getFullYear() === date.getFullYear();
+  if (isSameDay) return "Bugün";
+  const diffDays = (now.getTime() - date.getTime()) / 86_400_000;
+  if (diffDays < 2)  return "Dün";
+  if (diffDays < 7)  return "Bu Hafta";
+  if (diffDays < 30) return "Bu Ay";
   return "Daha Önce";
 }
-
-const GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Daha Önce"] as const;
-
-function groupByDate(convs: Conversation[]) {
-  const map: Record<string, Conversation[]> = {};
-  for (const c of convs) {
-    const g = getGroup(c.createdAt);
-    (map[g] ??= []).push(c);
-  }
-  return GROUP_ORDER.flatMap((lbl) =>
-    map[lbl]?.length ? [{ label: lbl, items: map[lbl]! }] : [],
-  );
-}
-
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-function SectionLabel({ label, color }: { label: string; color: string }) {
-  return <Text style={[ss.sectionLbl, { color }]}>{label.toUpperCase()}</Text>;
-}
-
-function DateLabel({ label, color }: { label: string; color: string }) {
-  return <Text style={[ss.dateLbl, { color }]}>{label}</Text>;
-}
-
-interface ConvRowProps {
-  title:          string;
-  active:         boolean;
-  icon:           React.ComponentProps<typeof Feather>["name"];
-  fg:             string;
-  activeBg:       string;
-  iconBg:         string;
-  moreBg:         string;
-  moreClr:        string;
-  dividerColor:   string;
-  onPress:        () => void;
-}
-
-function ConvRow({
-  title, active, icon, fg, activeBg, iconBg, moreBg, moreClr, onPress,
-}: ConvRowProps) {
-  return (
-    <TouchableOpacity
-      style={[ss.convRow, active && { backgroundColor: activeBg }]}
-      activeOpacity={0.65}
-      onPress={onPress}
-    >
-      <View style={[ss.convIcon, { backgroundColor: iconBg }]}>
-        <Feather name={icon} size={12} color={fg} style={{ opacity: 0.60 }} />
-      </View>
-      <Text style={[ss.convTitle, { color: fg }]} numberOfLines={1}>{title}</Text>
-      <TouchableOpacity
-        hitSlop={14}
-        style={[ss.moreBtn, { backgroundColor: moreBg }]}
-        onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-      >
-        <Feather name="more-horizontal" size={13} color={moreClr} />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-}
+const GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Daha Önce"];
 
 // ─── Theme picker options ──────────────────────────────────────────────────────
 const THEME_MODES: {
@@ -135,19 +81,15 @@ const THEME_MODES: {
   { mode: "system", label: "Sistem",     icon: "monitor" },
 ];
 
-// ─── Glassmorphism theme picker popup ─────────────────────────────────────────
+// ─── Glassmorphism theme picker popup ──────────────────────────────────────────
 function ThemePickerPopup({
-  visible,
-  themeMode,
-  topOffset,
-  isDark,
-  onSelect,
+  visible, themeMode, topOffset, isDark, onSelect,
 }: {
   visible:   boolean;
   themeMode: ThemeMode;
   topOffset: number;
   isDark:    boolean;
-  onSelect:  (mode: ThemeMode) => void;
+  onSelect:  (m: ThemeMode) => void;
 }) {
   const scale   = useSharedValue(0.88);
   const opacity = useSharedValue(0);
@@ -162,66 +104,50 @@ function ThemePickerPopup({
     }
   }, [visible]);
 
-  const animStyle = useAnimatedStyle(() => ({
+  const anim = useAnimatedStyle(() => ({
     opacity:   opacity.value,
     transform: [{ scale: scale.value }],
   }));
 
-  const borderClr = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-  const fgClr     = isDark ? "rgba(255,255,255,0.88)" : "rgba(10,10,10,0.88)";
-  const activeClr = isDark ? "#FFFFFF"                : "#000000";
-  const rowHover  = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
-  const divClr    = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
+  const border   = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+  const fg       = isDark ? "rgba(255,255,255,0.88)" : "rgba(10,10,10,0.88)";
+  const active   = isDark ? "#FFFFFF"                : "#000000";
+  const rowHover = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  const div      = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
 
   return (
     <Animated.View
-      style={[ss.pickerWrap, { top: topOffset }, animStyle]}
+      style={[ss.pickerWrap, { top: topOffset }, anim]}
       pointerEvents={visible ? "box-none" : "none"}
     >
-      {/* Glassmorphism base */}
       <BlurView
         intensity={75}
         tint={isDark ? "dark" : "light"}
-        style={[StyleSheet.absoluteFill, ss.pickerBlur]}
+        style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
       />
-      {/* Border ring */}
-      <View style={[StyleSheet.absoluteFill, ss.pickerBorderRing, { borderColor: borderClr }]} />
-
+      <View style={[StyleSheet.absoluteFill, ss.pickerRing, { borderColor: border }]} />
       {THEME_MODES.map((item, idx) => {
-        const active = themeMode === item.mode;
+        const isActive = themeMode === item.mode;
         return (
           <TouchableOpacity
             key={item.mode}
             style={[
               ss.pickerRow,
-              idx < THEME_MODES.length - 1 && {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: divClr,
-              },
-              active && { backgroundColor: rowHover },
+              idx < THEME_MODES.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: div },
+              isActive && { backgroundColor: rowHover },
             ]}
             onPress={() => { Haptics.selectionAsync(); onSelect(item.mode); }}
             activeOpacity={0.70}
           >
-            <Feather
-              name={item.icon}
-              size={15}
-              color={active ? activeClr : fgClr}
-              style={{ opacity: active ? 1 : 0.52 }}
-            />
-            <Text
-              style={[
-                ss.pickerLabel,
-                {
-                  color:      active ? activeClr : fgClr,
-                  opacity:    active ? 1 : 0.68,
-                  fontFamily: active ? "Inter_600SemiBold" : "Inter_400Regular",
-                },
-              ]}
-            >
+            <Feather name={item.icon} size={14} color={isActive ? active : fg} style={{ opacity: isActive ? 1 : 0.50 }} />
+            <Text style={[ss.pickerLabel, {
+              color:      isActive ? active : fg,
+              opacity:    isActive ? 1 : 0.68,
+              fontFamily: isActive ? "Inter_600SemiBold" : "Inter_400Regular",
+            }]}>
               {item.label}
             </Text>
-            {active && <Feather name="check" size={13} color={activeClr} />}
+            {isActive && <Feather name="check" size={12} color={active} />}
           </TouchableOpacity>
         );
       })}
@@ -229,273 +155,313 @@ function ThemePickerPopup({
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; }
 
 export default function SideMenu({ visible, onClose }: Props) {
   const { theme: T, themeMode, setThemeMode } = useTheme();
-  const insets  = useSafeAreaInsets();
-  const topPad  = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad  = Platform.OS === "web" ? 34 : insets.bottom;
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 20 : insets.top;
+  const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const isDark = T.isDark;
 
-  const {
-    conversations,
-    currentConversation,
-    loadConversation,
-    startNewConversation,
-  } = useChat();
+  const { conversations, currentConversation, loadConversation, startNewConversation } = useChat();
 
-  // Theme picker state
+  // UI state
+  const [searchOpen,  setSearchOpen]  = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [themePicker, setThemePicker] = useState(false);
-  // Header measured height — used to position the picker popup just below the header
-  const [headerH,     setHeaderH]     = useState(88);
+  const [stickyH,     setStickyH]     = useState(100);   // measured height of header + search
 
-  // ── Animations ───────────────────────────────────────────────────────────────
+  // ── Slide-in animation ────────────────────────────────────────────────────────
   const translateX = useSharedValue(-MENU_W);
   const backdropOp = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      translateX.value = withSpring(0, { damping: 24, stiffness: 220, mass: 0.85 });
-      backdropOp.value = withTiming(1, { duration: 300 });
+      translateX.value = withSpring(0, { damping: 26, stiffness: 200, mass: 0.9 });
+      backdropOp.value = withTiming(1, { duration: 280 });
     } else {
-      // Close picker when menu closes
       setThemePicker(false);
-      translateX.value = withTiming(-MENU_W, { duration: 240, easing: Easing.in(Easing.ease) });
-      backdropOp.value = withTiming(0, { duration: 220 });
+      setSearchOpen(false);
+      setSearchQuery("");
+      translateX.value = withTiming(-MENU_W, { duration: 260, easing: Easing.in(Easing.ease) });
+      backdropOp.value = withTiming(0, { duration: 230 });
     }
   }, [visible]);
 
-  const panelStyle    = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOp.value }));
+  const panelAnim    = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  const backdropAnim = useAnimatedStyle(() => ({ opacity: backdropOp.value }));
 
-  // ── Navigation helpers ───────────────────────────────────────────────────────
-  const go = (route: string | null) => {
-    if (!route) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return;
+  // ── Swipe-left-to-close gesture ───────────────────────────────────────────────
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.8,
+      onPanResponderMove: (_, { dx }) => {
+        if (dx < 0) translateX.value = dx;
+      },
+      onPanResponderRelease: (_, { dx, vx }) => {
+        if (dx < -(MENU_W * 0.28) || vx < -0.55) {
+          onCloseRef.current();
+        } else {
+          translateX.value = withSpring(0, { damping: 26, stiffness: 220 });
+        }
+      },
+    })
+  ).current;
+
+  // ── Filtered & grouped conversations ─────────────────────────────────────────
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const q = searchQuery.toLowerCase();
+    return conversations.filter(c => c.title.toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, typeof conversations> = {};
+    for (const conv of filtered) {
+      const g = getDateGroup(conv.createdAt);
+      if (!map[g]) map[g] = [];
+      map[g].push(conv);
     }
-    Haptics.selectionAsync();
-    onClose();
-    router.push(route as any);
-  };
+    return GROUP_ORDER
+      .filter(g => map[g]?.length)
+      .map(g => ({ label: g, items: map[g] }));
+  }, [filtered]);
 
-  const handleNewChat = () => {
+  // ── Navigate helpers ──────────────────────────────────────────────────────────
+  function go(path: string) {
+    onClose();
+    setTimeout(() => router.push(path as any), 180);
+  }
+
+  function handleNewChat() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startNewConversation();
     onClose();
-    router.push("/chat");
-  };
+    setTimeout(() => router.push("/chat"), 180);
+  }
 
-  const handleLoadConv = (id: string) => {
-    Haptics.selectionAsync();
-    loadConversation(id);
-    onClose();
-    router.push("/chat");
-  };
+  // ── Derived color tokens ──────────────────────────────────────────────────────
+  const panelOverlay  = isDark ? "rgba(8,8,10,0.82)"       : "rgba(253,253,251,0.88)";
+  const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
+  const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
+  const rowActiveBg   = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
+  const profileBg     = isDark ? "rgba(255,255,255,0.05)"   : "rgba(0,0,0,0.032)";
+  const profileBorder = isDark ? "rgba(255,255,255,0.09)"   : "rgba(0,0,0,0.07)";
+  const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
+  const iconActiveBg  = isDark ? "rgba(255,255,255,0.13)"   : "rgba(0,0,0,0.09)";
+  const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
+  const themeIconName = themeMode === "light" ? "sun" : themeMode === "dark" ? "moon" : "monitor";
 
-  // ── Derived data ─────────────────────────────────────────────────────────────
-  const groups = useMemo(() => groupByDate(conversations), [conversations]);
-
-  // ── Color tokens ─────────────────────────────────────────────────────────────
-  const panelBg       = T.isDark ? "#0D0D0D"                        : "#FFFFFF";
-  const sectionClr    = T.isDark ? "rgba(255,255,255,0.30)"         : "rgba(0,0,0,0.32)";
-  const divider       = T.isDark ? "rgba(255,255,255,0.07)"         : "rgba(0,0,0,0.07)";
-  const quickCardBg   = T.isDark ? "rgba(255,255,255,0.055)"        : "rgba(0,0,0,0.038)";
-  const quickIconBg   = T.isDark ? "rgba(255,255,255,0.08)"         : "rgba(0,0,0,0.06)";
-  const activeConvBg  = T.isDark ? "rgba(255,255,255,0.085)"        : "rgba(0,0,0,0.055)";
-  const convIconBg    = T.isDark ? "rgba(255,255,255,0.07)"         : "rgba(0,0,0,0.05)";
-  const moreBg        = T.isDark ? "rgba(255,255,255,0.06)"         : "rgba(0,0,0,0.04)";
-  const moreClr       = T.isDark ? "rgba(255,255,255,0.22)"         : "rgba(0,0,0,0.20)";
-  const avatarBorder  = T.isDark ? "rgba(255,255,255,0.14)"         : "rgba(0,0,0,0.10)";
-  const hBtnBg        = T.isDark ? "rgba(255,255,255,0.07)"         : "rgba(0,0,0,0.05)";
-  const fabBg         = T.isDark ? "#FFFFFF"                        : "#0A0A0A";
-  const fabClr        = T.isDark ? "#000000"                        : "#FFFFFF";
-
-  // ── Quick tile width — two tiles per row with gap ────────────────────────────
-  const tileW = Math.floor((MENU_W - 40 - 8) / 2);
-
+  // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <>
       {/* ── Backdrop ──────────────────────────────────────────────────────────── */}
       <Animated.View
-        style={[ss.backdrop, backdropStyle]}
+        style={[ss.backdrop, backdropAnim]}
         pointerEvents={visible ? "auto" : "none"}
       >
+        <BlurView intensity={14} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.28)" }]} />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
       {/* ── Panel ─────────────────────────────────────────────────────────────── */}
       <Animated.View
-        style={[ss.panel, { backgroundColor: panelBg, width: MENU_W }, panelStyle]}
+        style={[ss.panel, { width: MENU_W }, panelAnim]}
         pointerEvents={visible ? "box-none" : "none"}
+        {...panResponder.panHandlers}
       >
+        {/* Glassmorphism fill */}
+        <BlurView
+          intensity={isDark ? 60 : 85}
+          tint={isDark ? "dark" : "light"}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: panelOverlay }]} />
 
-        {/* ════ HEADER ════ */}
+        {/* Right-edge separator */}
+        <View style={[ss.edgeLine, { backgroundColor: divider }]} />
+
+        {/* ═══ STICKY TOP — header + search bar ═══════════════════════════════ */}
         <View
-          style={[ss.header, { paddingTop: topPad + 18, borderBottomColor: divider }]}
-          onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+          onLayout={e => setStickyH(e.nativeEvent.layout.height)}
+          style={[ss.stickyTop, { borderBottomColor: divider }]}
         >
-          {/* Left — branding */}
-          <View style={ss.headerLeft}>
-            <View style={ss.brandRow}>
-              <Image
-                source={leafLogo}
-                style={[ss.brandLogo, { tintColor: T.logoTint }]}
-                resizeMode="contain"
-              />
-              <Text style={[ss.appTitle, { color: T.fg }]}>AKILCEP</Text>
+
+          {/* ── Header ────────────────────────────────────────────────────────── */}
+          <View style={[ss.header, { paddingTop: topPad + 18 }]}>
+            {/* Brand */}
+            <View style={ss.brandBlock}>
+              <View style={ss.brandRow}>
+                <Image
+                  source={leafLogo}
+                  style={[ss.brandLogo, { tintColor: T.logoTint }]}
+                  resizeMode="contain"
+                />
+                <Text style={[ss.brandName, { color: T.fg }]}>AKILCEP</Text>
+              </View>
+              <Text style={[ss.brandSub, { color: muted }]}>Cebindeki Akıl</Text>
             </View>
-            <Text style={[ss.appSub, { color: sectionClr }]}>Cebindeki Akıl</Text>
+
+            {/* Action icons */}
+            <View style={ss.headerIcons}>
+              {/* Theme switcher */}
+              <TouchableOpacity
+                style={[ss.iconBtn, { backgroundColor: themePicker ? iconActiveBg : iconIdleBg }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setThemePicker(v => !v);
+                  setSearchOpen(false);
+                }}
+                hitSlop={10}
+                activeOpacity={0.65}
+              >
+                <Feather name={themeIconName} size={15} color={T.fg} style={{ opacity: 0.70 }} />
+              </TouchableOpacity>
+
+              {/* Search toggle */}
+              <TouchableOpacity
+                style={[ss.iconBtn, { backgroundColor: searchOpen ? iconActiveBg : iconIdleBg }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSearchOpen(v => !v);
+                  if (searchOpen) setSearchQuery("");
+                  setThemePicker(false);
+                }}
+                hitSlop={10}
+                activeOpacity={0.65}
+              >
+                <Feather name={searchOpen ? "x" : "search"} size={15} color={T.fg} style={{ opacity: 0.70 }} />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Right — theme toggle + search + avatar */}
-          <View style={ss.headerRight}>
-            {/* Theme switcher button */}
-            <TouchableOpacity
-              style={[
-                ss.hIconBtn,
-                { backgroundColor: themePicker ? (T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.09)") : hBtnBg },
-              ]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setThemePicker((v) => !v);
-              }}
-              activeOpacity={0.65}
-              hitSlop={10}
-            >
-              <Feather
-                name={themeMode === "light" ? "sun" : themeMode === "dark" ? "moon" : "monitor"}
-                size={15}
-                color={T.fg}
+          {/* ── Search bar (collapsible) ─────────────────────────────────────── */}
+          {searchOpen && (
+            <View style={[ss.searchBar, { borderTopColor: divider }]}>
+              <Feather name="search" size={14} color={muted} />
+              <TextInput
+                style={[ss.searchInput, { color: T.fg, backgroundColor: inputBg }]}
+                placeholder="Sohbet ara..."
+                placeholderTextColor={muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                returnKeyType="search"
               />
-            </TouchableOpacity>
-
-            {/* Search */}
-            <TouchableOpacity
-              style={[ss.hIconBtn, { backgroundColor: hBtnBg }]}
-              onPress={() => {
-                setThemePicker(false);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              activeOpacity={0.65}
-              hitSlop={10}
-            >
-              <Feather name="search" size={15} color={T.fg} />
-            </TouchableOpacity>
-
-            {/* Avatar → profile */}
-            <TouchableOpacity
-              onPress={() => { setThemePicker(false); go("/profile"); }}
-              activeOpacity={0.75}
-              hitSlop={10}
-            >
-              <Image
-                source={avatar}
-                style={[ss.headerAvatar, { borderColor: avatarBorder }]}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-          </View>
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={10}>
+                  <Feather name="x-circle" size={15} color={muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
-        {/* ════ SCROLL BODY ════ */}
+        {/* ═══ PROFILE CARD ════════════════════════════════════════════════════ */}
+        <TouchableOpacity
+          style={[ss.profileCard, { backgroundColor: profileBg, borderColor: profileBorder }]}
+          onPress={() => go("/profile")}
+          activeOpacity={0.72}
+        >
+          <Image source={defaultAvatar} style={ss.profileAvatar} resizeMode="cover" />
+          <View style={ss.profileInfo}>
+            <Text style={[ss.profileName, { color: T.fg }]}>SERDAR</Text>
+            <View style={ss.statusRow}>
+              <View style={[ss.statusDot, { backgroundColor: T.onlineDot }]} />
+              <Text style={[ss.statusLabel, { color: muted }]}>Çevrimiçi</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={16} color={muted} style={{ opacity: 0.60 }} />
+        </TouchableOpacity>
+
+        {/* Divider after profile */}
+        <View style={[ss.fullDivider, { backgroundColor: divider }]} />
+
+        {/* ═══ CHAT HISTORY — scrollable ═══════════════════════════════════════ */}
         <ScrollView
           style={ss.scroll}
-          contentContainerStyle={[ss.scrollContent, { paddingBottom: btmPad + 100 }]}
+          contentContainerStyle={[ss.scrollContent, { paddingBottom: btmPad + 110 }]}
           showsVerticalScrollIndicator={false}
-          bounces={false}
+          bounces
         >
+          {grouped.length === 0 ? (
+            <Text style={[ss.emptyText, { color: muted }]}>
+              {searchQuery.trim() ? "Sonuç bulunamadı" : "Henüz sohbet yok"}
+            </Text>
+          ) : (
+            grouped.map(({ label, items }) => (
+              <View key={label} style={ss.group}>
+                {/* Date group label */}
+                <Text style={[ss.groupLabel, { color: muted }]}>{label}</Text>
 
-          {/* ── Quick Access ────────────────────────────────────────────────── */}
-          <SectionLabel label="Hızlı Erişim" color={sectionClr} />
-          <View style={ss.quickGrid}>
-            {QUICK_ACCESS.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[ss.quickCard, { backgroundColor: quickCardBg, width: tileW }]}
-                onPress={() => go(item.route ?? null)}
-                activeOpacity={0.68}
-              >
-                <View style={[ss.quickIconWrap, { backgroundColor: quickIconBg }]}>
-                  <Feather name={item.icon as any} size={17} color={T.fg} />
-                </View>
-                <Text style={[ss.quickLabel, { color: T.fg }]} numberOfLines={1}>
-                  {item.label}
-                </Text>
-                <Text style={[ss.quickDesc, { color: sectionClr }]} numberOfLines={1}>
-                  {item.desc}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* ── Sabitlenenler ───────────────────────────────────────────────── */}
-          <SectionLabel label="Sabitlenenler" color={sectionClr} />
-          {STATIC_PINNED.map((item) => (
-            <ConvRow
-              key={item.id}
-              title={item.title}
-              active={false}
-              icon="bookmark"
-              fg={T.fg}
-              activeBg={activeConvBg}
-              iconBg={convIconBg}
-              moreBg={moreBg}
-              moreClr={moreClr}
-              dividerColor={divider}
-              onPress={() => Haptics.selectionAsync()}
-            />
-          ))}
-
-          {/* ── Yakın Zamandakiler ──────────────────────────────────────────── */}
-          <SectionLabel label="Yakın Zamandakiler" color={sectionClr} />
-
-          {groups.length > 0
-            ? groups.map(({ label, items }) => (
-                <React.Fragment key={label}>
-                  <DateLabel label={label} color={sectionClr} />
-                  {items.map((c) => (
-                    <ConvRow
-                      key={c.id}
-                      title={c.title}
-                      active={currentConversation?.id === c.id}
-                      icon="message-circle"
-                      fg={T.fg}
-                      activeBg={activeConvBg}
-                      iconBg={convIconBg}
-                      moreBg={moreBg}
-                      moreClr={moreClr}
-                      dividerColor={divider}
-                      onPress={() => handleLoadConv(c.id)}
-                    />
-                  ))}
-                </React.Fragment>
-              ))
-            : (
-              <View style={ss.emptyWrap}>
-                <Text style={[ss.emptyText, { color: sectionClr }]}>
-                  Henüz sohbet yok
-                </Text>
+                {/* Conversation rows */}
+                {items.map(conv => {
+                  const isActive = conv.id === currentConversation?.id;
+                  return (
+                    <TouchableOpacity
+                      key={conv.id}
+                      style={[
+                        ss.convRow,
+                        isActive && { backgroundColor: rowActiveBg },
+                      ]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        loadConversation(conv.id);
+                        onClose();
+                        setTimeout(() => router.push("/chat"), 160);
+                      }}
+                      activeOpacity={0.68}
+                    >
+                      {/* Active bar */}
+                      {isActive && (
+                        <View style={[ss.activeBar, { backgroundColor: T.fg }]} />
+                      )}
+                      <Feather
+                        name="message-square"
+                        size={12}
+                        color={T.fg}
+                        style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
+                      />
+                      <Text
+                        style={[ss.convTitle, { color: T.fg, opacity: isActive ? 1 : 0.72 }]}
+                        numberOfLines={1}
+                      >
+                        {conv.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            )
-          }
+            ))
+          )}
         </ScrollView>
 
-        {/* ════ BOTTOM FAB ════ */}
-        <View style={[ss.fabWrap, { paddingBottom: btmPad + 12, borderTopColor: divider }]}>
+        {/* ═══ BOTTOM FAB — sticky ══════════════════════════════════════════════ */}
+        <View
+          style={[ss.fabArea, {
+            paddingBottom: btmPad + 18,
+            borderTopColor: divider,
+          }]}
+        >
           <TouchableOpacity
-            style={[ss.fab, { backgroundColor: fabBg }]}
+            style={[ss.fab, { backgroundColor: T.primary }]}
             onPress={handleNewChat}
-            activeOpacity={0.80}
+            activeOpacity={0.82}
           >
-            <Feather name="plus" size={15} color={fabClr} />
-            <Text style={[ss.fabLabel, { color: fabClr }]}>Yeni Sohbet</Text>
+            <Feather name="plus" size={16} color={T.primaryForeground} />
+            <Text style={[ss.fabLabel, { color: T.primaryForeground }]}>Yeni Sohbet</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ════ THEME PICKER ════ */}
-        {/* Transparent dismiss layer — sits above scroll, below popup */}
+        {/* ═══ THEME PICKER POPUP ════════════════════════════════════════════════ */}
         {themePicker && (
           <Pressable
             style={[StyleSheet.absoluteFill, { zIndex: 402 }]}
@@ -505,14 +471,10 @@ export default function SideMenu({ visible, onClose }: Props) {
         <ThemePickerPopup
           visible={themePicker}
           themeMode={themeMode}
-          topOffset={headerH + 4}
-          isDark={T.isDark}
-          onSelect={(mode) => {
-            setThemeMode(mode);
-            setThemePicker(false);
-          }}
+          topOffset={stickyH + 8}
+          isDark={isDark}
+          onSelect={mode => { setThemeMode(mode); setThemePicker(false); }}
         />
-
       </Animated.View>
     </>
   );
@@ -523,196 +485,276 @@ const ss = StyleSheet.create({
   // Backdrop
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.46)",
-    zIndex:          400,
+    zIndex: 400,
   },
 
   // Panel
   panel: {
-    position:      "absolute",
-    top:           0,
-    left:          0,
-    bottom:        0,
-    zIndex:        401,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 10, height: 0 },
-    shadowOpacity: 0.20,
-    shadowRadius:  28,
-    elevation:     24,
+    position:  "absolute",
+    top:       0,
+    bottom:    0,
+    left:      0,
+    zIndex:    401,
+    overflow:  "hidden",
   },
 
-  // Header
+  // Right-edge separator line
+  edgeLine: {
+    position: "absolute",
+    top:      0,
+    bottom:   0,
+    right:    0,
+    width:    StyleSheet.hairlineWidth,
+    zIndex:   1,
+  },
+
+  // ── Header area ─────────────────────────────────────────────────────────────
+  stickyTop: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex:            2,
+  },
+
   header: {
     flexDirection:     "row",
     alignItems:        "flex-start",
+    justifyContent:    "space-between",
     paddingHorizontal: 20,
-    paddingBottom:     14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom:     16,
   },
-  headerLeft: { flex: 1 },
+
+  brandBlock: {
+    flex: 1,
+    gap:  3,
+  },
+
   brandRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           7,
+    gap:           8,
   },
+
   brandLogo: {
-    width:  20,
-    height: 20,
+    width:  22,
+    height: 22,
   },
-  appTitle: {
-    fontSize:      22,
+
+  brandName: {
+    fontSize:      18,
     fontFamily:    "Inter_700Bold",
-    letterSpacing: -0.7,
-    lineHeight:    26,
+    letterSpacing: 1.8,
   },
-  appSub: {
+
+  brandSub: {
     fontSize:      12,
     fontFamily:    "Inter_400Regular",
     letterSpacing: 0.1,
-    marginTop:     3,
-    marginLeft:    27,
-  },
-  headerRight: {
-    flexDirection:  "row",
-    alignItems:     "center",
-    gap:            8,
-    paddingTop:     2,
-  },
-  hIconBtn: {
-    width:           34,
-    height:          34,
-    borderRadius:    17,
-    alignItems:      "center",
-    justifyContent:  "center",
-  },
-  headerAvatar: {
-    width:        34,
-    height:       34,
-    borderRadius: 17,
-    borderWidth:  1.5,
+    marginLeft:    30,
   },
 
-  // Scroll
-  scroll:        { flex: 1 },
-  scrollContent: { paddingTop: 4 },
-
-  // Section label — uppercase small caps
-  sectionLbl: {
-    fontSize:          10.5,
-    fontFamily:        "Inter_600SemiBold",
-    letterSpacing:     1.0,
-    paddingHorizontal: 20,
-    paddingTop:        22,
-    paddingBottom:     8,
+  headerIcons: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           8,
+    paddingTop:    2,
   },
 
-  // Date group label
-  dateLbl: {
-    fontSize:          11.5,
-    fontFamily:        "Inter_500Medium",
-    letterSpacing:     0.1,
-    paddingHorizontal: 20,
-    paddingTop:        10,
-    paddingBottom:     2,
-  },
-
-  // Quick access 2x2 grid
-  quickGrid: {
-    flexDirection:     "row",
-    flexWrap:          "wrap",
-    paddingHorizontal: 16,
-    gap:               8,
-  },
-  quickCard: {
-    borderRadius: 16,
-    padding:      14,
-    gap:          7,
-  },
-  quickIconWrap: {
-    width:          38,
-    height:         38,
-    borderRadius:   11,
+  iconBtn: {
+    width:          34,
+    height:         34,
+    borderRadius:   17,
     alignItems:     "center",
     justifyContent: "center",
   },
-  quickLabel: {
-    fontSize:      13.5,
+
+  // ── Search bar ───────────────────────────────────────────────────────────────
+  searchBar: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 16,
+    paddingVertical:   10,
+    borderTopWidth:    StyleSheet.hairlineWidth,
+    gap:               8,
+  },
+
+  searchInput: {
+    flex:          1,
+    fontSize:      14,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: -0.1,
+    paddingHorizontal: 10,
+    paddingVertical:   7,
+    borderRadius:  10,
+  },
+
+  // ── Profile card ─────────────────────────────────────────────────────────────
+  profileCard: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    marginHorizontal:  14,
+    marginTop:         14,
+    marginBottom:      4,
+    paddingHorizontal: 14,
+    paddingVertical:   13,
+    borderRadius:      16,
+    borderWidth:       StyleSheet.hairlineWidth,
+    gap:               12,
+    zIndex:            2,
+  },
+
+  profileAvatar: {
+    width:        44,
+    height:       44,
+    borderRadius: 22,
+    flexShrink:   0,
+  },
+
+  profileInfo: {
+    flex: 1,
+    gap:  3,
+  },
+
+  profileName: {
+    fontSize:      15,
     fontFamily:    "Inter_600SemiBold",
     letterSpacing: -0.2,
-    marginTop:     1,
   },
-  quickDesc: {
-    fontSize:      11,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.05,
+
+  statusRow: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           5,
+  },
+
+  statusDot: {
+    width:        6,
+    height:       6,
+    borderRadius: 3,
+  },
+
+  statusLabel: {
+    fontSize:   12,
+    fontFamily: "Inter_400Regular",
+  },
+
+  // Full-width hairline
+  fullDivider: {
+    height:          StyleSheet.hairlineWidth,
+    marginTop:       12,
+    marginBottom:    2,
+  },
+
+  // ── Scroll area ──────────────────────────────────────────────────────────────
+  scroll: {
+    flex: 1,
+    zIndex: 2,
+  },
+
+  scrollContent: {
+    paddingTop: 6,
+  },
+
+  // Group
+  group: {
+    marginBottom: 4,
+  },
+
+  groupLabel: {
+    fontSize:          11,
+    fontFamily:        "Inter_500Medium",
+    letterSpacing:     0.6,
+    textTransform:     "uppercase",
+    paddingHorizontal: 20,
+    paddingTop:        16,
+    paddingBottom:     4,
   },
 
   // Conversation row
   convRow: {
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 12,
-    paddingVertical:   9,
-    marginHorizontal:  8,
-    borderRadius:      12,
+    paddingHorizontal: 20,
+    paddingVertical:   10,
     gap:               10,
+    borderRadius:      10,
+    marginHorizontal:  8,
+    position:          "relative",
   },
-  convIcon: {
-    width:          28,
-    height:         28,
-    borderRadius:   8,
-    alignItems:     "center",
-    justifyContent: "center",
-    flexShrink:     0,
+
+  activeBar: {
+    position:     "absolute",
+    left:         10,
+    top:          "50%",
+    marginTop:    -8,
+    width:        3,
+    height:       16,
+    borderRadius: 2,
   },
+
   convTitle: {
     flex:          1,
     fontSize:      14,
     fontFamily:    "Inter_400Regular",
     letterSpacing: -0.1,
   },
-  moreBtn: {
-    width:          26,
-    height:         26,
-    borderRadius:   13,
-    alignItems:     "center",
-    justifyContent: "center",
-    flexShrink:     0,
-  },
 
   // Empty state
-  emptyWrap: {
-    paddingHorizontal: 20,
-    paddingVertical:   14,
-  },
   emptyText: {
-    fontSize:      13,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-    fontStyle:     "italic",
+    fontSize:          14,
+    fontFamily:        "Inter_400Regular",
+    letterSpacing:     -0.1,
+    paddingHorizontal: 20,
+    paddingTop:        24,
+    fontStyle:         "italic",
   },
 
-  // ── Theme picker popup ────────────────────────────────────────────────────
+  // ── Bottom FAB ───────────────────────────────────────────────────────────────
+  fabArea: {
+    paddingHorizontal: 16,
+    paddingTop:        14,
+    borderTopWidth:    StyleSheet.hairlineWidth,
+    zIndex:            2,
+  },
+
+  fab: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    justifyContent:  "center",
+    borderRadius:    999,
+    paddingVertical: 16,
+    gap:             8,
+    shadowColor:     "#000",
+    shadowOffset:    { width: 0, height: 6 },
+    shadowOpacity:   0.16,
+    shadowRadius:    18,
+    elevation:       8,
+  },
+
+  fabLabel: {
+    fontSize:      15,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.3,
+  },
+
+  // ── Theme picker popup ────────────────────────────────────────────────────────
   pickerWrap: {
     position:      "absolute",
     right:         14,
-    width:         196,
-    borderRadius:  18,
+    width:         188,
+    borderRadius:  16,
     overflow:      "hidden",
     zIndex:        403,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius:  20,
+    shadowOpacity: 0.20,
+    shadowRadius:  18,
     elevation:     12,
   },
-  pickerBlur: {
-    borderRadius: 18,
-  },
-  pickerBorderRing: {
-    borderRadius: 18,
+
+  pickerRing: {
+    borderRadius: 16,
     borderWidth:  StyleSheet.hairlineWidth,
   },
+
   pickerRow: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -720,34 +762,10 @@ const ss = StyleSheet.create({
     paddingVertical:   13,
     gap:               10,
   },
+
   pickerLabel: {
     flex:          1,
     fontSize:      14,
     letterSpacing: -0.1,
-  },
-
-  // Bottom FAB
-  fabWrap: {
-    paddingHorizontal: 16,
-    paddingTop:        12,
-    borderTopWidth:    StyleSheet.hairlineWidth,
-  },
-  fab: {
-    flexDirection:  "row",
-    alignItems:     "center",
-    justifyContent: "center",
-    borderRadius:   28,
-    paddingVertical: 15,
-    gap:            8,
-    shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 4 },
-    shadowOpacity:  0.18,
-    shadowRadius:   14,
-    elevation:      7,
-  },
-  fabLabel: {
-    fontSize:      15,
-    fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.3,
   },
 });
