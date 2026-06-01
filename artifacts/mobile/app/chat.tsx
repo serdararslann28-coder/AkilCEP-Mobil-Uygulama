@@ -9,6 +9,7 @@
  */
 import { Feather } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import { BlurView } from "expo-blur";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -591,7 +592,8 @@ export default function ChatScreen() {
   };
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
-  const headerBg     = T.isDark ? "rgba(5,5,5,0.82)"       : "rgba(246,246,243,0.82)";
+  const headerBg     = T.isDark ? "rgba(8,8,8,0.18)"        : "rgba(250,250,248,0.16)";
+  const headerBorderClr = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
   const inputBg      = T.isDark ? "rgba(255,255,255,0.055)" : "#F1F1EE";
   const sendBtnBg    = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
   const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
@@ -645,7 +647,13 @@ export default function ChatScreen() {
       </View>
 
       {/* ════ HEADER ════ */}
-      <View style={[ss.header, { paddingTop: topPad + 10, backgroundColor: headerBg }]}>
+      <View style={[ss.headerContainer, { borderBottomColor: headerBorderClr }]}>
+        <BlurView
+          intensity={Platform.OS === "android" ? 0 : 52}
+          tint={T.isDark ? "dark" : "light"}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[ss.header, { paddingTop: topPad + 10, backgroundColor: headerBg }]}>
 
         {/* ── Menu ── */}
         <TouchableOpacity
@@ -694,7 +702,8 @@ export default function ChatScreen() {
           </Animated.View>
         </TouchableOpacity>
 
-      </View>
+        </View>{/* end ss.header */}
+      </View>{/* end ss.headerContainer */}
 
       {/* ════ MESSAGES ════ */}
       <KeyboardAvoidingView style={ss.flex} behavior="padding">
@@ -961,7 +970,16 @@ const ss = StyleSheet.create({
   },
   logoImg: { width: 300, height: 300 },
 
-  // Header
+  // Header — glassmorphic container
+  headerContainer: {
+    overflow:      "hidden",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius:  12,
+    elevation:     4,
+  },
   header: {
     flexDirection:     "row",
     alignItems:        "center",
