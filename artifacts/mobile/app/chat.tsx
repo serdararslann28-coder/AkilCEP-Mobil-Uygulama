@@ -592,8 +592,8 @@ export default function ChatScreen() {
   };
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
-  const headerBg     = T.isDark ? "rgba(8,8,8,0.18)"        : "rgba(250,250,248,0.16)";
-  const headerBorderClr = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
+  const headerBg        = T.isDark ? "rgba(8,8,8,0.10)"        : "rgba(250,250,248,0.10)";
+  const headerBorderClr = "transparent";
   const inputBg      = T.isDark ? "rgba(255,255,255,0.055)" : "#F1F1EE";
   const sendBtnBg    = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
   const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
@@ -649,7 +649,7 @@ export default function ChatScreen() {
       {/* ════ HEADER ════ */}
       <View style={[ss.headerContainer, { borderBottomColor: headerBorderClr }]}>
         <BlurView
-          intensity={Platform.OS === "android" ? 0 : 52}
+          intensity={Platform.OS === "android" ? 0 : 68}
           tint={T.isDark ? "dark" : "light"}
           style={StyleSheet.absoluteFill}
         />
@@ -970,15 +970,12 @@ const ss = StyleSheet.create({
   },
   logoImg: { width: 300, height: 300 },
 
-  // Header — glassmorphic container
+  // Header — floating glass, no card
   headerContainer: {
-    overflow:      "hidden",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius:  12,
-    elevation:     4,
+    overflow:          "hidden",
+    borderBottomWidth: 0,
+    shadowOpacity:     0,
+    elevation:         0,
   },
   header: {
     flexDirection:     "row",
