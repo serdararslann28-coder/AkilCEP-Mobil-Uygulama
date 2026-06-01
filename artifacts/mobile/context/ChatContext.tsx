@@ -83,6 +83,8 @@ export interface Conversation {
   messages: Message[];
   createdAt: number;
   model: string;
+  /** Private conversations are never persisted and never appear in history. */
+  isPrivate?: boolean;
 }
 
 export const AI_MODELS = [
@@ -122,9 +124,10 @@ interface ChatContextType {
   /** Inject user photo message and call Gemini Vision in background.
    *  Pass `question` to override the default analysis prompt (e.g. spoken voice question). */
   startVisionAnalysis:  (imageBase64: string, imageUri: string, question?: string) => void;
-  startNewConversation: () => void;
-  loadConversation:     (id: string) => void;
-  deleteConversation:   (id: string) => void;
+  startNewConversation:    () => void;
+  startSecretConversation: () => void;
+  loadConversation:        (id: string) => void;
+  deleteConversation:      (id: string) => void;
   currentMessages:      Message[];
 }
 
@@ -187,6 +190,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setCurrentConversation(newConv);
   }, [selectedModel]);
 
+  // Private conversation — never saved to storage, never appears in history
+  const startSecretConversation = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsTyping(false);
+
+    const secretConv: Conversation = {
+      id:        generateId(),
+      title:     "Gizli Sohbet",
+      messages:  [],
+      createdAt: Date.now(),
+      model:     selectedModel,
+      isPrivate: true,
+    };
+    setCurrentConversation(secretConv);
+    // Intentionally NOT added to conversations list or persisted
+  }, [selectedModel]);
+
   const loadConversation = useCallback(
     (id: string) => {
       const conv = conversations.find((c) => c.id === id);
@@ -208,6 +229,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const persistConversation = useCallback(
     (finalConv: Conversation) => {
       setCurrentConversation(finalConv);
+      // Private conversations are never stored or listed in history
+      if (finalConv.isPrivate) return;
       setConversations((prev) => {
         const exists  = prev.find((c) => c.id === finalConv.id);
         const updated = exists
@@ -736,6 +759,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         injectMessages,
         startVisionAnalysis,
         startNewConversation,
+        startSecretConversation,
         loadConversation,
         deleteConversation,
         currentMessages,
