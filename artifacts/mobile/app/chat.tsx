@@ -694,13 +694,13 @@ export default function ChatScreen() {
             </TouchableOpacity>
 
             {/* Text field — dims slightly during voice */}
-            <Animated.View style={[ss.textInputWrap, inputFieldAnim]}>
+            <View style={ss.textInputWrap}>
               <TextInput
                 style={[
                   ss.textInput,
                   { color: inputTextClr, opacity: voiceActive ? 0.45 : 1 },
                 ]}
-                placeholder={voiceActive ? "" : "AkılCEP'e yazın…"}
+                placeholder={voiceActive ? "" : "Bir şey sor…"}
                 placeholderTextColor={inputPlhClr}
                 value={inputText}
                 onChangeText={setInputText}
@@ -711,27 +711,26 @@ export default function ChatScreen() {
                 blurOnSubmit={false}
                 editable={!voiceActive}
               />
-            </Animated.View>
+            </View>
 
             {/* Right controls */}
             <View style={ss.rightRow}>
 
-              {/* Mic — speech-to-text: records and inserts text into field */}
-              <View style={[ss.micWrap, { opacity: sttListening ? 1 : (hasText ? 0.38 : 0.82) }]}>
-                {/* Pulse ring — glows softly while recording */}
+              {/* Mic — bare icon, no circle background */}
+              <View style={ss.micWrap}>
                 <Animated.View
                   style={[ss.micHalo, { backgroundColor: T.fg }, sttPulseStyle]}
                   pointerEvents="none"
                 />
                 <TouchableOpacity
-                  style={[ss.micBtn]}
+                  style={{ opacity: sttListening ? 1 : (hasText ? 0.32 : 0.52) }}
                   onPress={handleSttPress}
                   activeOpacity={0.65}
-                  hitSlop={8}
+                  hitSlop={10}
                 >
                   <Feather
                     name={sttListening ? "square" : "mic"}
-                    size={15}
+                    size={22}
                     color={sttListening ? T.fg : attachClr}
                   />
                 </TouchableOpacity>
@@ -739,8 +738,8 @@ export default function ChatScreen() {
 
               {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
               <Animated.View style={[ss.sendWrap, sendStyle, voicePulseAnim]}>
-                {/* Dark graphite bg — voice mode */}
-                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#161616" }, arrowVoiceBgAnim]} />
+                {/* Deep black bg — voice mode */}
+                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#0A0A0A" }, arrowVoiceBgAnim]} />
                 {/* Primary-color bg — send mode */}
                 <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
 
@@ -765,7 +764,7 @@ export default function ChatScreen() {
                     <Image
                       source={leafOnly}
                       style={ss.orbLeaf}
-                      tintColor="rgba(255,255,255,0.72)"
+                      tintColor="rgba(255,255,255,0.90)"
                       resizeMode="contain"
                     />
                   </Animated.View>
@@ -892,42 +891,40 @@ const ss = StyleSheet.create({
   // Input area
   inputOuter: {
     paddingHorizontal: 14,
-    paddingTop:        6,
+    paddingTop:        4,
   },
 
-  // Input row
+  // Input row — 56 px pill
   inputRow: {
     flexDirection:     "row",
-    alignItems:        "flex-end",
-    borderRadius:      28,
-    paddingHorizontal: 8,
-    paddingVertical:   7,
-    gap:               4,
+    alignItems:        "center",
+    borderRadius:      999,
+    height:            56,
+    paddingHorizontal: 10,
+    gap:               2,
     shadowColor:       "#000",
     shadowOffset:      { width: 0, height: 2 },
-    shadowOpacity:     0.04,
-    shadowRadius:      8,
-    elevation:         2,
+    shadowOpacity:     0.05,
+    shadowRadius:      10,
+    elevation:         3,
   },
   attachBtn: {
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
-    marginBottom:   1,
   },
-  // Animated wrapper around TextInput — height springs with content
+  // Plain flex wrapper for TextInput
   textInputWrap: {
     flex:           1,
     justifyContent: "center",
-    minHeight:      40,
   },
   textInput: {
     flex:              1,
     fontSize:          15,
     fontFamily:        "Inter_400Regular",
-    paddingVertical:   8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 6,
+    paddingVertical:   0,
     lineHeight:        22,
   },
 
@@ -935,48 +932,46 @@ const ss = StyleSheet.create({
   rightRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           4,
-    marginBottom:  1,
+    gap:           6,
   },
 
-  // Mic
+  // Mic — bare icon, halo for STT feedback
   micWrap: {
-    width:          34,
-    height:         34,
+    width:          32,
+    height:         32,
     alignItems:     "center",
     justifyContent: "center",
   },
   micHalo: {
     position:     "absolute",
-    width:        34,
-    height:       34,
-    borderRadius: 17,
+    width:        32,
+    height:       32,
+    borderRadius: 16,
   },
   micBtn: {
-    width:          34,
-    height:         34,
-    borderRadius:   17,
+    width:          32,
+    height:         32,
     alignItems:     "center",
     justifyContent: "center",
   },
 
-  // Smart send/voice-orb button — 56 px single circle, no rings
+  // AkılCEP button — 48 px single circle, no rings
   sendWrap: {
-    width: 56, height: 56,
+    width: 48, height: 48,
     alignItems:     "center",
     justifyContent: "center",
   },
   sendBtnBg: {
     position:      "absolute",
-    width:         56, height: 56, borderRadius: 28,
+    width:         48, height: 48, borderRadius: 24,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius:  12,
-    elevation:     6,
+    shadowOffset:  { width: 0, height: 3 },
+    shadowOpacity: 0.20,
+    shadowRadius:  8,
+    elevation:     5,
   },
   sendBtnTouch: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 48, height: 48, borderRadius: 24,
     alignItems:     "center",
     justifyContent: "center",
   },
@@ -986,7 +981,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   orbLeaf: {
-    width:  22,
-    height: 22,
+    width:  20,
+    height: 20,
   },
 });
