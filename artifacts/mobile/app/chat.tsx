@@ -110,13 +110,7 @@ export default function ChatScreen() {
   const bottomPad   = Platform.OS === "web" ? 34 : insets.bottom;
   const isSpeaking  = voicePhase === "speaking";
 
-  // ── Header right-button crossfade: 0 = Secret Chat, 1 = New Chat ────────────
-  const btnAnim = useSharedValue(hasMessages ? 1 : 0);
-  useEffect(() => {
-    btnAnim.value = withTiming(hasMessages ? 1 : 0, { duration: 260 });
-  }, [hasMessages]);
-  const secretStyle  = useAnimatedStyle(() => ({ opacity: 1 - btnAnim.value, transform: [{ scale: 0.70 + (1 - btnAnim.value) * 0.30 }] }));
-  const newChatStyle = useAnimatedStyle(() => ({ opacity: btnAnim.value,     transform: [{ scale: 0.70 + btnAnim.value * 0.30 }] }));
+  // (crossfade animation removed — right side now has two separate always-visible icons)
 
   // ── Secret Chat active badge: fades in when isSecretChat = true ─────────────
   const badgeAnim = useSharedValue(isSecretChat ? 1 : 0);
@@ -597,9 +591,6 @@ export default function ChatScreen() {
   const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
   const inputPlhClr  = T.isDark ? T.muted                   : "#9A9A9A";
   const attachClr    = T.isDark ? "rgba(255,255,255,0.32)"  : "#9A9A9A";
-  const btnBg        = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.045)";
-  const btnBorder    = T.isDark ? StyleSheet.hairlineWidth  : 0;
-  const btnBorderClr = T.isDark ? "rgba(255,255,255,0.09)"  : "transparent";
   const logoTint     = T.isDark ? "#888888"                 : "#5A5A5A";
 
   // Mic button colors per phase
@@ -671,28 +662,30 @@ export default function ChatScreen() {
           </Animated.View>
         </View>
 
-        {/* ── Right button — crossfades between Secret Chat (empty) and New Chat (active) ── */}
-        <TouchableOpacity
-          style={ss.hBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (hasMessages) {
-              startNewConversation();
-            } else {
-              setSecretModal(true);
-            }
-          }}
-          hitSlop={12} activeOpacity={0.55}
-        >
-          {/* Secret Chat shield — visible when conversation is empty */}
-          <Animated.View style={[ss.hBtnIcon, secretStyle]}>
-            <Feather name="shield" size={16} color={isSecretChat ? (T.isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.64)") : T.fgSoft} />
-          </Animated.View>
-          {/* New Chat pencil — visible when conversation has messages */}
-          <Animated.View style={[ss.hBtnIcon, newChatStyle]}>
+        {/* ── Right cluster: More + New Chat ── */}
+        <View style={ss.hBtnGroup}>
+          {/* More / Secret Chat */}
+          <TouchableOpacity
+            style={ss.hBtn}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSecretModal(true); }}
+            hitSlop={12} activeOpacity={0.55}
+          >
+            <Feather
+              name="more-horizontal"
+              size={16}
+              color={isSecretChat ? (T.isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.64)") : T.fgSoft}
+            />
+          </TouchableOpacity>
+
+          {/* New Chat */}
+          <TouchableOpacity
+            style={ss.hBtn}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); startNewConversation(); }}
+            hitSlop={12} activeOpacity={0.55}
+          >
             <Feather name="edit-3" size={16} color={T.fgSoft} />
-          </Animated.View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
       </View>{/* end header */}
 
@@ -976,6 +969,10 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   // Two icons stacked — positioned absolute so they overlap in the same 36×36 cell
+  hBtnGroup: {
+    flexDirection: "row",
+    alignItems:    "center",
+  },
   hBtnIcon: {
     position:       "absolute",
     alignItems:     "center",
