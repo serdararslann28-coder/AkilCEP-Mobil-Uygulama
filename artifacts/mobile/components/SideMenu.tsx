@@ -444,13 +444,35 @@ export default function SideMenu({ visible, onClose }: Props) {
           )}
         </ScrollView>
 
-        {/* ═══ BOTTOM FAB — sticky ══════════════════════════════════════════════ */}
+        {/* ═══ BOTTOM AREA — sticky ═════════════════════════════════════════════ */}
         <View
-          style={[ss.fabArea, {
-            paddingBottom: btmPad + 18,
-            borderTopColor: divider,
-          }]}
+          style={[ss.bottomArea, { paddingBottom: btmPad + 18, borderTopColor: divider }]}
         >
+          {/* ── Bottom nav items ────────────────────────────────────────────── */}
+          <TouchableOpacity
+            style={ss.bottomNavRow}
+            onPress={() => go("/settings")}
+            activeOpacity={0.68}
+          >
+            <Feather name="settings" size={16} color={T.fg} style={{ opacity: 0.55 }} />
+            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>Ayarlar</Text>
+            <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={ss.bottomNavRow}
+            onPress={() => go("/about")}
+            activeOpacity={0.68}
+          >
+            <Feather name="info" size={16} color={T.fg} style={{ opacity: 0.55 }} />
+            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>Hakkımızda</Text>
+            <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
+          </TouchableOpacity>
+
+          {/* Thin divider */}
+          <View style={[ss.bottomDivider, { backgroundColor: divider }]} />
+
+          {/* ── New Chat FAB ─────────────────────────────────────────────────── */}
           <TouchableOpacity
             style={[ss.fab, { backgroundColor: T.primary }]}
             onPress={handleNewChat}
@@ -707,12 +729,33 @@ const ss = StyleSheet.create({
     fontStyle:         "italic",
   },
 
-  // ── Bottom FAB ───────────────────────────────────────────────────────────────
-  fabArea: {
+  // ── Bottom area (nav items + FAB) ────────────────────────────────────────────
+  bottomArea: {
     paddingHorizontal: 16,
-    paddingTop:        14,
+    paddingTop:        8,
     borderTopWidth:    StyleSheet.hairlineWidth,
     zIndex:            2,
+  },
+
+  bottomNavRow: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 4,
+    paddingVertical:   12,
+    gap:               12,
+  },
+
+  bottomNavLabel: {
+    flex:          1,
+    fontSize:      14,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: -0.1,
+    opacity:       0.72,
+  },
+
+  bottomDivider: {
+    height:        StyleSheet.hairlineWidth,
+    marginVertical: 8,
   },
 
   fab: {
