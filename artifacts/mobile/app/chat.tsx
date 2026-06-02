@@ -752,7 +752,7 @@ export default function ChatScreen() {
                   ss.textInput,
                   { color: inputTextClr, opacity: voiceActive ? 0.45 : 1 },
                 ]}
-                placeholder={voiceActive ? "" : "Bir şey sor…"}
+                placeholder={voiceActive ? "" : "AkılCEP'e yaz…"}
                 placeholderTextColor={inputPlhClr}
                 value={inputText}
                 onChangeText={setInputText}
