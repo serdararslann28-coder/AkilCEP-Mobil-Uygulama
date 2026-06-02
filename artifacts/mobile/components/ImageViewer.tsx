@@ -1,15 +1,21 @@
 /**
- * ImageViewer — full-screen generated-image viewer with inline editing.
+ * ImageViewer — gallery-quality full-screen image viewer with inline editing.
  *
- * Features:
- *  - Dark overlay, smooth spring open/close
- *  - Pinch-to-zoom + pan (simultaneous gestures)
- *  - Double-tap to toggle 1× ↔ 2.5× zoom
- *  - Top bar:    ✕ Close  ·  ⬇ Download  ·  ↗ Share
- *  - Bottom bar: quick-edit action pills + "Görseli düzenle..." inline input
+ * Gestures:
+ *  - Pinch to zoom (1× fit → 5× max)
+ *  - Double-tap to toggle 1× ↔ 2.5×
+ *  - Pan to move while zoomed
+ *  - Swipe down to close (with background fade)
+ *
+ * Controls (floating overlays):
+ *  - Top:    ✕ Close  ⬇ Download  ↗ Share
+ *  - Bottom: quick-edit pills + "Görseli düzenle..." inline input
+ *
+ * Notes:
+ *  - Image fills true screen dimensions, no layout margins
  *  - Keyboard-aware: bottom bar slides up with keyboard
- *  - Download saves PNG to device gallery (expo-media-library)
- *  - Share writes temp PNG then opens native share sheet
+ *  - Download → expo-media-library (lazy loaded)
+ *  - Share → temp file + native share sheet
  */
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
@@ -17,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Keyboard,
   Modal,
   Platform,
@@ -43,73 +50,73 @@ import { useTheme } from "@/context/ThemeContext";
 
 interface Props {
   visible:   boolean;
-  imageData: string;          // data:image/png;base64,...
+  imageData: string;        // data:image/png;base64,...
   onClose:   () => void;
   onEdit?:   (instruction: string) => void;
 }
 
-const SPRING = { damping: 22, stiffness: 200, mass: 0.9 } as const;
+const SPRING      = { damping: 24, stiffness: 220, mass: 0.85 } as const;
+const MAX_ZOOM    = 5;
+const SWIPE_CLOSE = 90;     // px drag-down to trigger close
+const SWIPE_VY    = 650;    // px/s velocity to trigger close
 
-// Quick-action pills that pre-fill the edit input
+// Quick-action pills pre-fill the edit input
 const QUICK_ACTIONS = [
   { label: "Alanları Seç",            text: "Şu alanı değiştir: " },
   { label: "En-Boy Oranını Değiştir", text: "En-boy oranını değiştir: " },
   { label: "Arka Planı Kaldır",       text: "Arka planı kaldır" },
 ];
 
-export default function ImageViewer({
-  visible,
-  imageData,
-  onClose,
-  onEdit,
-}: Props) {
+export default function ImageViewer({ visible, imageData, onClose, onEdit }: Props) {
   const { showToast } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: SW, height: SH } = Dimensions.get("window");
 
   // ── Edit state ─────────────────────────────────────────────────────────────
   const [editText, setEditText] = useState("");
 
-  // ── Keyboard height tracking ───────────────────────────────────────────────
+  // ── Keyboard tracking ──────────────────────────────────────────────────────
   const kbOffset = useSharedValue(0);
 
   useEffect(() => {
     const SHOW = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const HIDE = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSub = Keyboard.addListener(SHOW, (e) => {
+    const s = Keyboard.addListener(SHOW, (e) => {
       kbOffset.value = withTiming(e.endCoordinates.height, { duration: 280 });
     });
-    const hideSub = Keyboard.addListener(HIDE, () => {
+    const h = Keyboard.addListener(HIDE, () => {
       kbOffset.value = withTiming(0, { duration: 280 });
     });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    return () => { s.remove(); h.remove(); };
   }, []);
 
-  const bottomBarAnim = useAnimatedStyle(() => ({
-    bottom: kbOffset.value,
-  }));
+  const bottomBarAnim = useAnimatedStyle(() => ({ bottom: kbOffset.value }));
 
-  // ── Overlay entrance animation ─────────────────────────────────────────────
+  // ── Overlay entrance ───────────────────────────────────────────────────────
   const overlayOp = useSharedValue(0);
-  const imgScale  = useSharedValue(0.88);
+  const imgScale  = useSharedValue(0.90);
 
   useEffect(() => {
     if (visible) {
-      overlayOp.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.ease) });
+      // Reset all transforms on open
+      scale.value      = 1;
+      savedScale.value = 1;
+      tx.value         = 0;
+      savedTx.value    = 0;
+      ty.value         = 0;
+      savedTy.value    = 0;
+
+      overlayOp.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.ease) });
       imgScale.value  = withSpring(1, SPRING);
     } else {
-      overlayOp.value = withTiming(0, { duration: 200 });
-      imgScale.value  = withTiming(0.88, { duration: 180 });
-      // Clear edit text when viewer closes
+      // Normal close (button press) — scale + fade
+      overlayOp.value = withTiming(0, { duration: 220 });
+      imgScale.value  = withTiming(0.90, { duration: 190 });
       setEditText("");
     }
   }, [visible]);
 
-  // ── Zoom + pan ─────────────────────────────────────────────────────────────
+  // ── Zoom + pan shared values ───────────────────────────────────────────────
   const scale      = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const tx         = useSharedValue(0);
@@ -117,26 +124,25 @@ export default function ImageViewer({
   const savedTx    = useSharedValue(0);
   const savedTy    = useSharedValue(0);
 
-  const resetTransform = useCallback(() => {
-    scale.value      = withSpring(1, SPRING);
-    tx.value         = withSpring(0, SPRING);
-    ty.value         = withSpring(0, SPRING);
-    savedScale.value = 1;
-    savedTx.value    = 0;
-    savedTy.value    = 0;
-  }, []);
+  // ── Swipe-to-close (JS-thread) ─────────────────────────────────────────────
+  const triggerClose = useCallback(() => {
+    // Slide image off the bottom and fade background, then notify parent
+    ty.value        = withTiming(SH * 0.7, { duration: 300, easing: Easing.out(Easing.ease) });
+    overlayOp.value = withTiming(0, { duration: 260 });
+    Keyboard.dismiss();
+    setEditText("");
+    setTimeout(onClose, 280);
+  }, [onClose, SH]);
 
-  useEffect(() => {
-    if (!visible) resetTransform();
-  }, [visible]);
-
-  const pinchGesture = Gesture.Pinch()
+  // ── Gestures ───────────────────────────────────────────────────────────────
+  const pinch = Gesture.Pinch()
     .onUpdate((e) => {
-      scale.value = Math.max(0.5, Math.min(savedScale.value * e.scale, 6));
+      scale.value = Math.max(1, Math.min(savedScale.value * e.scale, MAX_ZOOM));
     })
     .onEnd(() => {
       savedScale.value = scale.value;
-      if (scale.value < 1) {
+      // Snap back to 1× if pinched below fit
+      if (scale.value < 1.05) {
         scale.value      = withSpring(1, SPRING);
         tx.value         = withSpring(0, SPRING);
         ty.value         = withSpring(0, SPRING);
@@ -146,22 +152,41 @@ export default function ImageViewer({
       }
     });
 
-  const panGesture = Gesture.Pan()
+  const pan = Gesture.Pan()
+    .minDistance(4)
     .averageTouches(true)
     .onUpdate((e) => {
-      if (savedScale.value <= 1.05) return;
-      tx.value = savedTx.value + e.translationX;
-      ty.value = savedTy.value + e.translationY;
+      if (savedScale.value <= 1.05) {
+        // Swipe-to-close mode: only track downward motion with resistance
+        if (e.translationY > 0) {
+          ty.value = e.translationY * 0.82;
+        }
+      } else {
+        // Pan mode while zoomed
+        tx.value = savedTx.value + e.translationX;
+        ty.value = savedTy.value + e.translationY;
+      }
     })
-    .onEnd(() => {
-      savedTx.value = tx.value;
-      savedTy.value = ty.value;
+    .onEnd((e) => {
+      if (savedScale.value <= 1.05) {
+        // Close if swiped far enough or fast enough
+        if (ty.value > SWIPE_CLOSE || e.velocityY > SWIPE_VY) {
+          runOnJS(triggerClose)();
+        } else {
+          ty.value = withSpring(0, SPRING);
+        }
+      } else {
+        savedTx.value = tx.value;
+        savedTy.value = ty.value;
+      }
     });
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
+    .maxDuration(300)
     .onEnd(() => {
       if (scale.value > 1.1) {
+        // Zoom out to 1×
         scale.value      = withSpring(1, SPRING);
         tx.value         = withSpring(0, SPRING);
         ty.value         = withSpring(0, SPRING);
@@ -169,25 +194,35 @@ export default function ImageViewer({
         savedTx.value    = 0;
         savedTy.value    = 0;
       } else {
+        // Zoom in to 2.5×
         scale.value      = withSpring(2.5, SPRING);
         savedScale.value = 2.5;
       }
     });
 
-  const composed = Gesture.Simultaneous(
-    Gesture.Race(doubleTap),
-    pinchGesture,
-    panGesture,
+  // doubleTap wins over pinch+pan so it isn't mistaken for a pan start
+  const composed = Gesture.Race(
+    doubleTap,
+    Gesture.Simultaneous(pinch, pan),
   );
 
   // ── Animated styles ────────────────────────────────────────────────────────
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOp.value }));
+  // Overlay fades as image is dragged down (swipe preview)
+  const overlayStyle = useAnimatedStyle(() => {
+    const swipeFade =
+      savedScale.value <= 1.05
+        ? Math.max(0, 1 - Math.max(0, ty.value) / 200)
+        : 1;
+    return { opacity: overlayOp.value * swipeFade };
+  });
 
-  const imageStyle = useAnimatedStyle(() => ({
+  // Image wrapper: entrance scale + user transforms
+  const imageWrapStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: imgScale.value * scale.value },
+      { scale: imgScale.value },
       { translateX: tx.value },
       { translateY: ty.value },
+      { scale: scale.value },
     ],
   }));
 
@@ -197,33 +232,26 @@ export default function ImageViewer({
   const handleClose = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Keyboard.dismiss();
+    setEditText("");
     onClose();
   }, [onClose]);
 
   const handleDownload = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      if (Platform.OS === "web") {
-        showToast("İndirme mobil cihazlarda çalışır");
-        return;
-      }
+      if (Platform.OS === "web") { showToast("İndirme mobil cihazlarda çalışır"); return; }
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const MediaLibrary = require("expo-media-library") as typeof import("expo-media-library");
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const ML = require("expo-media-library") as typeof import("expo-media-library");
+      const { status } = await ML.requestPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("İzin Gerekli", "Galeriye kaydetmek için izin gereklidir.");
         return;
       }
-
-      const fileUri = `${FileSystem.cacheDirectory}akilcep-${Date.now()}.png`;
-      await FileSystem.writeAsStringAsync(fileUri, getBase64(), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      await MediaLibrary.saveToLibraryAsync(fileUri);
-      try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch {}
-
+      const uri = `${FileSystem.cacheDirectory}akilcep-${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(uri, getBase64(), { encoding: FileSystem.EncodingType.Base64 });
+      await ML.saveToLibraryAsync(uri);
+      try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
       showToast("Görsel kaydedildi");
     } catch {
       showToast("Kaydetme başarısız");
@@ -233,29 +261,19 @@ export default function ImageViewer({
   const handleShare = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (Platform.OS === "web") { showToast("Paylaşım mobil cihazlarda çalışır"); return; }
 
-      if (Platform.OS === "web") {
-        showToast("Paylaşım mobil cihazlarda çalışır");
-        return;
-      }
-
-      const fileUri = `${FileSystem.cacheDirectory}akilcep-share-${Date.now()}.png`;
-      await FileSystem.writeAsStringAsync(fileUri, getBase64(), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
+      const uri = `${FileSystem.cacheDirectory}akilcep-share-${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(uri, getBase64(), { encoding: FileSystem.EncodingType.Base64 });
       await Share.share(
         Platform.OS === "ios"
-          ? { url: fileUri }
-          : { message: fileUri, title: "AkılCEP Görseli" },
+          ? { url: uri }
+          : { message: uri, title: "AkılCEP Görseli" },
       );
-
       setTimeout(async () => {
-        try { await FileSystem.deleteAsync(fileUri, { idempotent: true }); } catch {}
+        try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
       }, 8000);
-    } catch {
-      // User cancelled or error
-    }
+    } catch { /* cancelled */ }
   }, [imageData]);
 
   const handleSend = useCallback(() => {
@@ -268,7 +286,7 @@ export default function ImageViewer({
     onClose();
   }, [editText, onEdit, onClose]);
 
-  // ── Layout ─────────────────────────────────────────────────────────────────
+  // ── Layout constants ───────────────────────────────────────────────────────
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
@@ -282,53 +300,40 @@ export default function ImageViewer({
     >
       <StatusBar hidden />
 
-      <Animated.View style={[ss.overlay, overlayStyle]}>
+      {/* Full-screen dark background — fades during swipe */}
+      <Animated.View style={[ss.bg, overlayStyle]}>
 
-        {/* ── Top bar ──────────────────────────────────────────────────────── */}
-        <View style={[ss.topBar, { paddingTop: topPad + 12 }]}>
-          <TouchableOpacity
-            style={ss.iconBtn}
-            onPress={handleClose}
-            hitSlop={14}
-            activeOpacity={0.70}
-          >
-            <Feather name="x" size={20} color="rgba(255,255,255,0.90)" />
+        {/* ── Full-screen image layer ─────────────────────────────────────── */}
+        <GestureDetector gesture={composed}>
+          <Animated.View style={[ss.imageWrap, imageWrapStyle]}>
+            <Animated.Image
+              source={{ uri: imageData }}
+              style={{ width: SW, height: SH }}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        </GestureDetector>
+
+        {/* ── Top controls (floating) ─────────────────────────────────────── */}
+        <View style={[ss.topBar, { paddingTop: topPad + 10 }]} pointerEvents="box-none">
+          <TouchableOpacity style={ss.iconBtn} onPress={handleClose} hitSlop={14} activeOpacity={0.70}>
+            <Feather name="x" size={20} color="rgba(255,255,255,0.92)" />
           </TouchableOpacity>
 
           <View style={ss.topRight}>
-            <TouchableOpacity
-              style={ss.iconBtn}
-              onPress={handleDownload}
-              hitSlop={14}
-              activeOpacity={0.70}
-            >
-              <Feather name="download" size={19} color="rgba(255,255,255,0.90)" />
+            <TouchableOpacity style={ss.iconBtn} onPress={handleDownload} hitSlop={14} activeOpacity={0.70}>
+              <Feather name="download" size={19} color="rgba(255,255,255,0.92)" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={ss.iconBtn}
-              onPress={handleShare}
-              hitSlop={14}
-              activeOpacity={0.70}
-            >
-              <Feather name="share-2" size={19} color="rgba(255,255,255,0.90)" />
+            <TouchableOpacity style={ss.iconBtn} onPress={handleShare} hitSlop={14} activeOpacity={0.70}>
+              <Feather name="share-2" size={19} color="rgba(255,255,255,0.92)" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Image (zoom + pan) ───────────────────────────────────────────── */}
-        <GestureDetector gesture={composed}>
-          <Animated.Image
-            source={{ uri: imageData }}
-            style={[ss.image, imageStyle]}
-            resizeMode="contain"
-          />
-        </GestureDetector>
-
-        {/* ── Bottom bar: quick actions + edit input (keyboard-aware) ─────── */}
+        {/* ── Bottom edit bar (floating, keyboard-aware) ──────────────────── */}
         {onEdit ? (
-          <Animated.View
-            style={[ss.bottomBar, { paddingBottom: btmPad + 16 }, bottomBarAnim]}
-          >
+          <Animated.View style={[ss.bottomBar, { paddingBottom: btmPad + 14 }, bottomBarAnim]}>
+
             {/* Quick-action pills */}
             <ScrollView
               horizontal
@@ -347,21 +352,21 @@ export default function ImageViewer({
               ))}
             </ScrollView>
 
-            {/* Inline edit input + send */}
+            {/* Inline edit input */}
             <View style={ss.inputRow}>
               <TextInput
                 style={ss.editInput}
                 placeholder="Görseli düzenle..."
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor="rgba(255,255,255,0.32)"
                 value={editText}
                 onChangeText={setEditText}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
                 maxLength={500}
-                selectionColor="rgba(255,255,255,0.50)"
+                selectionColor="rgba(255,255,255,0.55)"
               />
               <TouchableOpacity
-                style={[ss.sendBtn, { opacity: editText.trim() ? 1 : 0.32 }]}
+                style={[ss.sendBtn, { opacity: editText.trim() ? 1 : 0.30 }]}
                 onPress={handleSend}
                 activeOpacity={0.75}
                 disabled={!editText.trim()}
@@ -369,6 +374,7 @@ export default function ImageViewer({
                 <Feather name="arrow-up" size={16} color="#000" />
               </TouchableOpacity>
             </View>
+
           </Animated.View>
         ) : null}
 
@@ -379,14 +385,20 @@ export default function ImageViewer({
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-  overlay: {
-    flex:            1,
+  // Full-screen dark background
+  bg: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "#000",
-    justifyContent:  "center",
-    alignItems:      "center",
   },
 
-  // Top bar
+  // Centered image wrapper — transforms applied here
+  imageWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems:     "center",
+  },
+
+  // ── Top bar ──────────────────────────────────────────────────────────────
   topBar: {
     position:          "absolute",
     top:               0,
@@ -395,55 +407,51 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingBottom:     12,
-    zIndex:            10,
-    backgroundColor:   "rgba(0,0,0,0.42)",
+    zIndex:            20,
   },
   topRight: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           6,
+    gap:           8,
   },
   iconBtn: {
     width:           44,
     height:          44,
     borderRadius:    22,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderWidth:     StyleSheet.hairlineWidth,
+    borderColor:     "rgba(255,255,255,0.14)",
     alignItems:      "center",
     justifyContent:  "center",
   },
 
-  // Full-screen image
-  image: {
-    width:  "100%",
-    height: "100%",
-  },
-
-  // Bottom bar
+  // ── Bottom bar ────────────────────────────────────────────────────────────
   bottomBar: {
     position:          "absolute",
     left:              0,
     right:             0,
     paddingHorizontal: 16,
-    paddingTop:        14,
+    paddingTop:        16,
     gap:               10,
-    backgroundColor:   "rgba(0,0,0,0.52)",
-    zIndex:            10,
+    zIndex:            20,
+    // Subtle gradient-like darkening via background
+    backgroundColor:   "rgba(0,0,0,0.50)",
   },
 
-  // Quick-action pills row
+  // Quick-action pills
   pillsRow: {
-    gap:            8,
-    paddingRight:   4,
+    gap:         8,
+    paddingRight: 4,
   },
   pill: {
     paddingHorizontal: 14,
     paddingVertical:   8,
     borderRadius:      99,
-    backgroundColor:   "rgba(255,255,255,0.14)",
+    backgroundColor:   "rgba(255,255,255,0.13)",
     borderWidth:       StyleSheet.hairlineWidth,
-    borderColor:       "rgba(255,255,255,0.22)",
+    borderColor:       "rgba(255,255,255,0.20)",
   },
   pillLabel: {
     fontSize:      13,
@@ -456,20 +464,22 @@ const ss = StyleSheet.create({
   inputRow: {
     flexDirection:   "row",
     alignItems:      "center",
-    gap:             10,
+    gap:             8,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius:    22,
+    borderRadius:    24,
+    borderWidth:     StyleSheet.hairlineWidth,
+    borderColor:     "rgba(255,255,255,0.16)",
     paddingLeft:     16,
     paddingRight:    6,
     paddingVertical: 6,
   },
   editInput: {
-    flex:       1,
-    fontSize:   14,
-    fontFamily: "Inter_400Regular",
-    color:      "rgba(255,255,255,0.90)",
+    flex:            1,
+    fontSize:        14,
+    fontFamily:      "Inter_400Regular",
+    color:           "rgba(255,255,255,0.92)",
     paddingVertical: 4,
-    letterSpacing: -0.1,
+    letterSpacing:   -0.1,
   },
   sendBtn: {
     width:           34,
