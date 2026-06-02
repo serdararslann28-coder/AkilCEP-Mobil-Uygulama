@@ -718,7 +718,7 @@ export default function ChatScreen() {
           ) : null}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
-          ListFooterComponent={<View style={{ height: topPad + 64 }} />}
+          ListFooterComponent={<View style={{ height: topPad + 46 }} />}
         />
 
         {/* ════ VOICE ORB PANEL — slides in above input ════ */}
