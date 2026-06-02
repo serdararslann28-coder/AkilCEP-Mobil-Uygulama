@@ -49,7 +49,7 @@ import SideMenu         from "@/components/SideMenu";
 import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import ImageGenCard     from "@/components/ImageGenCard";
-import TypingIndicator  from "@/components/TypingIndicator";
+import ThinkingCard     from "@/components/ThinkingCard";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
 import { useChat }      from "@/context/ChatContext";
 import { useTheme }     from "@/context/ThemeContext";
@@ -715,7 +715,7 @@ export default function ChatScreen() {
             imagePending ? (
               <ImageGenCard />
             ) : (
-              <TypingIndicator label={
+              <ThinkingCard label={
                 visionPending ? "Fotoğraf analiz ediliyor…" : undefined
               } />
             )
