@@ -1,930 +1,287 @@
 /**
- * Onboarding — "Silent Intelligence" reference design.
+ * Onboarding — 5-page swipeable intro.
  *
- * Slide layout:
- *   1. Intro   — left-aligned hero, feature chips, tagline. No skip.
- *   2. Voice   — centered, audio-bars icon badge, skip button.
- *   3. Speed   — centered, sparkle icon badge, skip button.
- *   4. Ready   — centered, leaf logo above title, no skip.
+ * The composite artwork image is sliced horizontally: each page shows
+ * its 1/5 section as a true fullscreen background. The artwork is never
+ * altered — only UI chrome is added (dots, buttons, skip).
  *
- * All CTA buttons use a white-fill pill with dark text.
- * Fixed eclipse background with breathing pulse + water shimmer.
- * Content cross-fades + parallax via Reanimated progress interpolation.
+ * Slice logic:
+ *   - Source: 5 portrait phone screens side-by-side in one PNG.
+ *   - Scale the full image so each 1/5 section equals screen width.
+ *   - Per-page: translate the image left by (SW × pageIndex) to reveal
+ *     the correct section inside an overflow:hidden container.
  */
-import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Dimensions,
+  FlatList,
   Image,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ViewToken,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Easing,
+  Extrapolation,
   interpolate,
-  runOnJS,
   SharedValue,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export const ONBOARDING_KEY = "akilcep_onboarding_v1";
+// ── AsyncStorage key (imported by splash.tsx and auth.tsx) ───────────────────
+export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-const leafLogo = require("@/assets/images/leaf-only-transparent.png");
+// ── Composite artwork ─────────────────────────────────────────────────────────
+const SOURCE = require("../assets/images/onboarding-composite.png");
 
-const { width: SW, height: SH } = Dimensions.get("window");
+const NUM_SCREENS                       = 5;
+const { width: SW, height: SH }        = Dimensions.get("window");
 
-// Tight spring — luxury feel, minimal bounce
-const SPRING = { stiffness: 280, damping: 38, mass: 0.90 };
+// ── Per-screen config ─────────────────────────────────────────────────────────
+interface ScreenCfg {
+  showSkip:    boolean;
+  showButton:  boolean;
+  buttonLabel?: string;
+  isFinal?:    boolean;
+}
 
-// ── Eclipse geometry ───────────────────────────────────────────────────────────
-// ECLIPSE_CY at 77% — ring top visible at ~47% of screen, matching reference
-const ECLIPSE_D  = SW * 1.30;
-const ECLIPSE_CY = SH * 0.77;
-const ECLIPSE_X  = (SW - ECLIPSE_D) / 2;
-
-// Bloom layers — significantly more intense to match reference glow
-const ECLIPSE_LAYERS = [
-  { extra: 140, bw: 52, op: 0.020 },
-  { extra: 80,  bw: 32, op: 0.045 },
-  { extra: 40,  bw: 18, op: 0.088 },
-  { extra: 18,  bw:  9, op: 0.150 },
-  { extra:  5,  bw:  4, op: 0.280 },
-  { extra:  0,  bw:  2, op: 0.940 },
+const SCREENS: ScreenCfg[] = [
+  { showSkip: false, showButton: false },
+  { showSkip: false, showButton: true,  buttonLabel: "Devam Et" },
+  { showSkip: true,  showButton: true,  buttonLabel: "Devam Et" },
+  { showSkip: true,  showButton: true,  buttonLabel: "Devam Et" },
+  { showSkip: false, showButton: true,  buttonLabel: "AkılCEP'e Gir", isFinal: true },
 ];
 
-const REFLECT_SCY = 0.26;
-const REFLECT_OP  = 0.20;
-const REFLECT_TOP = ECLIPSE_CY + ECLIPSE_D * 0.16;
-
-// Stars — deterministic golden-angle distribution
-const STARS = Array.from({ length: 32 }, (_, i) => ({
-  x:    ((i * 137.508) % 100) / 100 * SW,
-  y:    (20 + (i * 79.3 + 13) % 42) / 100 * SH,
-  size: i % 6 < 2 ? 1.0 : i % 6 < 4 ? 1.5 : 2.0,
-  op:   0.12 + (i % 7) * 0.065,
-}));
-
-// ── Slide data ────────────────────────────────────────────────────────────────
-type SlideId    = "intro" | "voice" | "speed" | "ready";
-type SlideIcon  = "voice" | "sparkle";
-type SlideAlign = "left" | "center";
-
-interface Slide {
-  id:             SlideId;
-  headline:       string;
-  subtitle?:      string;    // intro only — appears right after headline
-  subtitleBold?:  string;    // intro only — bold phrase within subtitle
-  tagline?:       string;    // intro only — appears after feature chips
-  taglineBold?:   string;    // intro only — bold phrase within tagline
-  body?:          string;    // voice / speed / ready
-  boldPhrase?:    string;    // substring of body to render in semibold
-  cta:            string;
-  final?:         boolean;
-  align:          SlideAlign;
-  icon?:          SlideIcon;
-}
-
-const SLIDES: Slide[] = [
-  {
-    id:           "intro",
-    headline:     "AkılCEP",
-    subtitle:     "Cebindeki akıl,\nartık hep yanında.",
-    subtitleBold: "artık hep yanında.",
-    tagline:      "Yapay zekayı\ndoğal hisset.",
-    taglineBold:  "doğal hisset.",
-    cta:          "Devam Et",
-    align:        "left",
-  },
-  {
-    id:         "voice",
-    headline:   "Sesinle\nKontrol Et",
-    body:       "Yazmak zorunda değilsin. AkılCEP seni dinler, anlar ve cevap verir.",
-    boldPhrase: "dinler, anlar ve cevap verir.",
-    cta:        "Devam Et",
-    align:      "center",
-    icon:       "voice",
-  },
-  {
-    id:         "speed",
-    headline:   "Hızlı.\nAkıllı. Sade.",
-    body:       "Karmaşık değil. Sadece ihtiyacın olan yapay zeka.",
-    boldPhrase: "ihtiyacın olan",
-    cta:        "Devam Et",
-    align:      "center",
-    icon:       "sparkle",
-  },
-  {
-    id:       "ready",
-    headline: "Hazırsın",
-    body:     "Yeni nesil\ndeneyim başlıyor.",
-    cta:      "AkılCEP'e Gir",
-    final:    true,
-    align:    "center",
-  },
-];
-
-// ═════════════════════════════════════════════════════════════════════════════
-// HELPER: body text with one highlighted bold phrase
-// ═════════════════════════════════════════════════════════════════════════════
-function BodyText({
-  text,
-  boldPhrase,
-  style,
-  boldStyle,
-}: {
-  text:        string;
-  boldPhrase?: string;
-  style?:      object | (object | false)[];
-  boldStyle?:  object;
-}) {
-  if (!boldPhrase || !text.includes(boldPhrase)) {
-    return <Text style={style as any}>{text}</Text>;
-  }
-  const idx = text.indexOf(boldPhrase);
-  return (
-    <Text style={style as any}>
-      {text.slice(0, idx)}
-      <Text style={boldStyle ?? ss.boldPhrase}>{boldPhrase}</Text>
-      {text.slice(idx + boldPhrase.length)}
-    </Text>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// AUDIO BARS ICON — 4 thin bars for the voice slide badge
-// ═════════════════════════════════════════════════════════════════════════════
-function AudioBarsIcon() {
-  return (
-    <View style={ss.audioBarsRow}>
-      {[0.44, 1.0, 0.66, 0.82].map((h, i) => (
-        <View key={i} style={[ss.audioBar, { height: Math.round(h * 16) }]} />
-      ))}
-    </View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ICON BADGE — small circle with icon for voice / speed slides
-// ═════════════════════════════════════════════════════════════════════════════
-function IconBadge({ icon }: { icon: SlideIcon }) {
-  return (
-    <View style={ss.iconBadge}>
-      {icon === "voice" ? (
-        <AudioBarsIcon />
-      ) : (
-        // 4-pointed sparkle character — accurate to reference
-        <Text style={ss.sparkleChar}>{"\u2726"}</Text>
-      )}
-    </View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// FEATURE CHIPS — intro slide: "Sor.", "Konuş.", "Üret."
-// ═════════════════════════════════════════════════════════════════════════════
-function FeatureChips() {
-  const CHIPS = [
-    { icon: "message-circle" as const, label: "Sor."   },
-    { icon: "mic"            as const, label: "Konuş." },
-    { icon: "star"           as const, label: "Üret."  },
-  ];
-  return (
-    <View style={ss.chipsRow}>
-      {CHIPS.map(c => (
-        <View key={c.label} style={ss.chip}>
-          <Feather name={c.icon} size={16} color="rgba(255,255,255,0.60)" />
-          <Text style={ss.chipLabel}>{c.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// READY LOGO — pulsing leaf for the final slide
-// ═════════════════════════════════════════════════════════════════════════════
-function ReadyLogo() {
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.06, { duration: 2600, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.94, { duration: 2600, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    );
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
-  return (
-    <Animated.View style={[ss.readyLogoWrap, style]}>
-      <Image
-        source={leafLogo}
-        style={ss.readyLogoImg}
-        tintColor="rgba(255,255,255,0.90)"
-        resizeMode="contain"
-      />
-    </Animated.View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// FIXED ATMOSPHERIC BACKGROUND — eclipse + stars + fog
-// ═════════════════════════════════════════════════════════════════════════════
-function EclipseBackground() {
-  const eclipseScale = useSharedValue(1);
-  const rippleX      = useSharedValue(1);
-  const rippleOp     = useSharedValue(1);
-
-  useEffect(() => {
-    eclipseScale.value = withRepeat(
-      withSequence(
-        withTiming(1.016, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.984, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    );
-    rippleX.value = withRepeat(
-      withSequence(
-        withTiming(1.014, { duration: 2100, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0.988, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
-        withTiming(1.008, { duration: 2300, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0.996, { duration: 1700, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1, false,
-    );
-    rippleOp.value = withRepeat(
-      withSequence(
-        withTiming(0.78, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.00, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    );
-  }, []);
-
-  const eclipseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: eclipseScale.value }],
-  }));
-  const reflectStyle = useAnimatedStyle(() => ({
-    opacity:   rippleOp.value * REFLECT_OP,
-    transform: [{ scaleY: REFLECT_SCY }, { scaleX: rippleX.value }],
-  }));
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {STARS.map((s, i) => (
-        <View
-          key={i}
-          style={[ss.star, {
-            left: s.x, top: s.y,
-            width: s.size, height: s.size,
-            borderRadius: s.size / 2,
-            opacity: s.op,
-          }]}
-        />
-      ))}
-
-      <Animated.View style={[StyleSheet.absoluteFill, eclipseStyle]}>
-        {ECLIPSE_LAYERS.map((l, i) => {
-          const d = ECLIPSE_D + l.extra;
-          return (
-            <View
-              key={i}
-              style={{
-                position:     "absolute",
-                top:          ECLIPSE_CY - d / 2,
-                left:         ECLIPSE_X - l.extra / 2,
-                width:        d,
-                height:       d,
-                borderRadius: d / 2,
-                borderWidth:  l.bw,
-                borderColor:  `rgba(255,255,255,${l.op})`,
-              }}
-            />
-          );
-        })}
-      </Animated.View>
-
-      <Animated.View
-        style={[{
-          position: "absolute",
-          top:      REFLECT_TOP,
-          left:     ECLIPSE_X,
-          width:    ECLIPSE_D,
-          height:   ECLIPSE_D,
-        }, reflectStyle]}
-      >
-        {ECLIPSE_LAYERS.map((l, i) => {
-          const d = ECLIPSE_D + l.extra;
-          return (
-            <View
-              key={i}
-              style={{
-                position:     "absolute",
-                top:          -l.extra / 2,
-                left:         -l.extra / 2,
-                width:        d,
-                height:       d,
-                borderRadius: d / 2,
-                borderWidth:  l.bw,
-                borderColor:  `rgba(255,255,255,${l.op})`,
-              }}
-            />
-          );
-        })}
-      </Animated.View>
-
-      {/* Galaxy nebula — soft glow cloud in upper sky, like the reference */}
-      <LinearGradient
-        colors={["rgba(255,255,255,0.038)", "rgba(255,255,255,0.012)", "transparent"]}
-        locations={[0, 0.45, 1.0]}
-        style={{
-          position:     "absolute",
-          top:          0,
-          left:         -SW * 0.15,
-          width:        SW * 0.85,
-          height:       SH * 0.28,
-          borderRadius: SW * 0.45,
-        }}
-        start={{ x: 0.25, y: 0 }}
-        end={{ x: 0.75, y: 1 }}
-      />
-
-      {/* Horizon glow — wide soft band at eclipse ring height, key to cinematic look */}
-      <LinearGradient
-        colors={[
-          "transparent",
-          "rgba(255,255,255,0.040)",
-          "rgba(255,255,255,0.095)",
-          "rgba(255,255,255,0.040)",
-          "transparent",
-        ]}
-        locations={[0, 0.25, 0.50, 0.75, 1.0]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{
-          position: "absolute",
-          top:      ECLIPSE_CY - 70,
-          left:     0,
-          width:    SW,
-          height:   140,
-        }}
-      />
-
-      {/* Upward cone glow — light rising from eclipse as if from a light source */}
-      <LinearGradient
-        colors={["transparent", "rgba(255,255,255,0.055)", "rgba(255,255,255,0.020)", "transparent"]}
-        locations={[0, 0.55, 0.80, 1.0]}
-        start={{ x: 0.5, y: 1 }}
-        end={{ x: 0.5, y: 0 }}
-        style={{
-          position: "absolute",
-          top:      ECLIPSE_CY - ECLIPSE_D * 0.55,
-          left:     ECLIPSE_X + ECLIPSE_D * 0.12,
-          width:    ECLIPSE_D * 0.76,
-          height:   ECLIPSE_D * 0.58,
-        }}
-      />
-
-      {/* Fog column — thicker atmospheric mist rising from eclipse */}
-      <LinearGradient
-        colors={["transparent", "rgba(255,255,255,0.030)", "rgba(255,255,255,0.065)", "rgba(255,255,255,0.030)", "transparent"]}
-        locations={[0, 0.28, 0.52, 0.72, 1.0]}
-        style={[StyleSheet.absoluteFill, { top: SH * 0.40 }]}
-        start={{ x: 0.5, y: 1 }}
-        end={{ x: 0.5, y: 0 }}
-      />
-
-      {/* Landscape depth gradient — dark terrain below eclipse */}
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.32)", "rgba(0,0,0,0.72)", "#000000"]}
-        locations={[0.38, 0.55, 0.76, 1.0]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Sky vignette — top darkness for cinematic frame */}
-      <LinearGradient
-        colors={["rgba(0,0,0,0.62)", "rgba(0,0,0,0.18)", "transparent"]}
-        locations={[0, 0.18, 0.35]}
-        style={StyleSheet.absoluteFill}
-      />
-    </View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// SLIDE CONTENT — cross-fade + horizontal parallax via progress
-// ═════════════════════════════════════════════════════════════════════════════
-function SlideContent({
-  slide,
+// ── Animated dot ──────────────────────────────────────────────────────────────
+function Dot({
   index,
-  progress,
-  topInset,
+  scrollX,
 }: {
-  slide:    Slide;
-  index:    number;
-  progress: SharedValue<number>;
-  topInset: number;
+  index:   number;
+  scrollX: SharedValue<number>;
 }) {
-  // Upper block (icon/logo + headline): faster parallax
-  const upperStyle = useAnimatedStyle(() => {
-    const p = progress.value;
-    const opacity = interpolate(p, [index - 0.65, index, index + 0.65], [0, 1, 0], "clamp");
-    const px      = interpolate(p, [index - 1, index, index + 1], [SW * 0.20, 0, -SW * 0.20], "clamp");
-    return { opacity, transform: [{ translateX: px }] };
+  const anim = useAnimatedStyle(() => {
+    const range  = [(index - 1) * SW, index * SW, (index + 1) * SW];
+    const width  = interpolate(scrollX.value, range, [6, 24, 6],    Extrapolation.CLAMP);
+    const opac   = interpolate(scrollX.value, range, [0.28, 1, 0.28], Extrapolation.CLAMP);
+    return { width, opacity: opac };
   });
-
-  // Lower block (body/subtitle/chips): slower parallax
-  const lowerStyle = useAnimatedStyle(() => {
-    const p = progress.value;
-    const opacity = interpolate(p, [index - 0.55, index, index + 0.55], [0, 1, 0], "clamp");
-    const px      = interpolate(p, [index - 1, index, index + 1], [SW * 0.12, 0, -SW * 0.12], "clamp");
-    return { opacity, transform: [{ translateX: px }] };
-  });
-
-  const isCenter = slide.align === "center";
-
-  // Per-slide vertical start positions — tuned to match reference proportions
-  const upperTop: Record<SlideId, number> = {
-    intro: topInset + 66,
-    voice: topInset + 92,
-    speed: topInset + 92,
-    ready: topInset + 80,
-  };
-
-  // Lower block offset per slide (chips/body start position)
-  const lowerOffset: Record<SlideId, number> = {
-    intro: 168,  // below headline + subtitle
-    voice: 192,  // below icon badge + headline
-    speed: 192,
-    ready: 158,  // below logo + headline (body sits close below)
-  };
-
-  return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-
-      {/* ── Upper block ── */}
-      <Animated.View
-        style={[
-          ss.block,
-          isCenter ? ss.blockCenter : ss.blockLeft,
-          { top: upperTop[slide.id] },
-          upperStyle,
-        ]}
-      >
-        {/* Icon badge (voice / speed) */}
-        {slide.icon && <IconBadge icon={slide.icon} />}
-
-        {/* Pulsing leaf logo (ready) */}
-        {slide.id === "ready" && <ReadyLogo />}
-
-        {/* Headline */}
-        <Text
-          style={[
-            ss.headline,
-            isCenter ? ss.headlineCenter : ss.headlineLeft,
-            slide.id === "intro"  && ss.headlineIntro,
-            slide.id === "ready"  && ss.headlineReady,
-          ]}
-        >
-          {slide.headline}
-        </Text>
-
-        {/* Intro: subtitle directly below headline (second line is bolder) */}
-        {slide.subtitle && (
-          <BodyText
-            text={slide.subtitle}
-            boldPhrase={slide.subtitleBold}
-            style={ss.introSubtitle}
-            boldStyle={ss.introBoldPhrase}
-          />
-        )}
-      </Animated.View>
-
-      {/* ── Lower block ── */}
-      <Animated.View
-        style={[
-          ss.block,
-          isCenter ? ss.blockCenter : ss.blockLeft,
-          { top: upperTop[slide.id] + lowerOffset[slide.id] },
-          lowerStyle,
-        ]}
-      >
-        {/* Intro: feature chips + tagline (second line is bolder) */}
-        {slide.id === "intro" && (
-          <>
-            <FeatureChips />
-            {slide.tagline && (
-              <BodyText
-                text={slide.tagline}
-                boldPhrase={slide.taglineBold}
-                style={ss.introTagline}
-                boldStyle={ss.introBoldPhrase}
-              />
-            )}
-          </>
-        )}
-
-        {/* Voice / Speed / Ready: body with optional bold phrase */}
-        {slide.body && slide.id !== "intro" && (
-          <BodyText
-            text={slide.body}
-            boldPhrase={slide.boldPhrase}
-            style={[ss.bodyText, isCenter && ss.bodyCenter]}
-          />
-        )}
-      </Animated.View>
-
-    </View>
-  );
+  return <Animated.View style={[ss.dot, anim]} />;
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ANIMATED DOT INDICATORS
-// ═════════════════════════════════════════════════════════════════════════════
-function DotsIndicator({ progress }: { progress: SharedValue<number> }) {
-  return (
-    <View style={ss.dots}>
-      {SLIDES.map((_, i) => {
-        const dotStyle = useAnimatedStyle(() => {
-          const w  = interpolate(progress.value, [i - 1, i, i + 1], [5, 20, 5], "clamp");
-          const op = interpolate(progress.value, [i - 1, i, i + 1], [0.25, 1, 0.25], "clamp");
-          return { width: w, opacity: op };
-        });
-        return <Animated.View key={i} style={[ss.dot, dotStyle]} />;
-      })}
-    </View>
-  );
-}
+// ── Main component ────────────────────────────────────────────────────────────
+export default function Onboarding() {
+  const insets      = useSafeAreaInsets();
+  const listRef     = useRef<FlatList<number>>(null);
+  const [idx, setIdx] = useState(0);
+  const scrollX     = useSharedValue(0);
 
-// ═════════════════════════════════════════════════════════════════════════════
-// MAIN SCREEN
-// ═════════════════════════════════════════════════════════════════════════════
-export default function OnboardingScreen() {
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
+  // Resolve source dimensions from bundled asset metadata (synchronous).
+  const asset   = Image.resolveAssetSource(SOURCE);
+  const IMG_W   = asset.width  || 1600;
+  const IMG_H   = asset.height || 700;
 
-  const [currentPage, setCurrentPage] = useState(0);
+  // Scale so each 1/5 section fills screen width.
+  const scale    = SW / (IMG_W / NUM_SCREENS);
+  const scaledW  = IMG_W * scale;
+  const scaledH  = IMG_H * scale;
+  // Vertical offset to center the scaled image on the screen.
+  const topOff   = (SH - scaledH) / 2;
 
-  const offset   = useSharedValue(0);
-  const drag     = useSharedValue(0);
-  const progress = useDerivedValue(() => -(offset.value + drag.value) / SW);
-
-  // Entry fade
-  const entryOp = useSharedValue(0);
-  useEffect(() => {
-    entryOp.value = withDelay(
-      180,
-      withTiming(1, { duration: 700, easing: Easing.out(Easing.ease) }),
-    );
-  }, []);
-  const entryStyle = useAnimatedStyle(() => ({ opacity: entryOp.value }));
-
-  const complete = useCallback(() => {
-    // AsyncStorage key is set by auth screen after successful sign-in
-    router.replace("/auth");
-  }, []);
-
-  const goToPage = useCallback((page: number) => {
-    Haptics.selectionAsync();
-    offset.value = withSpring(-page * SW, SPRING);
-    setCurrentPage(page);
-  }, []);
-
-  const handleCTA = useCallback(() => {
-    if (currentPage < SLIDES.length - 1) {
-      goToPage(currentPage + 1);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      complete();
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const goNext = useCallback(() => {
+    if (idx < NUM_SCREENS - 1) {
+      listRef.current?.scrollToIndex({ index: idx + 1, animated: true });
     }
-  }, [currentPage, goToPage, complete]);
+  }, [idx]);
 
-  // Pan gesture — rubber-bands at edges, snaps with spring
-  const pan = Gesture.Pan()
-    .activeOffsetX([-9, 9])
-    .failOffsetY([-18, 18])
-    .onUpdate(e => {
-      "worklet";
-      const raw     = offset.value + e.translationX;
-      const minX    = -(SLIDES.length - 1) * SW;
-      const clamped = Math.max(minX, Math.min(0, raw));
-      const excess  = raw - clamped;
-      drag.value    = clamped - offset.value + excess * 0.22;
-    })
-    .onEnd(e => {
-      "worklet";
-      const total = offset.value + drag.value;
-      const page  = Math.max(0, Math.min(
-        SLIDES.length - 1,
-        Math.round((-total - e.velocityX * 0.10) / SW),
-      ));
-      offset.value = withSpring(-page * SW, SPRING);
-      drag.value   = withSpring(0, SPRING);
-      runOnJS(setCurrentPage)(page);
-    });
+  const goSkip = useCallback(() => {
+    listRef.current?.scrollToIndex({ index: NUM_SCREENS - 1, animated: true });
+  }, []);
 
-  const isFinalSlide = currentPage === SLIDES.length - 1;
-  // Skip only visible on middle slides (not intro, not ready)
-  const showSkip = currentPage > 0 && !isFinalSlide;
+  const goApp = useCallback(() => {
+    router.replace("/chat");
+  }, []);
 
-  return (
-    <View style={ss.root}>
-      <StatusBar style="light" />
+  // ── Viewability ───────────────────────────────────────────────────────────
+  const onViewable = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0) setIdx(viewableItems[0].index ?? 0);
+    },
+    [],
+  );
+  const viewConfig = { viewAreaCoveragePercentThreshold: 50 };
 
-      {/* Fixed atmospheric background */}
-      <EclipseBackground />
+  // ── Scroll → SharedValue ──────────────────────────────────────────────────
+  const onScroll = useCallback(
+    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+      scrollX.value = e.nativeEvent.contentOffset.x;
+    },
+    [scrollX],
+  );
 
-      {/* Entry fade wrapper */}
-      <Animated.View style={[StyleSheet.absoluteFill, entryStyle]}>
+  // ── Page renderer ─────────────────────────────────────────────────────────
+  const renderItem = useCallback(
+    ({ item: pageIdx }: { item: number }) => {
+      const cfg    = SCREENS[pageIdx];
+      const topPad = Platform.OS === "web" ? 20 : insets.top;
+      const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-        {/* Skip button — top-right, only on slides 2 & 3 */}
-        {showSkip && (
-          <View style={[ss.topBar, { paddingTop: topPad + 10 }]}>
+      return (
+        <View style={ss.page}>
+
+          {/* Artwork slice — full-screen, no modifications */}
+          <View style={StyleSheet.absoluteFillObject}>
+            <Image
+              source={SOURCE}
+              style={[
+                ss.artwork,
+                {
+                  width:  scaledW,
+                  height: scaledH,
+                  left:   -(SW * pageIdx),
+                  top:    topOff,
+                },
+              ]}
+              resizeMode="stretch"
+            />
+          </View>
+
+          {/* Skip */}
+          {cfg.showSkip && (
             <TouchableOpacity
-              style={ss.skipBtn}
-              onPress={complete}
-              hitSlop={16}
-              activeOpacity={0.55}
+              style={[ss.skip, { top: topPad + 14 }]}
+              onPress={goSkip}
+              hitSlop={12}
+              activeOpacity={0.60}
             >
               <Text style={ss.skipText}>Atla</Text>
             </TouchableOpacity>
+          )}
+
+          {/* Dots + button */}
+          <View style={[ss.bottom, { paddingBottom: btmPad + 24 }]}>
+            <View style={ss.dots}>
+              {SCREENS.map((_, i) => (
+                <Dot key={i} index={i} scrollX={scrollX} />
+              ))}
+            </View>
+
+            {cfg.showButton && (
+              <TouchableOpacity
+                style={ss.btn}
+                onPress={cfg.isFinal ? goApp : goNext}
+                activeOpacity={0.82}
+              >
+                <Text style={ss.btnLabel}>{cfg.buttonLabel}</Text>
+                <Text style={ss.btnArrow}> →</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
 
-        {/* Gesture layer covering full screen */}
-        <GestureDetector gesture={pan}>
-          <View style={StyleSheet.absoluteFill}>
-            {SLIDES.map((slide, i) => (
-              <SlideContent
-                key={slide.id}
-                slide={slide}
-                index={i}
-                progress={progress}
-                topInset={topPad}
-              />
-            ))}
-          </View>
-        </GestureDetector>
-
-        {/* Bottom bar — dots + CTA button */}
-        <View style={[ss.bottom, { paddingBottom: btmPad + 20 }]}>
-          <DotsIndicator progress={progress} />
-
-          <TouchableOpacity
-            style={ss.cta}
-            onPress={handleCTA}
-            activeOpacity={0.80}
-            hitSlop={4}
-          >
-            <Text style={ss.ctaText}>{SLIDES[currentPage]?.cta}</Text>
-            <Feather name="arrow-right" size={15} color="#0A0A0A" />
-          </TouchableOpacity>
         </View>
+      );
+    },
+    [insets, scaledW, scaledH, topOff, scrollX, goNext, goSkip, goApp],
+  );
 
-      </Animated.View>
-    </View>
+  return (
+    <FlatList
+      ref={listRef}
+      data={Array.from({ length: NUM_SCREENS }, (_, i) => i)}
+      renderItem={renderItem}
+      keyExtractor={(i) => String(i)}
+      horizontal
+      pagingEnabled
+      bounces={false}
+      showsHorizontalScrollIndicator={false}
+      scrollEventThrottle={16}
+      onScroll={onScroll}
+      onViewableItemsChanged={onViewable}
+      viewabilityConfig={viewConfig}
+      getItemLayout={(_, i) => ({ length: SW, offset: SW * i, index: i })}
+    />
   );
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// STYLES
-// ═════════════════════════════════════════════════════════════════════════════
+// ── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-
-  root: {
-    flex:            1,
-    backgroundColor: "#000000",
+  page: {
+    width:    SW,
+    height:   SH,
+    overflow: "hidden",
   },
 
-  star: {
-    position:        "absolute",
-    backgroundColor: "#FFFFFF",
+  // Positioned absolutely; left + top set per page via inline style.
+  artwork: {
+    position: "absolute",
   },
 
-  // Skip button
-  topBar: {
-    position:          "absolute",
-    top:               0,
-    right:             0,
-    zIndex:            20,
-    paddingHorizontal: 24,
-    paddingBottom:     10,
-    alignItems:        "flex-end",
-  },
-  skipBtn: {
-    paddingHorizontal: 8,
-    paddingVertical:   6,
+  // Skip button — top right
+  skip: {
+    position: "absolute",
+    right:    22,
+    zIndex:   10,
   },
   skipText: {
     fontSize:      15,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.36)",
-    letterSpacing: -0.1,
-  },
-
-  // Slide content blocks
-  block: {
-    position:          "absolute",
-    left:              0,
-    right:             0,
-    paddingHorizontal: 32,
-    gap:               16,
-  },
-  blockLeft: {
-    alignItems: "flex-start",
-  },
-  blockCenter: {
-    alignItems: "center",
-  },
-
-  // Headline variants
-  headline: {
-    fontFamily:    "Inter_700Bold",
-    color:         "#FFFFFF",
-    letterSpacing: -1.2,
-    lineHeight:    52,
-  },
-  headlineLeft: {
-    fontSize:   54,
-    lineHeight: 60,
-    textAlign:  "left",
-  },
-  headlineCenter: {
-    fontSize:   44,
-    lineHeight: 52,
-    textAlign:  "center",
-  },
-  headlineIntro: {
-    fontSize:      58,
-    lineHeight:    64,
-    letterSpacing: -2.0,
-  },
-  headlineReady: {
-    fontSize:      52,
-    lineHeight:    58,
-    letterSpacing: -1.6,
-    marginTop:     8,
-  },
-
-  // Intro subtitle ("Cebindeki akıl...")
-  introSubtitle: {
-    fontSize:      17,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.50)",
+    fontFamily:    "Inter_500Medium",
+    color:         "rgba(255,255,255,0.78)",
     letterSpacing: -0.2,
-    lineHeight:    24,
-    marginTop:     -4,
   },
 
-  // Feature chips row
-  chipsRow: {
-    flexDirection: "row",
-    gap:           20,
-    marginTop:     4,
-  },
-  chip: {
-    flexDirection:  "row",
-    alignItems:     "center",
-    gap:            7,
-  },
-  chipLabel: {
-    fontSize:      13,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.55)",
-    letterSpacing: -0.1,
-  },
-
-  // Intro tagline ("Yapay zekayı doğal hisset.")
-  introTagline: {
-    fontSize:      16,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.46)",
-    letterSpacing: -0.2,
-    lineHeight:    22,
-    marginTop:     4,
-  },
-
-  // Bold phrase inside intro subtitle / tagline — bright white, semibold
-  introBoldPhrase: {
-    fontFamily: "Inter_600SemiBold",
-    color:      "#FFFFFF",
-  },
-
-  // Body text (voice / speed / ready)
-  bodyText: {
-    fontSize:      15,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.48)",
-    letterSpacing: -0.1,
-    lineHeight:    22,
-  },
-  bodyCenter: {
-    textAlign: "center",
-  },
-  // Bold phrase inside body text — lifted but not full white
-  boldPhrase: {
-    fontFamily: "Inter_600SemiBold",
-    color:      "rgba(255,255,255,0.88)",
-  },
-
-  // Icon badge (voice / speed slides)
-  iconBadge: {
-    width:           48,
-    height:          48,
-    borderRadius:    24,
-    borderWidth:     1,
-    borderColor:     "rgba(255,255,255,0.20)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+  // Bottom chrome
+  bottom: {
+    position:        "absolute",
+    bottom:          0,
+    left:            0,
+    right:           0,
     alignItems:      "center",
-    justifyContent:  "center",
-    marginBottom:    4,
-  },
-  audioBarsRow: {
-    flexDirection: "row",
-    alignItems:    "flex-end",
-    gap:           3,
-    height:        18,
-  },
-  audioBar: {
-    width:           3,
-    borderRadius:    2,
-    backgroundColor: "rgba(255,255,255,0.78)",
-  },
-  sparkleChar: {
-    fontSize:   18,
-    color:      "rgba(255,255,255,0.80)",
-    lineHeight: 20,
+    gap:             20,
+    paddingTop:      28,
+    // Subtle dark scrim so dots/button stay legible over any artwork
+    backgroundColor: "rgba(0,0,0,0.22)",
   },
 
-  // Ready slide leaf logo
-  readyLogoWrap: {
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  readyLogoImg: {
-    width:  68,
-    height: 68,
-  },
-
-  // Dot indicators
+  // Dots row
   dots: {
     flexDirection:  "row",
-    gap:            6,
     alignItems:     "center",
     justifyContent: "center",
-    marginBottom:   20,
+    gap:            7,
   },
   dot: {
-    height:          5,
+    height:          6,
     borderRadius:    3,
     backgroundColor: "#FFFFFF",
   },
 
-  // CTA button — always white fill, dark text
-  bottom: {
-    position:          "absolute",
-    bottom:            0,
-    left:              0,
-    right:             0,
-    paddingHorizontal: 24,
+  // Action button — white pill, black text (matches the artwork design)
+  btn: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "center",
+    backgroundColor:   "#FFFFFF",
+    borderRadius:      50,
+    paddingHorizontal: 36,
+    paddingVertical:   16,
+    width:             SW - 56,
   },
-  cta: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "center",
-    gap:             10,
-    height:          56,
-    borderRadius:    28,
-    backgroundColor: "#FFFFFF",
-  },
-  ctaText: {
+  btnLabel: {
     fontSize:      16,
     fontFamily:    "Inter_600SemiBold",
-    color:         "#0A0A0A",
-    letterSpacing: -0.2,
+    color:         "#000000",
+    letterSpacing: -0.3,
   },
-
+  btnArrow: {
+    fontSize:   16,
+    fontFamily: "Inter_600SemiBold",
+    color:      "#000000",
+  },
 });
