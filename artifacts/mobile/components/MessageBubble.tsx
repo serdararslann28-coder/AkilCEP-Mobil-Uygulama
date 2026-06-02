@@ -10,6 +10,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   ActionSheetIOS,
   Image,
@@ -17,6 +18,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -193,7 +195,7 @@ function GeneratedImageCard({
   onEdit?:    (instruction: string) => void;
   autoOpen?:  boolean;
 }) {
-  const { theme: T } = useTheme();
+  const { theme: T, showToast } = useTheme();
   const [revealed,      setRevealed]      = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
 
@@ -208,6 +210,10 @@ function GeneratedImageCard({
     }
   }, [autoOpen, revealed]);
 
+  // Derived theme colors
+  const shimmerBg = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
+  const actionClr = T.isDark ? "rgba(255,255,255,0.40)" : "rgba(0,0,0,0.38)";
+
   // Open full-screen viewer
   const handleImagePress = () => {
     if (!revealed) return;
@@ -215,85 +221,88 @@ function GeneratedImageCard({
     setViewerVisible(true);
   };
 
-  // Long-press action sheet
+  // Long-press → viewer (contains all actions)
   const handleLongPress = () => {
     if (!revealed) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setViewerVisible(true);
+  };
 
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["İptal", "Görseli Kaydet", "Paylaş", "Düzenle"],
-          cancelButtonIndex: 0,
-        },
-        (idx) => {
-          if (idx === 1) setViewerVisible(true);   // viewer → download
-          if (idx === 2) setViewerVisible(true);   // viewer → share
-          if (idx === 3) setViewerVisible(true);   // viewer → edit (inline in viewer)
-        },
-      );
-    } else {
-      // On Android open the viewer which contains all actions
-      setViewerVisible(true);
+  // Copy image to clipboard
+  const handleCopy = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const b64 = imageData.replace(/^data:image\/\w+;base64,/, "");
+      await (Clipboard as any).setImageAsync(b64);
+      showToast("Görsel kopyalandı");
+    } catch {
+      await Clipboard.setStringAsync(imageData);
+      showToast("Görsel kopyalandı");
     }
   };
 
-  // Colors adapted to current theme
-  const overlayBg  = "rgba(0,0,0,0.72)";
-  const cardBg     = T.isDark ? "#161616" : "#FFFFFF";
-  const labelClr   = T.isDark ? "rgba(255,255,255,0.90)" : "rgba(10,10,10,0.90)";
-  const subClr     = T.isDark ? "rgba(255,255,255,0.38)" : "rgba(10,10,10,0.38)";
-  const inputBg    = T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
-  const inputClr   = T.isDark ? "rgba(255,255,255,0.90)" : "rgba(10,10,10,0.90)";
-  const placeholdr = T.isDark ? "rgba(255,255,255,0.28)" : "rgba(10,10,10,0.28)";
-  const pillBg     = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-  const pillClr    = T.isDark ? "rgba(255,255,255,0.68)" : "rgba(10,10,10,0.68)";
-  const accentClr  = T.isDark ? T.accent : T.accent;
+  // Share image via native share sheet
+  const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const b64  = imageData.replace(/^data:image\/\w+;base64,/, "");
+      const uri  = `${FileSystem.cacheDirectory}akilcep-share-${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(uri, b64, { encoding: FileSystem.EncodingType.Base64 });
+      await Share.share(
+        Platform.OS === "ios"
+          ? { url: uri }
+          : { message: uri, title: "AkılCEP Görseli" },
+      );
+      setTimeout(async () => {
+        try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
+      }, 8000);
+    } catch { /* cancelled or error */ }
+  };
 
   return (
-    <View style={ss.imgCardWrap}>
-      {/* Skeleton shimmer while image loads */}
+    <View style={ss.imgPortraitWrap}>
+      {/* Skeleton shimmer — portrait ratio while image loads */}
       {!revealed && (
-        <View style={[ss.imgSkeleton, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)" }]}>
+        <View style={[ss.imgPortraitSkeleton, { backgroundColor: shimmerBg }]}>
           <ImageShimmer />
         </View>
       )}
 
-      {/* Tappable image — opens full-screen viewer */}
+      {/* Tappable portrait image */}
       <TouchableOpacity
-        activeOpacity={0.92}
+        activeOpacity={0.94}
         onPress={handleImagePress}
         onLongPress={handleLongPress}
         delayLongPress={380}
         disabled={!revealed}
       >
-        <Animated.View style={[ss.imgReveal, imgStyle]}>
+        <Animated.View style={[ss.imgPortraitReveal, imgStyle]}>
           <Image
             source={{ uri: imageData }}
-            style={ss.imgCard}
+            style={ss.imgPortrait}
             resizeMode="cover"
             onLoad={() => {
               setRevealed(true);
-              imgOp.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) });
+              imgOp.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.ease) });
             }}
           />
         </Animated.View>
       </TouchableOpacity>
 
-      {/* Caption — dimmed */}
-      {caption ? (
-        <Text
-          style={[
-            ss.imgCaption,
-            { color: T.isDark ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.38)" },
-          ]}
-          numberOfLines={3}
-        >
-          {caption}
-        </Text>
-      ) : null}
+      {/* Action row — appears after image loads */}
+      {revealed && (
+        <View style={ss.imgActionsRow}>
+          <TouchableOpacity onPress={handleCopy} hitSlop={8} activeOpacity={0.6}>
+            <Text style={[ss.imgActionLabel, { color: actionClr }]}>Kopyala</Text>
+          </TouchableOpacity>
+          <Text style={[ss.imgActionDot, { color: actionClr }]}>·</Text>
+          <TouchableOpacity onPress={handleShare} hitSlop={8} activeOpacity={0.6}>
+            <Text style={[ss.imgActionLabel, { color: actionClr }]}>Paylaş</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Full-screen image viewer — editing is handled inside the viewer */}
+      {/* Full-screen viewer — inline editing inside viewer */}
       <ImageViewer
         visible={viewerVisible}
         imageData={imageData}
@@ -455,33 +464,45 @@ const ss = StyleSheet.create({
     shadowOpacity:           0.07,
     shadowRadius:            10,
   },
-  // Generated image card (AI message)
-  imgCardWrap: {
-    marginBottom: 10,
-    width:        "100%",
+  // Generated image — portrait card (AI message)
+  imgPortraitWrap: {
+    alignSelf:    "center",
+    width:        "88%",
+    marginTop:    4,
+    marginBottom: 6,
   },
-  imgSkeleton: {
+  imgPortraitSkeleton: {
     width:        "100%",
-    aspectRatio:  1,
-    borderRadius: 16,
+    aspectRatio:  4 / 5,
+    maxHeight:    500,
+    borderRadius: 20,
     overflow:     "hidden",
   },
-  imgReveal: {
+  imgPortraitReveal: {
     width:        "100%",
-    borderRadius: 16,
+    borderRadius: 20,
     overflow:     "hidden",
+    maxHeight:    500,
   },
-  imgCard: {
+  imgPortrait: {
     width:       "100%",
-    aspectRatio: 1,
+    aspectRatio: 4 / 5,
   },
-  imgCaption: {
-    marginTop:     8,
-    fontSize:      12,
+  imgActionsRow: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "center",
+    gap:            10,
+    marginTop:      10,
+  },
+  imgActionLabel: {
+    fontSize:      13,
     fontFamily:    "Inter_400Regular",
-    lineHeight:    18,
     letterSpacing: -0.1,
-    fontStyle:     "italic",
+  },
+  imgActionDot: {
+    fontSize:   13,
+    fontFamily: "Inter_400Regular",
   },
 
   // Photo message bubble — image thumbnail above caption
