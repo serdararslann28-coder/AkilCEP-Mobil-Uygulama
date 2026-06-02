@@ -1,15 +1,14 @@
 /**
- * ThinkingCard — two-phase branded loading card for AkılCEP responses.
+ * ThinkingCard — bare inline AI status indicator. No card, no background.
  *
  * Phase 1 (0 → THINK_SWITCH_MS):   "AkılCEP düşünüyor..."
  * Phase 2 (THINK_SWITCH_MS → end): "AkılCEP yazıyor..."
  *
- * Passing a fixed `label` (e.g. vision mode) locks the text to that label.
+ * Passing a fixed `label` locks the text (e.g. vision mode).
  * Sequential three-dot progress: ●○○ → ●●○ → ●●● → loop.
- * PURE / VOID theme aware. Identical card style to ImageGenCard.
  */
 import React, { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -29,7 +28,7 @@ const FADE_MS         = 180;   // dot opacity transition duration
 export default function ThinkingCard({ label }: { label?: string }) {
   const { theme: T } = useTheme();
 
-  // ── Phase auto-advance (skipped if a fixed label is provided) ──────────────
+  // ── Phase auto-advance (skipped when a fixed label is provided) ────────────
   const [isWritingPhase, setIsWritingPhase] = useState(false);
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export default function ThinkingCard({ label }: { label?: string }) {
   }, [label]);
 
   const displayLabel =
-    label           ? label
+    label            ? label
     : isWritingPhase ? "AkılCEP yazıyor..."
     :                  "AkılCEP düşünüyor...";
 
@@ -66,15 +65,14 @@ export default function ThinkingCard({ label }: { label?: string }) {
   const s3 = useAnimatedStyle(() => ({ opacity: op3.value }));
 
   // ── Theme ──────────────────────────────────────────────────────────────────
-  const cardBg   = T.isDark ? "rgba(255,255,255,0.045)" : "#FFFFFF";
-  const cardBdr  = T.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.07)";
-  const leafTint = T.isDark ? "rgba(237,235,231,0.68)"  : "#2A2A2A";
-  const dotClr   = T.isDark ? "rgba(237,235,231,0.90)"  : "#1A1A1A";
+  const leafTint = T.isDark ? "rgba(237,235,231,0.55)" : "rgba(30,30,30,0.55)";
+  const labelClr = T.isDark ? "rgba(237,235,231,0.42)" : "rgba(30,30,30,0.40)";
+  const dotClr   = T.isDark ? "rgba(237,235,231,0.55)" : "rgba(30,30,30,0.38)";
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(280).springify()}
-      style={[ss.card, { backgroundColor: cardBg, borderColor: cardBdr }]}
+      entering={FadeInDown.duration(260).springify()}
+      style={ss.wrap}
     >
       {/* Label row: leaf icon + phase text */}
       <View style={ss.labelRow}>
@@ -84,12 +82,12 @@ export default function ThinkingCard({ label }: { label?: string }) {
           tintColor={leafTint}
           resizeMode="contain"
         />
-        {/* Key-driven remount so entering/exiting fires on phase change */}
+        {/* Key-driven remount triggers FadeIn/FadeOut on phase change */}
         <Animated.Text
           key={displayLabel}
           entering={FadeIn.duration(220)}
           exiting={FadeOut.duration(160)}
-          style={[ss.label, { color: T.fg }]}
+          style={[ss.label, { color: labelClr }]}
         >
           {displayLabel}
         </Animated.Text>
@@ -106,39 +104,30 @@ export default function ThinkingCard({ label }: { label?: string }) {
 }
 
 const ss = StyleSheet.create({
-  card: {
-    alignSelf:         "flex-start",
-    marginHorizontal:  16,
-    marginBottom:      20,
-    paddingHorizontal: 16,
-    paddingVertical:   14,
-    borderRadius:      18,
-    borderWidth:       StyleSheet.hairlineWidth,
-    gap:               12,
-    shadowColor:       "#000",
-    shadowOffset:      { width: 0, height: 2 },
-    shadowOpacity:     0.07,
-    shadowRadius:      14,
-    elevation:         2,
+  // Matches assistant message left padding — no card, no background
+  wrap: {
+    paddingHorizontal: 24,
+    marginBottom:      24,
+    gap:               10,
   },
   labelRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           8,
+    gap:           6,
   },
   leaf: {
-    width:  14,
-    height: 14,
+    width:  12,
+    height: 12,
   },
   label: {
-    fontSize:      14,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: -0.1,
+    fontSize:      13,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: 0.1,
   },
   dotsRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           6,
+    gap:           7,
   },
   dot: {
     width:        7,
