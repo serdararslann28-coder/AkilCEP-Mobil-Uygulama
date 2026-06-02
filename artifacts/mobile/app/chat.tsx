@@ -48,6 +48,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import SideMenu         from "@/components/SideMenu";
 import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
+import ImageGenCard     from "@/components/ImageGenCard";
 import TypingIndicator  from "@/components/TypingIndicator";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
 import { useChat }      from "@/context/ChatContext";
@@ -711,11 +712,13 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={ss.msgList}
           ListHeaderComponent={isTyping ? (
-            <TypingIndicator label={
-              imagePending  ? imagePendingLabel            :
-              visionPending ? "Fotoğraf analiz ediliyor…"  :
-              undefined
-            } />
+            imagePending ? (
+              <ImageGenCard />
+            ) : (
+              <TypingIndicator label={
+                visionPending ? "Fotoğraf analiz ediliyor…" : undefined
+              } />
+            )
           ) : null}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
