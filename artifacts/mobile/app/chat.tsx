@@ -782,7 +782,7 @@ export default function ChatScreen() {
                 >
                   <Feather
                     name={sttListening ? "square" : "mic"}
-                    size={22}
+                    size={16}
                     color={sttListening ? T.fg : attachClr}
                   />
                 </TouchableOpacity>
@@ -1119,7 +1119,7 @@ const ss = StyleSheet.create({
   rightRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           6,
+    gap:           4,
   },
 
   // Mic — bare icon, halo for STT feedback
@@ -1142,23 +1142,23 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // AkılCEP button — 48 px single circle, no rings
+  // AkılCEP button — 40 px single circle (~17% smaller than previous 48px)
   sendWrap: {
-    width: 48, height: 48,
+    width: 40, height: 40,
     alignItems:     "center",
     justifyContent: "center",
   },
   sendBtnBg: {
     position:      "absolute",
-    width:         48, height: 48, borderRadius: 24,
+    width:         40, height: 40, borderRadius: 20,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 3 },
-    shadowOpacity: 0.20,
-    shadowRadius:  8,
-    elevation:     5,
+    shadowOpacity: 0.18,
+    shadowRadius:  7,
+    elevation:     4,
   },
   sendBtnTouch: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 40, height: 40, borderRadius: 20,
     alignItems:     "center",
     justifyContent: "center",
   },
@@ -1168,7 +1168,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   orbLeaf: {
-    width:  20,
-    height: 20,
+    width:  17,
+    height: 17,
   },
 });
