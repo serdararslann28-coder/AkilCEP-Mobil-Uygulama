@@ -1,16 +1,20 @@
 /**
- * MultimodalPanel — compact chat-style tool bubble that floats above the input bar.
- * Clean rows: icon + label + chevron. Collapsible "Daha Fazla" section.
- * PURE / VOID theme aware. No camera strip, no subtitles, no bottom sheet.
+ * MultimodalPanel — fixed-height floating tool bubble above the input bar.
+ * All 8 tools in a single scrollable bubble; top/bottom fade indicators.
+ * PURE / VOID theme aware. Never covers the input bar.
  */
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -25,27 +29,22 @@ import Animated, {
 } from "react-native-reanimated";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-const SCREEN_W  = Dimensions.get("window").width;
-const BUBBLE_MX = SCREEN_W * 0.06; // 6% margin each side → 88% width
+const SCREEN_W   = Dimensions.get("window").width;
+const BUBBLE_MX  = SCREEN_W * 0.055;        // ~5.5% margin → ~89% width
+const BUBBLE_H   = 296;                      // fixed bubble height
+const FADE_H     = 28;                       // gradient fade strip height
 
-// ─── Tool definitions ─────────────────────────────────────────────────────────
-const PRIMARY: { id: string; icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
-  { id: "camera",  icon: "camera",    label: "Kamera"      },
-  { id: "photos",  icon: "image",     label: "Fotoğraflar" },
-  { id: "files",   icon: "paperclip", label: "Dosyalar"    },
-  { id: "web",     icon: "globe",     label: "Web Araması" },
+// ─── Tools ───────────────────────────────────────────────────────────────────
+const TOOLS: { id: string; icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
+  { id: "camera",   icon: "camera",    label: "Kamera"          },
+  { id: "photos",   icon: "image",     label: "Fotoğraflar"     },
+  { id: "files",    icon: "paperclip", label: "Dosyalar"        },
+  { id: "web",      icon: "globe",     label: "Web Araması"     },
+  { id: "imagegen", icon: "zap",       label: "Görsel Oluştur"  },
+  { id: "think",    icon: "cpu",       label: "Düşün"           },
+  { id: "audio",    icon: "mic",       label: "Ses Kaydı"       },
+  { id: "deep",     icon: "layers",    label: "Derin Araştırma" },
 ];
-
-const MORE_TOOLS: { id: string; icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
-  { id: "think",    icon: "cpu",      label: "Düşün"          },
-  { id: "imagegen", icon: "zap",      label: "Görsel Oluştur" },
-  { id: "audio",    icon: "mic",      label: "Ses Kaydı"      },
-  { id: "deep",     icon: "layers",   label: "Derin Araştırma"},
-];
-
-// Each row is ~46 px tall; more-section max-height derived from this
-const ROW_H  = 46;
-const MORE_H = MORE_TOOLS.length * ROW_H + 8;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -59,25 +58,23 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function MultimodalPanel({ open, onClose, onImagePicked, bottomOffset, T }: Props) {
 
-  // ── Panel entrance / exit ─────────────────────────────────────────────────
+  // ── Panel animation ────────────────────────────────────────────────────────
   const panelOp    = useSharedValue(0);
   const panelScale = useSharedValue(0.93);
   const panelY     = useSharedValue(12);
   const bdOp       = useSharedValue(0);
-  const moreAnim   = useSharedValue(0); // 0 = collapsed, 1 = expanded
 
   useEffect(() => {
     if (open) {
-      bdOp.value       = withTiming(1,  { duration: 160 });
-      panelOp.value    = withTiming(1,  { duration: 200, easing: Easing.out(Easing.ease) });
-      panelScale.value = withSpring(1,  { damping: 22, stiffness: 340, mass: 0.72 });
-      panelY.value     = withSpring(0,  { damping: 22, stiffness: 340, mass: 0.72 });
+      bdOp.value       = withTiming(1, { duration: 160 });
+      panelOp.value    = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+      panelScale.value = withSpring(1, { damping: 22, stiffness: 340, mass: 0.72 });
+      panelY.value     = withSpring(0, { damping: 22, stiffness: 340, mass: 0.72 });
     } else {
-      bdOp.value       = withTiming(0, { duration: 140 });
-      panelOp.value    = withTiming(0, { duration: 160 });
+      bdOp.value       = withTiming(0,    { duration: 140 });
+      panelOp.value    = withTiming(0,    { duration: 160 });
       panelScale.value = withTiming(0.95, { duration: 160 });
       panelY.value     = withTiming(10,   { duration: 160 });
-      moreAnim.value   = withTiming(0,    { duration: 140 });
     }
   }, [open]);
 
@@ -87,24 +84,27 @@ export default function MultimodalPanel({ open, onClose, onImagePicked, bottomOf
     transform: [{ scale: panelScale.value }, { translateY: panelY.value }],
   }));
 
-  // More section: height + opacity
-  const moreContentStyle = useAnimatedStyle(() => ({
-    maxHeight: moreAnim.value * MORE_H,
-    opacity:   moreAnim.value,
-  }));
+  // ── Scroll fade state ─────────────────────────────────────────────────────
+  const scrollRef     = useRef<ScrollView>(null);
+  const [canScrollUp,   setCanScrollUp]   = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(true);
 
-  // Chevron rotates 180° when expanded
-  const chevStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${moreAnim.value * 180}deg` }],
-  }));
-
-  const toggleMore = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const next = moreAnim.value > 0.5 ? 0 : 1;
-    moreAnim.value = withTiming(next, { duration: 260, easing: Easing.inOut(Easing.ease) });
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    setCanScrollUp(contentOffset.y > 2);
+    setCanScrollDown(contentOffset.y + layoutMeasurement.height < contentSize.height - 2);
   };
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // Reset scroll position when panel opens
+  useEffect(() => {
+    if (open) {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      setCanScrollUp(false);
+      setCanScrollDown(true);
+    }
+  }, [open]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleCamera = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
@@ -130,33 +130,16 @@ export default function MultimodalPanel({ open, onClose, onImagePicked, bottomOf
     onClose();
   }, [handleCamera, handlePhotos, onClose]);
 
-  // ── Theme helpers ─────────────────────────────────────────────────────────
-  const panelBg  = T.isDark ? "#111111"                   : "#FFFFFF";
-  const panelBdr = T.isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.07)";
-  const divClr   = T.isDark ? "rgba(255,255,255,0.055)"  : "rgba(0,0,0,0.055)";
-  const iconBg   = T.isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.050)";
-  const chevClr  = T.isDark ? "rgba(255,255,255,0.20)"   : "rgba(0,0,0,0.17)";
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const panelBg  = T.isDark ? "#111111"                  : "#FFFFFF";
+  const panelBdr = T.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.07)";
+  const divClr   = T.isDark ? "rgba(255,255,255,0.055)" : "rgba(0,0,0,0.055)";
+  const iconBg   = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.050)";
+  const chevClr  = T.isDark ? "rgba(255,255,255,0.20)"  : "rgba(0,0,0,0.17)";
 
-  // ── Row renderer ─────────────────────────────────────────────────────────
-  const renderRow = (
-    item: { id: string; icon: React.ComponentProps<typeof Feather>["name"]; label: string },
-    isLast: boolean,
-  ) => (
-    <View key={item.id}>
-      <TouchableOpacity
-        style={ss.row}
-        onPress={() => handlePress(item.id)}
-        activeOpacity={0.55}
-      >
-        <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
-          <Feather name={item.icon} size={14} color={T.fg} />
-        </View>
-        <Text style={[ss.label, { color: T.fg }]}>{item.label}</Text>
-        <Feather name="chevron-right" size={12} color={chevClr} />
-      </TouchableOpacity>
-      {!isLast && <View style={[ss.div, { backgroundColor: divClr }]} />}
-    </View>
-  );
+  // Gradient colors: transparent → panel background
+  const fadeTop: [string, string]    = ["transparent", panelBg];
+  const fadeBottom: [string, string] = [panelBg, "transparent"];
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -173,37 +156,80 @@ export default function MultimodalPanel({ open, onClose, onImagePicked, bottomOf
       <Animated.View
         style={[
           ss.panel,
-          { bottom: bottomOffset, left: BUBBLE_MX, right: BUBBLE_MX, backgroundColor: panelBg, borderColor: panelBdr },
+          {
+            bottom:          bottomOffset,
+            left:            BUBBLE_MX,
+            right:           BUBBLE_MX,
+            backgroundColor: panelBg,
+            borderColor:     panelBdr,
+          },
           panelStyle,
         ]}
         pointerEvents={open ? "box-none" : "none"}
       >
 
-        {/* Primary tools */}
-        <View style={ss.section}>
-          {PRIMARY.map((item, i) => renderRow(item, i === PRIMARY.length - 1))}
+        {/* Scrollable tool list — fixed height */}
+        <View style={ss.scrollContainer}>
+          <ScrollView
+            ref={scrollRef}
+            style={ss.scroll}
+            contentContainerStyle={ss.scrollContent}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={handleScroll}
+            bounces={false}
+          >
+            {TOOLS.map((tool, i) => (
+              <View key={tool.id}>
+                <TouchableOpacity
+                  style={ss.row}
+                  onPress={() => handlePress(tool.id)}
+                  activeOpacity={0.55}
+                >
+                  <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
+                    <Feather name={tool.icon} size={14} color={T.fg} />
+                  </View>
+                  <Text style={[ss.label, { color: T.fg }]}>{tool.label}</Text>
+                  <Feather name="chevron-right" size={12} color={chevClr} />
+                </TouchableOpacity>
+                {i < TOOLS.length - 1 && (
+                  <View style={[ss.div, { backgroundColor: divClr }]} />
+                )}
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Top fade — shown when user has scrolled down */}
+          {canScrollUp && (
+            <LinearGradient
+              colors={fadeTop}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={ss.fadeTop}
+              pointerEvents="none"
+            />
+          )}
+
+          {/* Bottom fade — shown when more content below */}
+          {canScrollDown && (
+            <LinearGradient
+              colors={fadeBottom}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={ss.fadeBottom}
+              pointerEvents="none"
+            />
+          )}
         </View>
 
-        {/* Separator */}
-        <View style={[ss.sectionDiv, { backgroundColor: divClr }]} />
-
-        {/* "Daha Fazla" toggle */}
-        <TouchableOpacity style={ss.moreToggle} onPress={toggleMore} activeOpacity={0.60}>
-          <Text style={[ss.moreLabel, { color: T.muted }]}>Daha Fazla</Text>
-          <Animated.View style={chevStyle}>
-            <Feather name="chevron-down" size={13} color={T.muted} />
-          </Animated.View>
-        </TouchableOpacity>
-
-        {/* More section — clipped animated reveal */}
-        <View style={{ overflow: "hidden" }}>
-          <Animated.View style={moreContentStyle}>
-            <View style={[ss.sectionDiv, { backgroundColor: divClr }]} />
-            <View style={ss.section}>
-              {MORE_TOOLS.map((item, i) => renderRow(item, i === MORE_TOOLS.length - 1))}
-            </View>
-          </Animated.View>
-        </View>
+        {/* Scroll hint dots — visible while more content below */}
+        {canScrollDown && (
+          <View style={[ss.scrollHint, { borderTopColor: divClr, borderTopWidth: StyleSheet.hairlineWidth }]}>
+            <View style={[ss.hintDot, { backgroundColor: chevClr }]} />
+            <View style={[ss.hintDot, ss.hintDotMid, { backgroundColor: chevClr }]} />
+            <View style={[ss.hintDot, { backgroundColor: chevClr }]} />
+          </View>
+        )}
 
       </Animated.View>
     </>
@@ -221,22 +247,27 @@ const ss = StyleSheet.create({
   panel: {
     position:      "absolute",
     zIndex:        160,
-    borderRadius:  24,
+    borderRadius:  28,
     borderWidth:   StyleSheet.hairlineWidth,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 10 },
     shadowOpacity: 0.16,
     shadowRadius:  30,
     elevation:     18,
-    paddingVertical: 4,
+    overflow:      "hidden",
   },
 
-  section: {
-    paddingVertical: 2,
+  scrollContainer: {
+    height:   BUBBLE_H,
+    position: "relative",
   },
 
-  sectionDiv: {
-    height: StyleSheet.hairlineWidth,
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingVertical: 6,
   },
 
   row: {
@@ -267,18 +298,40 @@ const ss = StyleSheet.create({
     marginLeft: 58,
   },
 
-  moreToggle: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "center",
-    gap:               5,
-    paddingVertical:   11,
-    paddingHorizontal: 16,
+  // Gradient fade strips
+  fadeTop: {
+    position: "absolute",
+    top:      0,
+    left:     0,
+    right:    0,
+    height:   FADE_H,
   },
 
-  moreLabel: {
-    fontSize:   13,
-    fontFamily: "Inter_400Regular",
-    letterSpacing: -0.1,
+  fadeBottom: {
+    position: "absolute",
+    bottom:   0,
+    left:     0,
+    right:    0,
+    height:   FADE_H,
+  },
+
+  // Subtle three-dot scroll hint at the bottom of the bubble
+  scrollHint: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    justifyContent: "center",
+    gap:            4,
+    paddingVertical: 8,
+  },
+
+  hintDot: {
+    width:        3,
+    height:       3,
+    borderRadius: 2,
+    opacity:      0.45,
+  },
+
+  hintDotMid: {
+    opacity: 0.70,
   },
 });
