@@ -1092,11 +1092,11 @@ const ss = StyleSheet.create({
     gap:           8,
   },
 
-  // Standalone + button — rounded square, matches input height
+  // Standalone + button — compact rounded square
   plusStandalone: {
-    width:          52,
-    height:         56,
-    borderRadius:   18,
+    width:          40,
+    height:         40,
+    borderRadius:   13,
     alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#000",
@@ -1106,14 +1106,14 @@ const ss = StyleSheet.create({
     elevation:      3,
   },
 
-  // Input row — 56 px pill, flex:1 fills remaining width
+  // Input row — 48 px pill, flex:1 fills remaining width
   inputRow: {
     flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
-    borderRadius:      999,
-    height:            56,
-    paddingHorizontal: 10,
+    borderRadius:      24,
+    height:            48,
+    paddingHorizontal: 8,
     gap:               2,
     shadowColor:       "#000",
     shadowOffset:      { width: 0, height: 2 },
@@ -1162,15 +1162,15 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // AkılCEP button — 40 px single circle (~17% smaller than previous 48px)
+  // AkılCEP button — 36 px compact circle
   sendWrap: {
-    width: 40, height: 40,
+    width: 36, height: 36,
     alignItems:     "center",
     justifyContent: "center",
   },
   sendBtnBg: {
     position:      "absolute",
-    width:         40, height: 40, borderRadius: 20,
+    width:         36, height: 36, borderRadius: 18,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 3 },
     shadowOpacity: 0.18,
@@ -1178,7 +1178,7 @@ const ss = StyleSheet.create({
     elevation:     4,
   },
   sendBtnTouch: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 36, height: 36, borderRadius: 18,
     alignItems:     "center",
     justifyContent: "center",
   },
