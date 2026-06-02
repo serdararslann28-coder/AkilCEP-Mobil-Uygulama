@@ -598,7 +598,7 @@ export default function ChatScreen() {
   const sendBtnBg    = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
   const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
   const inputPlhClr  = T.isDark ? T.muted                   : "#9A9A9A";
-  const attachClr    = T.isDark ? "rgba(255,255,255,0.32)"  : "#9A9A9A";
+  const attachClr    = T.isDark ? "rgba(255,255,255,0.55)"  : "#222222";
   const logoTint     = T.isDark ? "#888888"                 : "#5A5A5A";
 
   // Mic button colors per phase
