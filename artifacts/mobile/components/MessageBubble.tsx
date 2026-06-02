@@ -186,31 +186,27 @@ function GeneratedImageCard({
   imageData,
   caption,
   onEdit,
+  autoOpen,
 }: {
-  imageData: string;
-  caption:   string;
-  onEdit?:   (instruction: string) => void;
+  imageData:  string;
+  caption:    string;
+  onEdit?:    (instruction: string) => void;
+  autoOpen?:  boolean;
 }) {
   const { theme: T } = useTheme();
   const [revealed,      setRevealed]      = useState(false);
-  const [editVisible,   setEditVisible]   = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
-  const [instruction,   setInstruction]   = useState("");
 
   const imgOp    = useSharedValue(0);
   const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value }));
 
-  const handleApply = () => {
-    if (!instruction.trim()) return;
-    setEditVisible(false);
-    onEdit?.(instruction.trim());
-    setInstruction("");
-  };
-
-  const handleCancel = () => {
-    setEditVisible(false);
-    setInstruction("");
-  };
+  // Auto-open viewer for the latest generated image
+  useEffect(() => {
+    if (autoOpen && revealed) {
+      const t = setTimeout(() => setViewerVisible(true), 240);
+      return () => clearTimeout(t);
+    }
+  }, [autoOpen, revealed]);
 
   // Open full-screen viewer
   const handleImagePress = () => {
@@ -227,13 +223,13 @@ function GeneratedImageCard({
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ["İptal", "Görseli Kaydet", "Paylaş", ...(onEdit ? ["Düzenle"] : [])],
+          options: ["İptal", "Görseli Kaydet", "Paylaş", "Düzenle"],
           cancelButtonIndex: 0,
         },
         (idx) => {
-          if (idx === 1) setViewerVisible(true);      // viewer → download
-          if (idx === 2) setViewerVisible(true);      // viewer → share
-          if (idx === 3 && onEdit) setEditVisible(true);
+          if (idx === 1) setViewerVisible(true);   // viewer → download
+          if (idx === 2) setViewerVisible(true);   // viewer → share
+          if (idx === 3) setViewerVisible(true);   // viewer → edit (inline in viewer)
         },
       );
     } else {
@@ -297,103 +293,12 @@ function GeneratedImageCard({
         </Text>
       ) : null}
 
-      {/* Edit button — only shown after image loads */}
-      {revealed && onEdit ? (
-        <TouchableOpacity
-          style={[ss.editBtn, { borderColor: T.isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.12)" }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setEditVisible(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <Feather name="edit-2" size={11} color={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.50)"} />
-          <Text style={[ss.editBtnLabel, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.50)" }]}>
-            Düzenle
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {/* Edit modal */}
-      <Modal
-        visible={editVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={handleCancel}
-      >
-        <TouchableWithoutFeedback onPress={handleCancel}>
-          <View style={[ss.editOverlay, { backgroundColor: overlayBg }]}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={0}
-              >
-                <View style={[ss.editCard, { backgroundColor: cardBg }]}>
-                  {/* Header */}
-                  <Text style={[ss.editTitle, { color: labelClr }]}>Görseli Düzenle</Text>
-                  <Text style={[ss.editSub, { color: subClr }]}>Ne değiştirilsin?</Text>
-
-                  {/* Text input */}
-                  <TextInput
-                    style={[ss.editInput, { backgroundColor: inputBg, color: inputClr }]}
-                    placeholder="Örn: Arka planı beyaz yap"
-                    placeholderTextColor={placeholdr}
-                    value={instruction}
-                    onChangeText={setInstruction}
-                    multiline
-                    maxLength={500}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={handleApply}
-                  />
-
-                  {/* Hint pills */}
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={ss.hintsScroll}
-                    contentContainerStyle={ss.hintsContent}
-                  >
-                    {EDIT_HINTS.map((hint) => (
-                      <TouchableOpacity
-                        key={hint}
-                        style={[ss.hintPill, { backgroundColor: pillBg }]}
-                        onPress={() => setInstruction(hint)}
-                        activeOpacity={0.65}
-                      >
-                        <Text style={[ss.hintPillText, { color: pillClr }]}>{hint}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-
-                  {/* Action row */}
-                  <View style={ss.editActions}>
-                    <TouchableOpacity style={ss.editCancelBtn} onPress={handleCancel} activeOpacity={0.7}>
-                      <Text style={[ss.editCancelLabel, { color: subClr }]}>İptal</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[ss.editApplyBtn, { backgroundColor: accentClr, opacity: instruction.trim() ? 1 : 0.38 }]}
-                      onPress={handleApply}
-                      activeOpacity={0.8}
-                      disabled={!instruction.trim()}
-                    >
-                      <Text style={ss.editApplyLabel}>Uygula</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Full-screen image viewer */}
+      {/* Full-screen image viewer — editing is handled inside the viewer */}
       <ImageViewer
         visible={viewerVisible}
         imageData={imageData}
         onClose={() => setViewerVisible(false)}
-        onEditOpen={onEdit ? () => setEditVisible(true) : undefined}
+        onEdit={onEdit}
       />
     </View>
   );
@@ -504,6 +409,7 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
           imageData={message.imageData}
           caption={message.content}
           onEdit={onEditImage ? (instr) => onEditImage(message.imageData!, instr) : undefined}
+          autoOpen={isLatest && !isUser}
         />
       ) : (
         shown === message.content
