@@ -24,7 +24,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import ImageViewer from "@/components/ImageViewer";
+import ImageViewer   from "@/components/ImageViewer";
+import MarkdownText  from "@/components/MarkdownText";
 import Animated, {
   Easing,
   FadeInDown,
@@ -505,8 +506,9 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
           onEdit={onEditImage ? (instr) => onEditImage(message.imageData!, instr) : undefined}
         />
       ) : (
-        /* Editorial text — no wrapping view, no background */
-        <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
+        shown === message.content
+          ? <MarkdownText text={shown} color={textClr} isDark={T.isDark} />
+          : <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
       )}
 
       {/* Action row */}
