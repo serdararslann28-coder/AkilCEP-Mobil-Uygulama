@@ -84,6 +84,7 @@ export default function ChatScreen() {
   const [menuVisible,      setMenuVisible]  = useState(false);
   const [secretModal,      setSecretModal]  = useState(false);
   const [exitSecretModal,  setExitModal]    = useState(false);
+  const [expandedOpen,     setExpandedOpen] = useState(false);
   const [voicePhase,       setVoicePhase]   = useState<VoicePhase>("idle");
 
   const isSecretChat = !!currentConversation?.isPrivate;
@@ -771,25 +772,37 @@ export default function ChatScreen() {
             {/* Right controls */}
             <View style={ss.rightRow}>
 
-              {/* Mic — bare icon, no circle background */}
-              <View style={ss.micWrap}>
-                <Animated.View
-                  style={[ss.micHalo, { backgroundColor: T.fg }, sttPulseStyle]}
-                  pointerEvents="none"
-                />
+              {/* Mic — visible when no text; replaced by expand icon when typing */}
+              {(!hasText || sttListening) ? (
+                <View style={ss.micWrap}>
+                  <Animated.View
+                    style={[ss.micHalo, { backgroundColor: T.fg }, sttPulseStyle]}
+                    pointerEvents="none"
+                  />
+                  <TouchableOpacity
+                    style={{ opacity: sttListening ? 1 : 0.52 }}
+                    onPress={handleSttPress}
+                    activeOpacity={0.65}
+                    hitSlop={10}
+                  >
+                    <Feather
+                      name={sttListening ? "square" : "mic"}
+                      size={16}
+                      color={sttListening ? T.fg : attachClr}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* Expand icon — visible when typing */
                 <TouchableOpacity
-                  style={{ opacity: sttListening ? 1 : (hasText ? 0.32 : 0.52) }}
-                  onPress={handleSttPress}
-                  activeOpacity={0.65}
+                  style={ss.expandBtn}
+                  onPress={() => setExpandedOpen(true)}
+                  activeOpacity={0.55}
                   hitSlop={10}
                 >
-                  <Feather
-                    name={sttListening ? "square" : "mic"}
-                    size={16}
-                    color={sttListening ? T.fg : attachClr}
-                  />
+                  <Feather name="maximize-2" size={16} color={T.isDark ? "rgba(255,255,255,0.55)" : "#222222"} />
                 </TouchableOpacity>
-              </View>
+              )}
 
               {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
               <Animated.View style={[ss.sendWrap, sendStyle, voicePulseAnim]}>
@@ -861,6 +874,62 @@ export default function ChatScreen() {
       </Modal>
 
       {/* ════ SECRET CHAT — EXIT MODAL ════ */}
+      {/* ════ EXPANDED WRITING MODE ════ */}
+      <Modal
+        visible={expandedOpen}
+        transparent={false}
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setExpandedOpen(false)}
+      >
+        <View style={[ss.expandModal, { backgroundColor: T.bg }]}>
+          {/* Header */}
+          <View style={[ss.expandHeader, { borderBottomColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }]}>
+            <TouchableOpacity
+              style={ss.expandClose}
+              onPress={() => setExpandedOpen(false)}
+              hitSlop={12}
+              activeOpacity={0.60}
+            >
+              <Feather name="x" size={20} color={T.fg} />
+            </TouchableOpacity>
+            <Text style={[ss.expandTitle, { color: T.fgSoft }]}>Uzun Mesaj</Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          {/* Large text area */}
+          <TextInput
+            style={[ss.expandInput, { color: T.fg }]}
+            placeholder="AkılCEP'e yaz…"
+            placeholderTextColor={T.muted}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            autoFocus
+            maxLength={4000}
+            textAlignVertical="top"
+          />
+
+          {/* Bottom action bar */}
+          <View style={[ss.expandFooter, { borderTopColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", paddingBottom: bottomPad + 10 }]}>
+            <Text style={[ss.expandCounter, { color: T.muted }]}>
+              {inputText.length} / 4000
+            </Text>
+            <TouchableOpacity
+              style={[ss.expandSendBtn, { backgroundColor: T.primary, opacity: hasText ? 1 : 0.38 }]}
+              disabled={!hasText}
+              activeOpacity={0.75}
+              onPress={() => {
+                setExpandedOpen(false);
+                setTimeout(() => handleSend(), 80);
+              }}
+            >
+              <Feather name="arrow-up" size={16} color={T.primaryForeground} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={exitSecretModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setExitModal(false)}>
         <View style={ss.modalOverlay}>
           <View style={[ss.modalCard, { backgroundColor: T.isDark ? "#111111" : "#F7F7F5", borderColor: T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)" }]}>
@@ -1142,6 +1211,14 @@ const ss = StyleSheet.create({
     gap:           4,
   },
 
+  // Expand icon button — replaces mic when user is typing
+  expandBtn: {
+    width:          32,
+    height:         32,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+
   // Mic — bare icon, halo for STT feedback
   micWrap: {
     width:          32,
@@ -1190,5 +1267,58 @@ const ss = StyleSheet.create({
   orbLeaf: {
     width:  17,
     height: 17,
+  },
+
+  // ── Expanded writing mode modal ───────────────────────────────────────────
+  expandModal: {
+    flex: 1,
+  },
+  expandHeader: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    paddingTop:        56,
+    paddingBottom:     14,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  expandClose: {
+    width:          44,
+    height:         44,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+  expandTitle: {
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.1,
+  },
+  expandInput: {
+    flex:              1,
+    fontSize:          16,
+    fontFamily:        "Inter_400Regular",
+    lineHeight:        24,
+    paddingHorizontal: 22,
+    paddingTop:        20,
+    paddingBottom:     16,
+  },
+  expandFooter: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    paddingHorizontal: 20,
+    paddingTop:        12,
+    borderTopWidth:    StyleSheet.hairlineWidth,
+  },
+  expandCounter: {
+    fontSize:   12,
+    fontFamily: "Inter_400Regular",
+  },
+  expandSendBtn: {
+    width:          40,
+    height:         40,
+    borderRadius:   20,
+    alignItems:     "center",
+    justifyContent: "center",
   },
 });
