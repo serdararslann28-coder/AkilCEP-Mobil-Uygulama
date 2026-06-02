@@ -60,8 +60,8 @@ const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 // ── Voice phase ────────────────────────────────────────────────────────────────
 type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
-const MIN_INPUT_H = 40;   // compact single-line height
-const MAX_INPUT_H = 138;  // ~5-6 lines at 15px font
+const MIN_INPUT_H = 48;   // compact single-line height
+const MAX_INPUT_H = 120;  // ~4 lines at 15px font
 
 export default function ChatScreen() {
   const { theme: T }   = useTheme();
@@ -746,8 +746,8 @@ export default function ChatScreen() {
               </Animated.View>
             </TouchableOpacity>
 
-          {/* Input row — text + mic + send */}
-          <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
+          {/* Input row — text + mic + send; height animated via inputFieldAnim */}
+          <Animated.View style={[ss.inputRow, inputFieldAnim, { backgroundColor: inputBg }]}>
 
             {/* Text field — dims slightly during voice */}
             <View style={ss.textInputWrap}>
@@ -840,7 +840,7 @@ export default function ChatScreen() {
               </Animated.View>
             </View>
 
-          </View>
+          </Animated.View>{/* inputRow */}
           </View>{/* inputDock */}
         </View>
       </KeyboardAvoidingView>
@@ -1175,13 +1175,13 @@ const ss = StyleSheet.create({
     elevation:      3,
   },
 
-  // Input row — 48 px pill, flex:1 fills remaining width
+  // Input row — auto-grow pill (48–120px), flex:1 fills remaining width
   inputRow: {
     flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
     borderRadius:      24,
-    height:            48,
+    minHeight:         48,
     paddingHorizontal: 8,
     gap:               2,
     shadowColor:       "#000",
