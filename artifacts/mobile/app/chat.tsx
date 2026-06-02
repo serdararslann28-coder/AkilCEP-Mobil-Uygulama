@@ -34,6 +34,8 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -731,6 +733,41 @@ export default function ChatScreen() {
         {/* ════ INPUT AREA ════ */}
         <View style={[ss.inputOuter, { paddingBottom: bottomPad + 10 }]}>
 
+          {/* Quick actions — visible only on empty (new) chat */}
+          {!hasMessages && (
+            <Animated.View
+              entering={FadeIn.duration(320)}
+              exiting={FadeOut.duration(180)}
+              style={ss.quickActions}
+            >
+              {[
+                { emoji: "🖼️", label: "Görüntü Oluştur", onPress: () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setInputText("Bir görsel oluştur: ");
+                }},
+                { emoji: "✏️", label: "Yaz veya Düzenle", onPress: () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setExpandedOpen(true);
+                }},
+                { emoji: "🌐", label: "Web Ara", onPress: () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setInputText("Web'de ara: ");
+                }},
+              ].map(({ emoji, label, onPress }) => (
+                <TouchableOpacity
+                  key={label}
+                  onPress={onPress}
+                  activeOpacity={0.55}
+                  hitSlop={8}
+                  style={ss.quickActionItem}
+                >
+                  <Text style={ss.quickActionEmoji}>{emoji}</Text>
+                  <Text style={[ss.quickActionLabel, { color: T.muted }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+          )}
+
           {/* Input dock — standalone + button beside the input pill */}
           <View style={ss.inputDock}>
 
@@ -1155,6 +1192,28 @@ const ss = StyleSheet.create({
   inputOuter: {
     paddingHorizontal: 14,
     paddingTop:        4,
+  },
+
+  // Quick action row — above input, new chat only
+  quickActions: {
+    paddingHorizontal: 4,
+    paddingBottom:     18,
+    gap:               14,
+  },
+  quickActionItem: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           8,
+    paddingVertical: 3,
+  },
+  quickActionEmoji: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  quickActionLabel: {
+    fontSize:      14,
+    fontFamily:    "Inter_400Regular",
+    letterSpacing: -0.1,
   },
 
   // Dock row — standalone + button beside the input pill
