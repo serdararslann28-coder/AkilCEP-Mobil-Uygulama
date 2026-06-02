@@ -202,13 +202,7 @@ function GeneratedImageCard({
   const imgOp    = useSharedValue(0);
   const imgStyle = useAnimatedStyle(() => ({ opacity: imgOp.value }));
 
-  // Auto-open viewer for the latest generated image
-  useEffect(() => {
-    if (autoOpen && revealed) {
-      const t = setTimeout(() => setViewerVisible(true), 240);
-      return () => clearTimeout(t);
-    }
-  }, [autoOpen, revealed]);
+  // Auto-open disabled — user opens fullscreen by tapping the image
 
   // Derived theme colors
   const shimmerBg = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
@@ -418,7 +412,6 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
           imageData={message.imageData}
           caption={message.content}
           onEdit={onEditImage ? (instr) => onEditImage(message.imageData!, instr) : undefined}
-          autoOpen={isLatest && !isUser}
         />
       ) : (
         shown === message.content
