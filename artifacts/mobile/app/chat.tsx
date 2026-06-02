@@ -727,13 +727,13 @@ export default function ChatScreen() {
         {/* ════ INPUT AREA ════ */}
         <View style={[ss.inputOuter, { paddingBottom: bottomPad + 10 }]}>
 
-          {/* Input row */}
-          <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
+          {/* Input dock — standalone + button beside the input pill */}
+          <View style={ss.inputDock}>
 
-            {/* Attachment — opens multimodal panel */}
+            {/* Standalone + button */}
             <TouchableOpacity
-              style={ss.attachBtn}
-              hitSlop={8}
+              style={[ss.plusStandalone, { backgroundColor: inputBg }]}
+              hitSlop={6}
               activeOpacity={0.60}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -744,6 +744,9 @@ export default function ChatScreen() {
                 <Feather name="plus" size={18} color={attachClr} />
               </Animated.View>
             </TouchableOpacity>
+
+          {/* Input row — text + mic + send */}
+          <View style={[ss.inputRow, { backgroundColor: inputBg }]}>
 
             {/* Text field — dims slightly during voice */}
             <View style={ss.textInputWrap}>
@@ -825,6 +828,7 @@ export default function ChatScreen() {
             </View>
 
           </View>
+          </View>{/* inputDock */}
         </View>
       </KeyboardAvoidingView>
 
@@ -1081,8 +1085,30 @@ const ss = StyleSheet.create({
     paddingTop:        4,
   },
 
-  // Input row — 56 px pill
+  // Dock row — standalone + button beside the input pill
+  inputDock: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           8,
+  },
+
+  // Standalone + button — rounded square, matches input height
+  plusStandalone: {
+    width:          52,
+    height:         56,
+    borderRadius:   18,
+    alignItems:     "center",
+    justifyContent: "center",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.05,
+    shadowRadius:   10,
+    elevation:      3,
+  },
+
+  // Input row — 56 px pill, flex:1 fills remaining width
   inputRow: {
+    flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
     borderRadius:      999,
@@ -1094,12 +1120,6 @@ const ss = StyleSheet.create({
     shadowOpacity:     0.05,
     shadowRadius:      10,
     elevation:         3,
-  },
-  attachBtn: {
-    width:          36,
-    height:         36,
-    alignItems:     "center",
-    justifyContent: "center",
   },
   // Plain flex wrapper for TextInput
   textInputWrap: {
