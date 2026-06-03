@@ -38,6 +38,9 @@ import Animated, {
 
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
+// ── Dev flag — set true to always start from onboarding during testing ────────
+const FORCE_SHOW_ONBOARDING = true;
+
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
@@ -103,10 +106,12 @@ export default function SplashScreen() {
   const destination = useRef<"/chat" | "/onboarding">("/onboarding");
 
   useEffect(() => {
-    // Resolve destination early: returning users go straight to chat
-    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      if (val) destination.current = "/chat";
-    }).catch(() => {});
+    // Resolve destination — FORCE_SHOW_ONBOARDING bypasses saved state
+    if (!FORCE_SHOW_ONBOARDING) {
+      AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
+        if (val) destination.current = "/chat";
+      }).catch(() => {});
+    }
 
     // ── Animation sequence ─────────────────────────────────────────────────
 
