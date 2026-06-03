@@ -1,21 +1,9 @@
 /**
  * Onboarding — 4-page swipeable intro.
  *
- * Composite artwork (1536 × 1024 px, 4 portrait screens side-by-side) is
- * sliced horizontally. Each page renders the composite shifted left so only
- * the correct 1/4 section is visible through an overflow:hidden window that
- * exactly matches the screen.
- *
- * Slice math:
- *   slice_px  = IMG_W / NUM_SCREENS          (= 384 px per section)
- *   scale     = SW / slice_px                (fill screen width exactly)
- *   scaledW   = IMG_W × scale                (full image rendered at this width)
- *   scaledH   = IMG_H × scale                (height — may exceed SH; centered)
- *   topOff    = (SH − scaledH) / 2          (vertical centering; negative = clip)
- *   page i    → image.left = −(SW × i)      (shift to reveal section i)
- *
- * Functional chrome layered on top: animated dot indicators, Skip, buttons.
- * Artwork is never modified.
+ * Each artwork image is used as a true fullscreen background (resizeMode cover).
+ * Artwork is never modified. Functional chrome is layered on top:
+ * animated dot indicators, Skip button, action buttons.
  */
 import { router } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
@@ -23,6 +11,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  ImageSourcePropType,
   Platform,
   StyleSheet,
   Text,
@@ -39,25 +28,19 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ── AsyncStorage key — used by splash.tsx and auth.tsx ───────────────────────
+// ── AsyncStorage key — imported by splash.tsx and auth.tsx ───────────────────
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-// ── Composite artwork ─────────────────────────────────────────────────────────
-const SOURCE = require("../assets/images/onboarding-composite.png");
+// ── Screen artwork (4 individual portrait images) ─────────────────────────────
+const IMAGES: ImageSourcePropType[] = [
+  require("../assets/images/onboarding-1.jpg"),
+  require("../assets/images/onboarding-2.jpg"),
+  require("../assets/images/onboarding-3.jpg"),
+  require("../assets/images/onboarding-4.jpg"),
+];
 
-// Known dimensions: 1536 × 1024 (4 screens side-by-side)
-const IMG_W        = 1536;
-const IMG_H        = 1024;
-const NUM_SCREENS  = 4;
-
+const NUM_SCREENS               = IMAGES.length;
 const { width: SW, height: SH } = Dimensions.get("window");
-
-// Compute slice geometry once at module load (SW/SH are constants here).
-const SLICE_PX  = IMG_W / NUM_SCREENS;          // 384 px per section
-const SCALE     = SW / SLICE_PX;                // fill screen width exactly
-const SCALED_W  = IMG_W * SCALE;
-const SCALED_H  = IMG_H * SCALE;
-const TOP_OFF   = (SH - SCALED_H) / 2;         // may be negative → vertical clip
 
 // ── Per-screen UI config ──────────────────────────────────────────────────────
 interface ScreenCfg {
@@ -76,9 +59,9 @@ const SCREENS: ScreenCfg[] = [
 // ── Animated dot ──────────────────────────────────────────────────────────────
 function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
   const style = useAnimatedStyle(() => {
-    const r     = [(index - 1) * SW, index * SW, (index + 1) * SW];
-    const size  = interpolate(scrollX.value, r, [7, 9, 7],      Extrapolation.CLAMP);
-    const opac  = interpolate(scrollX.value, r, [0.28, 1, 0.28], Extrapolation.CLAMP);
+    const r    = [(index - 1) * SW, index * SW, (index + 1) * SW];
+    const size = interpolate(scrollX.value, r, [7, 9, 7],       Extrapolation.CLAMP);
+    const opac = interpolate(scrollX.value, r, [0.28, 1, 0.28], Extrapolation.CLAMP);
     return { width: size, height: size, opacity: opac };
   });
   return <Animated.View style={[ss.dot, style]} />;
@@ -127,24 +110,14 @@ export default function Onboarding() {
       return (
         <View style={ss.page}>
 
-          {/* ── Artwork slice ────────────────────────────────────────────── */}
-          {/* The composite is rendered at full scaled width inside overflow:hidden.
-              Shifting left by (SW × pageIdx) reveals the correct 1/4 section. */}
+          {/* Fullscreen artwork — cover fills and centers on every screen size */}
           <Image
-            source={SOURCE}
-            style={[
-              ss.artwork,
-              {
-                width:  SCALED_W,
-                height: SCALED_H,
-                left:   -(SW * pageIdx),
-                top:    TOP_OFF,
-              },
-            ]}
-            resizeMode="stretch"
+            source={IMAGES[pageIdx]}
+            style={ss.image}
+            resizeMode="cover"
           />
 
-          {/* ── Skip ────────────────────────────────────────────────────── */}
+          {/* Skip — top right */}
           {cfg.showSkip && (
             <TouchableOpacity
               style={[ss.skip, { top: topPad + 14 }]}
@@ -156,7 +129,7 @@ export default function Onboarding() {
             </TouchableOpacity>
           )}
 
-          {/* ── Bottom chrome ────────────────────────────────────────────── */}
+          {/* Bottom chrome */}
           <View style={[ss.bottom, { paddingBottom: btmPad + 20 }]}>
 
             <View style={ss.dots}>
@@ -216,12 +189,15 @@ const ss = StyleSheet.create({
     backgroundColor: "#000000",
   },
 
-  // Artwork positioned absolutely; left/top set inline per page.
-  artwork: {
+  // Explicit pixel dimensions + cover = perfectly centered on every device.
+  image: {
     position: "absolute",
+    top:      0,
+    left:     0,
+    width:    SW,
+    height:   SH,
   },
 
-  // Skip — top right
   skip: {
     position: "absolute",
     right:    22,
@@ -234,7 +210,6 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // Bottom chrome
   bottom: {
     position:        "absolute",
     bottom:          0,
@@ -257,7 +232,6 @@ const ss = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  // Solid white pill — screens 1–3
   btnSolid: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -280,7 +254,6 @@ const ss = StyleSheet.create({
     color:      "#000000",
   },
 
-  // Outlined pill — screen 4 "AkılCEP'e Gir"
   btnOutlined: {
     flexDirection:     "row",
     alignItems:        "center",
