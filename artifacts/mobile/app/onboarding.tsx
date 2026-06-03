@@ -122,12 +122,15 @@ export default function Onboarding() {
       return (
         <View style={ss.page}>
 
-          {/* Full-screen artwork — unchanged, cover fills the entire screen */}
-          <Image
-            source={IMAGES[pageIdx]}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="cover"
-          />
+          {/* Full-screen artwork — explicit pixel dimensions guarantee center
+              alignment on every screen size; resizeMode "cover" handles scale */}
+          <View style={ss.imageWrap}>
+            <Image
+              source={IMAGES[pageIdx]}
+              style={ss.image}
+              resizeMode="cover"
+            />
+          </View>
 
           {/* Skip — top right */}
           {cfg.showSkip && (
@@ -208,11 +211,32 @@ const BUTTON_W = SW - 56;
 
 const ss = StyleSheet.create({
 
-  // Each page is exactly screen-sized; image fills it with cover.
+  // Each page is exactly screen-sized.
   page: {
-    width:    SW,
-    height:   SH,
-    overflow: "hidden",
+    width:           SW,
+    height:          SH,
+    overflow:        "hidden",
+    justifyContent:  "center",
+    alignItems:      "center",
+    backgroundColor: "#000000",   // fallback while image loads
+  },
+
+  // Wrapper fills the page exactly; image centers inside it via cover.
+  imageWrap: {
+    position:       "absolute",
+    top:            0,
+    left:           0,
+    width:          SW,
+    height:         SH,
+    justifyContent: "center",
+    alignItems:     "center",
+    overflow:       "hidden",
+  },
+
+  // Explicit pixel dimensions so cover can compute center correctly on all devices.
+  image: {
+    width:  SW,
+    height: SH,
   },
 
   // Skip — top right corner
