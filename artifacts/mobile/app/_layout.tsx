@@ -31,6 +31,10 @@ function RootLayoutNav() {
         options={{ headerShown: false, animation: "none", gestureEnabled: false }}
       />
       <Stack.Screen
+        name="welcome"
+        options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
+      />
+      <Stack.Screen
         name="onboarding"
         options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
       />

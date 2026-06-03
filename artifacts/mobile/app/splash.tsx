@@ -106,7 +106,9 @@ export default function SplashScreen() {
   const masterOp      = useSharedValue(1);
 
   // Where to navigate — resolved from AsyncStorage before 3 s
-  const destination = useRef<"/chat" | "/onboarding">("/onboarding");
+  // New users → /welcome (brand intro) → /onboarding
+  // Returning users → /chat
+  const destination = useRef<"/chat" | "/welcome">("/welcome");
 
   useEffect(() => {
     // Resolve destination — FORCE_SHOW_ONBOARDING bypasses saved state
