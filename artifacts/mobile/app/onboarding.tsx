@@ -343,61 +343,224 @@ function CreateIllustration() {
   );
 }
 
-// ── Illustration: Research — orbital rings ────────────────────────────────────
-const OC = V / 2;  // orbital center
+// ── Illustration: Research — knowledge graph + radar sweep ───────────────────
+const OC = V / 2;  // orbital center (also used by ReadyIllustration)
 
-function ResearchIllustration() {
-  const spin = useSharedValue(0);
+// Knowledge graph: center query node → inner hex ring → outer partial ring
+const R_NODES: [number, number][] = [
+  [130, 130],          // 0  center — query node
+  [130,  68],          // 1  inner top
+  [182, 100],          // 2  inner top-right
+  [182, 162],          // 3  inner bot-right
+  [130, 192],          // 4  inner bottom
+  [ 78, 162],          // 5  inner bot-left
+  [ 78, 100],          // 6  inner top-left
+  [ 56,  36],          // 7  outer top-left
+  [202,  36],          // 8  outer top-right
+  [236, 130],          // 9  outer right
+  [200, 222],          // 10 outer bot-right
+  [ 56, 222],          // 11 outer bot-left
+];
+
+const R_EDGES: [number, number][] = [
+  // Center → inner ring
+  [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6],
+  // Inner ring perimeter
+  [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 1],
+  // Inner → outer (sparse, like search pathways)
+  [1, 7], [1, 8], [2, 8], [3, 9], [4, 10], [5, 11],
+  // Outer partial connections
+  [7, 8], [9, 10], [10, 11], [11, 7],
+];
+
+// Nodes that "ping" (simulate discovered knowledge)
+const R_PULSES: Array<{ cx: number; cy: number; delay: number }> = [
+  { cx: 130, cy:  68, delay: 0    },
+  { cx: 182, cy: 100, delay: 720  },
+  { cx: 236, cy: 130, delay: 1440 },
+  { cx: 200, cy: 222, delay: 320  },
+  { cx:  78, cy: 162, delay: 1060 },
+  { cx: 202, cy:  36, delay: 1780 },
+];
+
+// Discovery ping — sharp flash at a knowledge node
+function ResearchPulse({ cx, cy, delay }: { cx: number; cy: number; delay: number }) {
+  const anim = useSharedValue(0);
   useEffect(() => {
-    spin.value = withRepeat(
-      withTiming(360, { duration: 12000, easing: Easing.linear }),
-      -1, false,
+    anim.value = withDelay(delay,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 360, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 1100, easing: Easing.in(Easing.ease) }),
+        ),
+        -1, false,
+      ),
     );
   }, []);
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
+  const style = useAnimatedStyle(() => ({
+    opacity:   anim.value,
+    transform: [{ scale: interpolate(anim.value, [0, 0.35, 1], [0.4, 1.55, 0.5]) }],
   }));
+  return (
+    <Animated.View
+      style={[
+        {
+          position:        "absolute",
+          left:            (cx / V) * ILL - 7,
+          top:             (cy / V) * ILL - 7,
+          width:           14,
+          height:          14,
+          borderRadius:    7,
+          backgroundColor: "rgba(255,255,255,0.08)",
+          shadowColor:     "#FFFFFF",
+          shadowOffset:    { width: 0, height: 0 },
+          shadowOpacity:   0.70,
+          shadowRadius:    12,
+          borderWidth:     StyleSheet.hairlineWidth,
+          borderColor:     "rgba(255,255,255,0.60)",
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function ResearchIllustration() {
+  const radarSpin  = useSharedValue(0);
+  const centerGlow = useSharedValue(0);
+
+  useEffect(() => {
+    // Radar sweep — full rotation every 6 s
+    radarSpin.value = withRepeat(
+      withTiming(360, { duration: 6000, easing: Easing.linear }),
+      -1, false,
+    );
+    // Center query node breathes
+    centerGlow.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    );
+  }, []);
+
+  const sweepStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${radarSpin.value}deg` }],
+  }));
+
+  const centerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(centerGlow.value, [0, 1], [0.28, 0.82]),
+    transform: [{ scale: interpolate(centerGlow.value, [0, 1], [0.78, 1.22]) }],
+  }));
+
+  const CX = ILL / 2;
+  const CY = ILL / 2;
 
   return (
     <View style={ill.center}>
+
+      {/* Outer boundary ring — very faint */}
+      <View style={[ill.ring, {
+        width: ILL * 0.70, height: ILL * 0.70,
+        borderRadius: ILL * 0.35, opacity: 0.07,
+      }]} />
+
+      {/* SVG — static knowledge graph */}
       <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
         <Defs>
           <RadialGradient id="og" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.12} />
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.09} />
+            <Stop offset="55%"  stopColor="#fff" stopOpacity={0.03} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
         <Rect width={V} height={V} fill="url(#og)" />
 
-        {/* Orbital rings at 0°, 60°, 120° */}
-        {[0, 60, 120].map((deg, i) => (
-          <G key={i} rotation={deg} origin={`${OC}, ${OC}`}>
-            <Ellipse cx={OC} cy={OC} rx={96} ry={34}
-              fill="none" stroke="#fff" strokeWidth={0.8} strokeOpacity={0.28}
+        {/* Edges — center-connected ones are brighter (search pathways) */}
+        {R_EDGES.map(([a, b], i) => {
+          const isPath = a === 0 || b === 0;
+          return (
+            <Line key={i}
+              x1={R_NODES[a][0]} y1={R_NODES[a][1]}
+              x2={R_NODES[b][0]} y2={R_NODES[b][1]}
+              stroke="#fff"
+              strokeWidth={isPath ? 0.9 : 0.5}
+              strokeOpacity={isPath ? 0.28 : 0.12}
             />
-          </G>
-        ))}
+          );
+        })}
 
-        {/* Core */}
-        <Circle cx={OC} cy={OC} r={18} fill="#fff" fillOpacity={0.12} />
-        <Circle cx={OC} cy={OC} r={10} fill="#fff" fillOpacity={0.70} />
-
-        {/* Orbit dots */}
-        <Circle cx={OC + 96} cy={OC} r={4} fill="#fff" fillOpacity={0.70} />
-        <G rotation={60} origin={`${OC}, ${OC}`}>
-          <Circle cx={OC - 96} cy={OC} r={3.5} fill="#fff" fillOpacity={0.55} />
-        </G>
-        <G rotation={120} origin={`${OC}, ${OC}`}>
-          <Circle cx={OC} cy={OC - 34} r={3} fill="#fff" fillOpacity={0.45} />
-        </G>
+        {/* Knowledge nodes */}
+        {R_NODES.map(([x, y], i) => {
+          if (i === 0) return null; // center rendered as Animated.View
+          const outer = i >= 7;
+          return (
+            <Circle key={i} cx={x} cy={y}
+              r={outer ? 3.5 : 2.5}
+              fill="#fff"
+              fillOpacity={outer ? 0.60 : 0.36}
+            />
+          );
+        })}
       </Svg>
 
-      {/* Animated orbiting dot */}
-      <Animated.View style={[ill.orbitContainer, dotStyle]}>
-        <View style={ill.orbitDot} />
+      {/* Radar sweep — ILL×ILL rotating container, pivots at its center */}
+      <Animated.View
+        style={[{ position: "absolute", left: 0, top: 0, width: ILL, height: ILL }, sweepStyle]}
+      >
+        <View
+          style={{
+            position:        "absolute",
+            left:            CX,
+            top:             CY - 0.75,
+            width:           ILL * 0.40,
+            height:          1.5,
+            backgroundColor: "rgba(255,255,255,0.16)",
+            borderRadius:    1,
+            shadowColor:     "#FFFFFF",
+            shadowOffset:    { width: 0, height: 0 },
+            shadowOpacity:   0.42,
+            shadowRadius:    5,
+          }}
+        />
       </Animated.View>
-      {/* Brand icon replaces the center core dot */}
-      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.20, height: ILL * 0.20 }]} resizeMode="contain" />
+
+      {/* Center query node — animated glow ring */}
+      <Animated.View
+        style={[
+          {
+            position:        "absolute",
+            left:            CX - 18,
+            top:             CY - 18,
+            width:           36,
+            height:          36,
+            borderRadius:    18,
+            backgroundColor: "transparent",
+            shadowColor:     "#FFFFFF",
+            shadowOffset:    { width: 0, height: 0 },
+            shadowOpacity:   0.58,
+            shadowRadius:    18,
+            borderWidth:     StyleSheet.hairlineWidth,
+            borderColor:     "rgba(255,255,255,0.42)",
+          },
+          centerStyle,
+        ]}
+      />
+
+      {/* Center dot */}
+      <View style={{
+        position:        "absolute",
+        left:            CX - 4,
+        top:             CY - 4,
+        width:           8,
+        height:          8,
+        borderRadius:    4,
+        backgroundColor: "#FFFFFF",
+      }} />
+
+      {/* Discovery pings */}
+      {R_PULSES.map((p, i) => (
+        <ResearchPulse key={i} {...p} />
+      ))}
+
     </View>
   );
 }
