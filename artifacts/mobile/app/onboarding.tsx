@@ -1,9 +1,21 @@
 /**
- * Onboarding — 5-page swipeable intro.
+ * Onboarding — 4-page swipeable intro.
  *
- * Each of the 5 artwork images is used as a true fullscreen background
- * (resizeMode "cover"). No artwork is modified. Functional chrome is layered
- * on top: animated dot indicators, Skip button, action buttons.
+ * Composite artwork (1536 × 1024 px, 4 portrait screens side-by-side) is
+ * sliced horizontally. Each page renders the composite shifted left so only
+ * the correct 1/4 section is visible through an overflow:hidden window that
+ * exactly matches the screen.
+ *
+ * Slice math:
+ *   slice_px  = IMG_W / NUM_SCREENS          (= 384 px per section)
+ *   scale     = SW / slice_px                (fill screen width exactly)
+ *   scaledW   = IMG_W × scale                (full image rendered at this width)
+ *   scaledH   = IMG_H × scale                (height — may exceed SH; centered)
+ *   topOff    = (SH − scaledH) / 2          (vertical centering; negative = clip)
+ *   page i    → image.left = −(SW × i)      (shift to reveal section i)
+ *
+ * Functional chrome layered on top: animated dot indicators, Skip, buttons.
+ * Artwork is never modified.
  */
 import { router } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
@@ -11,7 +23,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  ImageSourcePropType,
   Platform,
   StyleSheet,
   Text,
@@ -28,63 +39,61 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ── AsyncStorage key — imported by splash.tsx and auth.tsx ───────────────────
+// ── AsyncStorage key — used by splash.tsx and auth.tsx ───────────────────────
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-// ── Screen artwork (individual portrait images) ───────────────────────────────
-const IMAGES: ImageSourcePropType[] = [
-  require("../assets/images/onboarding-1.jpg"),
-  require("../assets/images/onboarding-2.jpg"),
-  require("../assets/images/onboarding-3.jpg"),
-  require("../assets/images/onboarding-4.jpg"),
-  require("../assets/images/onboarding-5.jpg"),
-];
+// ── Composite artwork ─────────────────────────────────────────────────────────
+const SOURCE = require("../assets/images/onboarding-composite.png");
 
-const NUM_SCREENS                   = IMAGES.length;
-const { width: SW, height: SH }    = Dimensions.get("window");
+// Known dimensions: 1536 × 1024 (4 screens side-by-side)
+const IMG_W        = 1536;
+const IMG_H        = 1024;
+const NUM_SCREENS  = 4;
+
+const { width: SW, height: SH } = Dimensions.get("window");
+
+// Compute slice geometry once at module load (SW/SH are constants here).
+const SLICE_PX  = IMG_W / NUM_SCREENS;          // 384 px per section
+const SCALE     = SW / SLICE_PX;                // fill screen width exactly
+const SCALED_W  = IMG_W * SCALE;
+const SCALED_H  = IMG_H * SCALE;
+const TOP_OFF   = (SH - SCALED_H) / 2;         // may be negative → vertical clip
 
 // ── Per-screen UI config ──────────────────────────────────────────────────────
 interface ScreenCfg {
   showSkip:     boolean;
   buttonLabel?: string;
-  isFinal?:     boolean;   // uses outlined button style
+  isFinal?:     boolean;
 }
 
 const SCREENS: ScreenCfg[] = [
-  { showSkip: true },
   { showSkip: true,  buttonLabel: "Devam Et" },
   { showSkip: true,  buttonLabel: "Devam Et" },
   { showSkip: true,  buttonLabel: "Devam Et" },
   { showSkip: false, buttonLabel: "AkılCEP'e Gir", isFinal: true },
 ];
 
-// ── Dot indicator ─────────────────────────────────────────────────────────────
+// ── Animated dot ──────────────────────────────────────────────────────────────
 function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
   const style = useAnimatedStyle(() => {
-    const range  = [(index - 1) * SW, index * SW, (index + 1) * SW];
-    const size   = interpolate(scrollX.value, range, [7, 9, 7],     Extrapolation.CLAMP);
-    const opac   = interpolate(scrollX.value, range, [0.30, 1, 0.30], Extrapolation.CLAMP);
-    return {
-      width:    size,
-      height:   size,
-      opacity:  opac,
-    };
+    const r     = [(index - 1) * SW, index * SW, (index + 1) * SW];
+    const size  = interpolate(scrollX.value, r, [7, 9, 7],      Extrapolation.CLAMP);
+    const opac  = interpolate(scrollX.value, r, [0.28, 1, 0.28], Extrapolation.CLAMP);
+    return { width: size, height: size, opacity: opac };
   });
   return <Animated.View style={[ss.dot, style]} />;
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Onboarding() {
-  const insets   = useSafeAreaInsets();
-  const listRef  = useRef<FlatList<number>>(null);
+  const insets  = useSafeAreaInsets();
+  const listRef = useRef<FlatList<number>>(null);
   const [idx, setIdx] = useState(0);
-  const scrollX  = useSharedValue(0);
+  const scrollX = useSharedValue(0);
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
   const goNext = useCallback(() => {
-    if (idx < NUM_SCREENS - 1) {
+    if (idx < NUM_SCREENS - 1)
       listRef.current?.scrollToIndex({ index: idx + 1, animated: true });
-    }
   }, [idx]);
 
   const goSkip = useCallback(() => {
@@ -95,15 +104,12 @@ export default function Onboarding() {
     router.replace("/chat");
   }, []);
 
-  // ── FlatList callbacks ────────────────────────────────────────────────────
   const onViewable = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0) setIdx(viewableItems[0].index ?? 0);
     },
     [],
   );
-
-  const viewConfig = { viewAreaCoveragePercentThreshold: 50 };
 
   const onScroll = useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
@@ -112,7 +118,6 @@ export default function Onboarding() {
     [scrollX],
   );
 
-  // ── Page renderer ─────────────────────────────────────────────────────────
   const renderItem = useCallback(
     ({ item: pageIdx }: { item: number }) => {
       const cfg    = SCREENS[pageIdx];
@@ -122,17 +127,24 @@ export default function Onboarding() {
       return (
         <View style={ss.page}>
 
-          {/* Full-screen artwork — explicit pixel dimensions guarantee center
-              alignment on every screen size; resizeMode "cover" handles scale */}
-          <View style={ss.imageWrap}>
-            <Image
-              source={IMAGES[pageIdx]}
-              style={ss.image}
-              resizeMode="cover"
-            />
-          </View>
+          {/* ── Artwork slice ────────────────────────────────────────────── */}
+          {/* The composite is rendered at full scaled width inside overflow:hidden.
+              Shifting left by (SW × pageIdx) reveals the correct 1/4 section. */}
+          <Image
+            source={SOURCE}
+            style={[
+              ss.artwork,
+              {
+                width:  SCALED_W,
+                height: SCALED_H,
+                left:   -(SW * pageIdx),
+                top:    TOP_OFF,
+              },
+            ]}
+            resizeMode="stretch"
+          />
 
-          {/* Skip — top right */}
+          {/* ── Skip ────────────────────────────────────────────────────── */}
           {cfg.showSkip && (
             <TouchableOpacity
               style={[ss.skip, { top: topPad + 14 }]}
@@ -144,39 +156,25 @@ export default function Onboarding() {
             </TouchableOpacity>
           )}
 
-          {/* Bottom chrome — dots + optional action button */}
+          {/* ── Bottom chrome ────────────────────────────────────────────── */}
           <View style={[ss.bottom, { paddingBottom: btmPad + 20 }]}>
 
-            {/* Dot indicators */}
             <View style={ss.dots}>
               {SCREENS.map((_, i) => (
                 <Dot key={i} index={i} scrollX={scrollX} />
               ))}
             </View>
 
-            {/* Action button — only shown when configured */}
-            {cfg.buttonLabel && (
-              cfg.isFinal ? (
-                // Screen 5: outlined dark pill
-                <TouchableOpacity
-                  style={ss.btnOutlined}
-                  onPress={goApp}
-                  activeOpacity={0.78}
-                >
-                  <Text style={ss.btnLabelOutlined}>{cfg.buttonLabel}</Text>
-                  <Text style={ss.btnArrowOutlined}> →</Text>
-                </TouchableOpacity>
-              ) : (
-                // Screens 2–4: solid white pill
-                <TouchableOpacity
-                  style={ss.btnSolid}
-                  onPress={goNext}
-                  activeOpacity={0.78}
-                >
-                  <Text style={ss.btnLabelSolid}>{cfg.buttonLabel}</Text>
-                  <Text style={ss.btnArrowSolid}> →</Text>
-                </TouchableOpacity>
-              )
+            {cfg.isFinal ? (
+              <TouchableOpacity style={ss.btnOutlined} onPress={goApp} activeOpacity={0.80}>
+                <Text style={ss.btnLabelOutlined}>{cfg.buttonLabel}</Text>
+                <Text style={ss.btnArrowOutlined}> →</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={ss.btnSolid} onPress={goNext} activeOpacity={0.80}>
+                <Text style={ss.btnLabelSolid}>{cfg.buttonLabel}</Text>
+                <Text style={ss.btnArrowSolid}> →</Text>
+              </TouchableOpacity>
             )}
 
           </View>
@@ -200,7 +198,7 @@ export default function Onboarding() {
       scrollEventThrottle={16}
       onScroll={onScroll}
       onViewableItemsChanged={onViewable}
-      viewabilityConfig={viewConfig}
+      viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
       getItemLayout={(_, i) => ({ length: SW, offset: SW * i, index: i })}
     />
   );
@@ -211,35 +209,19 @@ const BUTTON_W = SW - 56;
 
 const ss = StyleSheet.create({
 
-  // Each page is exactly screen-sized.
   page: {
     width:           SW,
     height:          SH,
     overflow:        "hidden",
-    justifyContent:  "center",
-    alignItems:      "center",
-    backgroundColor: "#000000",   // fallback while image loads
+    backgroundColor: "#000000",
   },
 
-  // Wrapper fills the page exactly; image centers inside it via cover.
-  imageWrap: {
-    position:       "absolute",
-    top:            0,
-    left:           0,
-    width:          SW,
-    height:         SH,
-    justifyContent: "center",
-    alignItems:     "center",
-    overflow:       "hidden",
+  // Artwork positioned absolutely; left/top set inline per page.
+  artwork: {
+    position: "absolute",
   },
 
-  // Explicit pixel dimensions so cover can compute center correctly on all devices.
-  image: {
-    width:  SW,
-    height: SH,
-  },
-
-  // Skip — top right corner
+  // Skip — top right
   skip: {
     position: "absolute",
     right:    22,
@@ -252,20 +234,18 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // Bottom chrome wrapper
+  // Bottom chrome
   bottom: {
     position:        "absolute",
     bottom:          0,
     left:            0,
     right:           0,
     alignItems:      "center",
-    gap:             18,
-    paddingTop:      24,
-    // Subtle scrim so dots/button read well on any artwork
-    backgroundColor: "rgba(0,0,0,0.18)",
+    gap:             16,
+    paddingTop:      22,
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
 
-  // Dots row
   dots: {
     flexDirection:  "row",
     alignItems:     "center",
@@ -277,7 +257,7 @@ const ss = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  // Solid white pill (screens 2–4)
+  // Solid white pill — screens 1–3
   btnSolid: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -300,14 +280,14 @@ const ss = StyleSheet.create({
     color:      "#000000",
   },
 
-  // Outlined dark pill (screen 5 — "AkılCEP'e Gir")
+  // Outlined pill — screen 4 "AkılCEP'e Gir"
   btnOutlined: {
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "center",
-    backgroundColor:   "rgba(0,0,0,0.35)",
+    backgroundColor:   "rgba(0,0,0,0.40)",
     borderWidth:       1.5,
-    borderColor:       "rgba(255,255,255,0.80)",
+    borderColor:       "rgba(255,255,255,0.75)",
     borderRadius:      50,
     paddingHorizontal: 32,
     paddingVertical:   16,
