@@ -2,12 +2,13 @@
  * Profile — premium Apple-style profile editor.
  * Fully theme-aware: PURE / VOID.
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -16,6 +17,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -29,8 +31,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PhotoCropModal from "@/components/PhotoCropModal";
-import { useTheme }   from "@/context/ThemeContext";
+import PhotoCropModal        from "@/components/PhotoCropModal";
+import { useTheme }          from "@/context/ThemeContext";
+import { STARTUP_SOUND_KEY } from "@/app/splash";
 
 const defaultAvatar = require("@/assets/images/avatar.png");
 
@@ -54,6 +57,21 @@ export default function ProfileScreen() {
   const [showSheet, setShowSheet] = useState(false);
   const [cropUri,   setCropUri]   = useState<string | null>(null);
   const [showCrop,  setShowCrop]  = useState(false);
+
+  // Startup sound preference
+  const [startupSound, setStartupSound] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(STARTUP_SOUND_KEY).then((val) => {
+      if (val === "off") setStartupSound(false);
+    }).catch(() => {});
+  }, []);
+
+  const toggleStartupSound = async (value: boolean) => {
+    setStartupSound(value);
+    try { await AsyncStorage.setItem(STARTUP_SOUND_KEY, value ? "on" : "off"); } catch {}
+    Haptics.selectionAsync();
+  };
 
   const sheetY     = useSharedValue(600);
   const sheetAlpha = useSharedValue(0);
@@ -199,6 +217,31 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Sound settings */}
+          <View style={ss.section}>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>SES</Text>
+            <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
+              <View style={ss.accountRow}>
+                <View style={[ss.accountIcon, { backgroundColor: iconBg }]}>
+                  <Feather name="volume-2" size={15} color={T.fg} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[ss.accountLabel, { color: T.fg }]}>Açılış Sesi</Text>
+                  <Text style={[ss.soundSub, { color: T.zinc }]}>
+                    {startupSound ? "Açık" : "Kapalı"}
+                  </Text>
+                </View>
+                <Switch
+                  value={startupSound}
+                  onValueChange={toggleStartupSound}
+                  trackColor={{ false: "rgba(120,120,128,0.24)", true: T.isDark ? "#39FF14" : "#34C759" }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor="rgba(120,120,128,0.24)"
+                />
+              </View>
+            </View>
+          </View>
+
           {/* Danger */}
           <View style={ss.section}>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
@@ -311,6 +354,7 @@ const ss = StyleSheet.create({
   accountRow:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
   accountIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   accountLabel:{ flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+  soundSub:    { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
 
   sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.18)", zIndex: 300 },
   actionSheet:  { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 301, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 20 },

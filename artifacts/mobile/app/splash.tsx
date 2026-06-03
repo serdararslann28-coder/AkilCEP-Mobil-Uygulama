@@ -41,6 +41,9 @@ import { ONBOARDING_KEY } from "@/app/onboarding";
 // ── Dev flag — set true to always start from onboarding during testing ────────
 const FORCE_SHOW_ONBOARDING = true;
 
+// ── Startup sound preference key ──────────────────────────────────────────────
+export const STARTUP_SOUND_KEY = "@akilcep_startup_sound";
+
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
@@ -188,14 +191,19 @@ export default function SplashScreen() {
     // ── Audio — expo-av Audio.Sound ────────────────────────────────────────────
     // Load the sound immediately so it's ready by 0.3 s.
     // All volume control goes through setVolumeAsync — no hook state needed.
+    // If the user disabled startup sound, we skip createAsync entirely;
+    // soundRef stays null and all subsequent handlers bail via `if (!s) return`.
     let rampInId:  ReturnType<typeof setInterval> | null = null;
     let rampOutId: ReturnType<typeof setInterval> | null = null;
 
-    Audio.Sound.createAsync(
-      require("@/assets/sounds/startup.mp3"),
-      { shouldPlay: false, volume: 0, progressUpdateIntervalMillis: 80 },
-    ).then(({ sound }) => {
-      soundRef.current = sound;
+    AsyncStorage.getItem(STARTUP_SOUND_KEY).then((pref) => {
+      if (pref === "off") return;   // user disabled — skip loading
+      Audio.Sound.createAsync(
+        require("@/assets/sounds/startup.mp3"),
+        { shouldPlay: false, volume: 0, progressUpdateIntervalMillis: 80 },
+      ).then(({ sound }) => {
+        soundRef.current = sound;
+      }).catch(() => {});
     }).catch(() => {});
 
     // 0.3 s — start playback, ramp volume in over 500 ms (synced with logo fade)
