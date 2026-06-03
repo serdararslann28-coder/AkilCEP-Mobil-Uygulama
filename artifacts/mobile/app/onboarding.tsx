@@ -129,15 +129,8 @@ export default function Onboarding() {
             </TouchableOpacity>
           )}
 
-          {/* Bottom chrome */}
-          <View style={[ss.bottom, { paddingBottom: btmPad + 20 }]}>
-
-            <View style={ss.dots}>
-              {SCREENS.map((_, i) => (
-                <Dot key={i} index={i} scrollX={scrollX} />
-              ))}
-            </View>
-
+          {/* Button — anchored to safe-area bottom */}
+          <View style={[ss.btnBar, { bottom: btmPad + 20 }]}>
             {cfg.isFinal ? (
               <TouchableOpacity style={ss.btnOutlined} onPress={goApp} activeOpacity={0.80}>
                 <Text style={ss.btnLabelOutlined}>{cfg.buttonLabel}</Text>
@@ -149,8 +142,17 @@ export default function Onboarding() {
                 <Text style={ss.btnArrowSolid}> →</Text>
               </TouchableOpacity>
             )}
-
           </View>
+
+          {/* Dots — 46px above button top edge (BTN_H≈56 + 46 gap = 102) */}
+          <View style={[ss.dotsBar, { bottom: btmPad + 20 + 56 + 46 }]}>
+            {SCREENS.map((_, i) => (
+              <Dot key={i} index={i} scrollX={scrollX} />
+            ))}
+          </View>
+
+          {/* Scrim — only behind button + dots zone, not over description */}
+          <View style={[ss.scrim, { height: btmPad + 20 + 56 + 46 + 9 + 28 }]} />
 
         </View>
       );
@@ -210,26 +212,37 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  bottom: {
-    position:        "absolute",
-    bottom:          0,
-    left:            0,
-    right:           0,
-    alignItems:      "center",
-    gap:             16,
-    paddingTop:      22,
-    backgroundColor: "rgba(0,0,0,0.25)",
+  // Button row — absolute, bottom edge anchored to safe area
+  btnBar: {
+    position:       "absolute",
+    left:           0,
+    right:          0,
+    alignItems:     "center",
   },
 
-  dots: {
+  // Dots row — absolute, sits exactly 46px above the button top edge
+  dotsBar: {
+    position:       "absolute",
+    left:           0,
+    right:          0,
     flexDirection:  "row",
     alignItems:     "center",
     justifyContent: "center",
     gap:            8,
   },
+
   dot: {
     borderRadius:    99,
     backgroundColor: "#FFFFFF",
+  },
+
+  // Scrim covers only the button + dots zone — description stays unobscured
+  scrim: {
+    position:        "absolute",
+    bottom:          0,
+    left:            0,
+    right:           0,
+    backgroundColor: "rgba(0,0,0,0.30)",
   },
 
   btnSolid: {
