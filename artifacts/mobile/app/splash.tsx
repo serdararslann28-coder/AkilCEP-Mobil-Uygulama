@@ -1,23 +1,21 @@
 /**
- * Cinematic Splash — AkılCEP "Silent Intelligence"
+ * Splash — AkılCEP ultra-minimal brand moment.
  *
- * Animation timeline:
- *   0.00s  black screen
- *   0.30s  logo fades in (600 ms ease-out)
- *   0.80s  eclipse ring emerges (600 ms) + breathing pulse starts
- *   1.20s  water reflection appears (700 ms) + ripple oscillation begins
- *   1.80s  subtitle "cebindeki akıl" fades in (500 ms)
- *   2.20s  cinematic push-in zoom begins (scale 1.0 → 1.045 over 800 ms)
- *   2.70s  whole composition fades to black (300 ms)
- *   3.00s  navigate → onboarding (new user) or (tabs) (returning)
+ * Timeline:
+ *   0.00 s  black screen
+ *   0.30 s  icon fades in (700 ms ease-out cubic)
+ *   0.50 s  wordmark "AkılCEP" fades in (600 ms)
+ *   1.10 s  subtitle "cebindeki akıl" fades in (500 ms)
+ *   2.60 s  everything fades to black (400 ms)
+ *   3.00 s  navigate → /welcome (new user) or /chat (returning)
  *
- * No spinners. No progress indicators. Pure emotion.
+ * Background: pure black. No rings. No arcs. No gradients.
+ * Logo is the only thing that matters.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio } from "expo-av";
-import { LinearGradient } from "expo-linear-gradient";
-import { router }         from "expo-router";
-import { StatusBar }      from "expo-status-bar";
+import { Audio }      from "expo-av";
+import { router }     from "expo-router";
+import { StatusBar }  from "expo-status-bar";
 import React, { useEffect, useRef } from "react";
 import {
   Dimensions,
@@ -28,17 +26,17 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withRepeat,
-  withSequence,
   withTiming,
 } from "react-native-reanimated";
 
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
-// ── Dev flag — set true to always start from onboarding during testing ────────
+// ── Dev flag ──────────────────────────────────────────────────────────────────
 const FORCE_SHOW_ONBOARDING = true;
 
 // ── Startup sound preference key ──────────────────────────────────────────────
@@ -48,158 +46,80 @@ const brandIcon = require("@/assets/images/akilcep-icon.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
-// ── Eclipse geometry (identical to onboarding for visual continuity) ──────────
-const ECLIPSE_D   = SW * 1.30;
-const ECLIPSE_CY  = SH * 0.72;
-const ECLIPSE_TOP = ECLIPSE_CY - ECLIPSE_D / 2;
-const ECLIPSE_X   = (SW - ECLIPSE_D) / 2;
-
-// Multi-layer bloom rings — outermost to crisp main ring
-const ECLIPSE_LAYERS = [
-  { extra: 140, bw: 52, op: 0.010 },
-  { extra: 80,  bw: 32, op: 0.022 },
-  { extra: 40,  bw: 16, op: 0.048 },
-  { extra: 18,  bw:  8, op: 0.092 },
-  { extra:  5,  bw:  4, op: 0.200 },
-  { extra:  0,  bw:  2, op: 0.920 }, // crisp ring
-];
-
-// Reflection: rings positioned below the eclipse center, compressed vertically
-const REFLECT_SCY = 0.30;
-const REFLECT_OP  = 0.22;
-const REFLECT_TOP = ECLIPSE_CY + ECLIPSE_D * 0.18;
-
-// Stars — 32 deterministic positions in the upper 48% of screen
-const STARS = Array.from({ length: 32 }, (_, i) => ({
+// A handful of faint stars — deterministic, very restrained
+const STARS = Array.from({ length: 10 }, (_, i) => ({
   x:    ((i * 137.508) % 100) / 100 * SW,
-  y:    (20 + (i * 79.3 + 13) % 42) / 100 * SH,
-  size: i % 6 < 2 ? 1.0 : i % 6 < 4 ? 1.5 : 2.0,
-  op:   0.12 + (i % 7) * 0.065,
+  y:    (8 + (i * 71.3 + 17) % 38) / 100 * SH,
+  r:    i % 3 === 0 ? 1.0 : 1.5,
+  op:   0.10 + (i % 5) * 0.045,
 }));
 
-// ── Duration constants (ms) ───────────────────────────────────────────────────
-const T_LOGO_IN    = 300;
-const T_ECLIPSE_IN = 800;
-const T_REFLECT_IN = 1200;
-const T_SUBTITLE   = 1800;
-const T_ZOOM       = 2200;
-const T_FADE_OUT   = 2700;
-const T_NAVIGATE   = 3000;
+// ── Timing constants (ms) ─────────────────────────────────────────────────────
+const T_ICON      = 300;
+const T_WORDMARK  = 500;
+const T_SUBTITLE  = 1100;
+const T_FADE_OUT  = 2600;
+const T_NAVIGATE  = 3000;
 
 export default function SplashScreen() {
-  // ── Audio — expo-av Audio.Sound ────────────────────────────────────────────
-  // ffmpeg-processed: trimmed to 3.0 s, fade-in 0.5 s, fade-out 0.65 s @ 2.35 s,
-  // gentle compression + low-pass 11 kHz (removes harsh "movie trailer" peaks).
-  // Software volume ramps mirror the ffmpeg envelope for double-layer fade insurance.
+  // ── Audio ref ────────────────────────────────────────────────────────────
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // ── Animated values ────────────────────────────────────────────────────────
-  const logoOp        = useSharedValue(0);
-  const eclipseOp     = useSharedValue(0);
-  const eclipseScale  = useSharedValue(1);
-  const reflectOp     = useSharedValue(0);
-  const rippleScaleX  = useSharedValue(1);
-  const rippleOp      = useSharedValue(1);
-  const subtitleOp    = useSharedValue(0);
-  const fogOp         = useSharedValue(0);
-  const cinemaScale   = useSharedValue(1);
-  const masterOp      = useSharedValue(1);
+  // ── Animated values ──────────────────────────────────────────────────────
+  const iconOp     = useSharedValue(0);
+  const wordmarkOp = useSharedValue(0);
+  const subtitleOp = useSharedValue(0);
+  const glowPulse  = useSharedValue(0);
+  const masterOp   = useSharedValue(1);
 
-  // Where to navigate — resolved from AsyncStorage before 3 s
-  // New users → /welcome (brand intro) → /onboarding
-  // Returning users → /chat
+  // Destination resolved from AsyncStorage before 3 s
   const destination = useRef<"/chat" | "/welcome">("/welcome");
 
   useEffect(() => {
-    // Resolve destination — FORCE_SHOW_ONBOARDING bypasses saved state
+    // Resolve destination
     if (!FORCE_SHOW_ONBOARDING) {
       AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
         if (val) destination.current = "/chat";
       }).catch(() => {});
     }
 
-    // ── Animation sequence ─────────────────────────────────────────────────
+    // ── Animation sequence ────────────────────────────────────────────────
 
-    // 0.3 s — logo emerges
-    logoOp.value = withDelay(T_LOGO_IN,
-      withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }),
+    // 0.3 s — icon emerges
+    iconOp.value = withDelay(T_ICON,
+      withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }),
     );
 
-    // 0.8 s — eclipse ring fades in
-    eclipseOp.value = withDelay(T_ECLIPSE_IN,
-      withTiming(1, { duration: 580, easing: Easing.out(Easing.ease) }),
+    // 0.5 s — wordmark
+    wordmarkOp.value = withDelay(T_WORDMARK,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }),
     );
 
-    // Eclipse breathing — starts gently after it appears (1.5 s)
-    eclipseScale.value = withDelay(1500,
-      withRepeat(
-        withSequence(
-          withTiming(1.020, { duration: 3800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.980, { duration: 3800, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, false,
-      ),
-    );
-
-    // Fog haze — subtle bloom behind eclipse, rises with it
-    fogOp.value = withDelay(T_ECLIPSE_IN + 100,
-      withTiming(1, { duration: 900, easing: Easing.out(Easing.ease) }),
-    );
-
-    // 1.2 s — reflection appears
-    reflectOp.value = withDelay(T_REFLECT_IN,
-      withTiming(1, { duration: 700, easing: Easing.out(Easing.ease) }),
-    );
-
-    // Water ripple — gentle horizontal oscillation starts at 1.4 s
-    rippleScaleX.value = withDelay(1400,
-      withRepeat(
-        withSequence(
-          withTiming(1.018, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.985, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
-          withTiming(1.010, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.995, { duration: 1700, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1, false,
-      ),
-    );
-
-    // Reflection opacity shimmer
-    rippleOp.value = withDelay(1400,
-      withRepeat(
-        withSequence(
-          withTiming(0.80, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.00, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, false,
-      ),
-    );
-
-    // 1.8 s — subtitle fades in
+    // 1.1 s — subtitle
     subtitleOp.value = withDelay(T_SUBTITLE,
-      withTiming(1, { duration: 520, easing: Easing.out(Easing.ease) }),
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) }),
     );
 
-    // 2.2 s — cinematic push-in zoom (slow, subtle — like a cinema lens push)
-    cinemaScale.value = withDelay(T_ZOOM,
-      withTiming(1.045, { duration: 820, easing: Easing.out(Easing.ease) }),
+    // Glow breathe — starts with icon, continuous
+    glowPulse.value = withDelay(T_ICON,
+      withRepeat(
+        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
     );
 
-    // 2.7 s — fade entire composition to black
+    // 2.6 s — fade to black
     masterOp.value = withDelay(T_FADE_OUT,
-      withTiming(0, { duration: 320, easing: Easing.in(Easing.ease) }),
+      withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) }),
     );
 
-    // ── Audio — expo-av Audio.Sound ────────────────────────────────────────────
-    // Load the sound immediately so it's ready by 0.3 s.
-    // All volume control goes through setVolumeAsync — no hook state needed.
-    // If the user disabled startup sound, we skip createAsync entirely;
-    // soundRef stays null and all subsequent handlers bail via `if (!s) return`.
+    // ── Audio ─────────────────────────────────────────────────────────────
     let rampInId:  ReturnType<typeof setInterval> | null = null;
     let rampOutId: ReturnType<typeof setInterval> | null = null;
 
     AsyncStorage.getItem(STARTUP_SOUND_KEY).then((pref) => {
-      if (pref === "off") return;   // user disabled — skip loading
+      if (pref === "off") return;
       Audio.Sound.createAsync(
         require("@/assets/sounds/startup.mp3"),
         { shouldPlay: false, volume: 0, progressUpdateIntervalMillis: 80 },
@@ -208,7 +128,7 @@ export default function SplashScreen() {
       }).catch(() => {});
     }).catch(() => {});
 
-    // 0.3 s — start playback, ramp volume in over 500 ms (synced with logo fade)
+    // Start playback at icon fade-in, ramp in over 500 ms
     const audioStart = setTimeout(() => {
       const s = soundRef.current;
       if (!s) return;
@@ -222,14 +142,14 @@ export default function SplashScreen() {
         s.setVolumeAsync(Math.min(TARGET, (step / STEPS) * TARGET)).catch(() => {});
         if (step >= STEPS) { clearInterval(rampInId!); rampInId = null; }
       }, STEP_MS);
-    }, T_LOGO_IN);
+    }, T_ICON);
 
-    // 2.35 s — ramp volume out over 650 ms, synced with visual master fade
+    // Ramp out at 2.35 s over 650 ms, synced with fade-to-black
     const audioFade = setTimeout(() => {
       const s = soundRef.current;
       if (!s) return;
-      const START = 0.85;
-      const STEPS  = 26;
+      const START   = 0.85;
+      const STEPS   = 26;
       const STEP_MS = 650 / STEPS;
       let step = 0;
       rampOutId = setInterval(() => {
@@ -239,7 +159,7 @@ export default function SplashScreen() {
       }, STEP_MS);
     }, 2350);
 
-    // 3.0 s — navigate
+    // Navigate
     const nav = setTimeout(() => {
       router.replace(destination.current);
     }, T_NAVIGATE);
@@ -255,34 +175,22 @@ export default function SplashScreen() {
     };
   }, []);
 
-  // ── Animated styles ─────────────────────────────────────────────────────────
-  const logoStyle = useAnimatedStyle(() => ({
-    opacity: logoOp.value,
+  // ── Animated styles ──────────────────────────────────────────────────────
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: iconOp.value,
   }));
 
-  const eclipseStyle = useAnimatedStyle(() => ({
-    opacity:   eclipseOp.value,
-    transform: [{ scale: eclipseScale.value }],
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(glowPulse.value, [0, 1], [0.00, 1.00]),
+    transform: [{ scale: interpolate(glowPulse.value, [0, 1], [0.92, 1.08]) }],
   }));
 
-  const reflectStyle = useAnimatedStyle(() => ({
-    opacity:   reflectOp.value * REFLECT_OP,
-    transform: [
-      { scaleY: REFLECT_SCY },
-      { scaleX: rippleScaleX.value },
-    ],
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: wordmarkOp.value,
   }));
 
   const subtitleStyle = useAnimatedStyle(() => ({
     opacity: subtitleOp.value,
-  }));
-
-  const fogStyle = useAnimatedStyle(() => ({
-    opacity: fogOp.value,
-  }));
-
-  const cinemaStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: cinemaScale.value }],
   }));
 
   const masterStyle = useAnimatedStyle(() => ({
@@ -293,151 +201,54 @@ export default function SplashScreen() {
     <View style={ss.root}>
       <StatusBar style="light" />
 
-      {/* ── MASTER FADE WRAPPER — covers everything ── */}
       <Animated.View style={[StyleSheet.absoluteFill, masterStyle]}>
 
-        {/* ── CINEMATIC ZOOM WRAPPER ── */}
-        <Animated.View style={[StyleSheet.absoluteFill, cinemaStyle]}>
-
-          {/* Stars */}
-          {STARS.map((s, i) => (
-            <View
-              key={i}
-              style={[
-                ss.star,
-                {
-                  left:         s.x,
-                  top:          s.y,
-                  width:        s.size,
-                  height:       s.size,
-                  borderRadius: s.size / 2,
-                  opacity:      s.op,
-                },
-              ]}
-            />
-          ))}
-
-          {/* ── ECLIPSE ── */}
-          <Animated.View style={[ss.abs, eclipseStyle]}>
-
-            {/* Fog haze — soft column of luminance behind eclipse */}
-            <Animated.View style={[ss.abs, fogStyle]} pointerEvents="none">
-              <LinearGradient
-                colors={[
-                  "transparent",
-                  "rgba(255,255,255,0.018)",
-                  "rgba(255,255,255,0.036)",
-                  "rgba(255,255,255,0.018)",
-                  "transparent",
-                ]}
-                locations={[0, 0.30, 0.55, 0.75, 1.0]}
-                style={[
-                  ss.abs,
-                  {
-                    top:    SH * 0.38,
-                    bottom: 0,
-                  },
-                ]}
-                start={{ x: 0.5, y: 1 }}
-                end={{ x: 0.5, y: 0 }}
-              />
-            </Animated.View>
-
-            {/* Main eclipse bloom rings */}
-            {ECLIPSE_LAYERS.map((l, i) => {
-              const d  = ECLIPSE_D + l.extra;
-              return (
-                <View
-                  key={i}
-                  style={{
-                    position:     "absolute",
-                    top:          ECLIPSE_TOP - l.extra / 2,
-                    left:         ECLIPSE_X - l.extra / 2,
-                    width:        d,
-                    height:       d,
-                    borderRadius: d / 2,
-                    borderWidth:  l.bw,
-                    borderColor:  `rgba(255,255,255,${l.op})`,
-                  }}
-                />
-              );
-            })}
-
-          </Animated.View>
-
-          {/* ── WATER REFLECTION ── */}
-          <Animated.View
+        {/* Stars — 10 very faint dots, purely decorative */}
+        {STARS.map((s, i) => (
+          <View
+            key={i}
             style={[
+              ss.star,
               {
-                position: "absolute",
-                top:      REFLECT_TOP,
-                left:     ECLIPSE_X,
-                width:    ECLIPSE_D,
-                height:   ECLIPSE_D,
+                left:         s.x,
+                top:          s.y,
+                width:        s.r,
+                height:       s.r,
+                borderRadius: s.r / 2,
+                opacity:      s.op,
               },
-              reflectStyle,
             ]}
-          >
-            {ECLIPSE_LAYERS.map((l, i) => {
-              const d = ECLIPSE_D + l.extra;
-              return (
-                <View
-                  key={i}
-                  style={{
-                    position:     "absolute",
-                    top:          -l.extra / 2,
-                    left:         -l.extra / 2,
-                    width:        d,
-                    height:       d,
-                    borderRadius: d / 2,
-                    borderWidth:  l.bw,
-                    borderColor:  `rgba(255,255,255,${l.op})`,
-                  }}
-                />
-              );
-            })}
-          </Animated.View>
-
-          {/* Landscape dark gradient — builds the atmospheric depth */}
-          <LinearGradient
-            colors={[
-              "transparent",
-              "rgba(0,0,0,0.25)",
-              "rgba(0,0,0,0.68)",
-              "#000000",
-            ]}
-            locations={[0.42, 0.58, 0.76, 1.0]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
           />
+        ))}
 
-          {/* Sky vignette */}
-          <LinearGradient
-            colors={["rgba(0,0,0,0.60)", "transparent"]}
-            locations={[0, 0.32]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
+        {/* Center composition */}
+        <View style={ss.center}>
 
-          {/* ── LOGO + WORDMARK ── */}
-          <Animated.View style={[ss.logoWrap, logoStyle]}>
-            {/* Soft glow halo behind icon */}
-            <View style={ss.iconGlow} pointerEvents="none" />
+          {/* Glow halo — breathes behind the icon */}
+          <Animated.View style={[ss.glow, glowStyle]} />
+
+          {/* Brand icon */}
+          <Animated.View style={iconStyle}>
             <Image
               source={brandIcon}
-              style={ss.leafImg}
+              style={ss.icon}
               resizeMode="contain"
             />
-            <Text style={ss.wordmark}>AkılCEP</Text>
-            <Animated.View style={subtitleStyle}>
-              <Text style={ss.subtitle}>cebindeki akıl</Text>
-            </Animated.View>
           </Animated.View>
 
-        </Animated.View>
+          {/* Wordmark */}
+          <Animated.Text style={[ss.wordmark, wordmarkStyle]}>
+            AkılCEP
+          </Animated.Text>
+
+          {/* Subtitle */}
+          <Animated.View style={subtitleStyle}>
+            <Text style={ss.subtitle}>cebindeki akıl</Text>
+          </Animated.View>
+
+        </View>
 
       </Animated.View>
-
     </View>
   );
 }
@@ -447,56 +258,56 @@ const ss = StyleSheet.create({
     flex:            1,
     backgroundColor: "#000000",
   },
-  abs: {
-    ...StyleSheet.absoluteFillObject,
-  },
 
-  // Stars
   star: {
     position:        "absolute",
     backgroundColor: "#FFFFFF",
   },
 
-  // Logo area — centered in upper half of screen
-  logoWrap: {
+  // Vertically centered, sits at ~42% from top for optical balance
+  center: {
     position:       "absolute",
     top:            0,
     left:           0,
     right:          0,
-    height:         SH * 0.58,
+    bottom:         0,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            14,
+    gap:            16,
+    paddingBottom:  SH * 0.06,
   },
-  leafImg: {
-    width:  96,
-    height: 96,
-  },
-  iconGlow: {
+
+  // Soft radial glow — no border, just a shadow bloom
+  glow: {
     position:        "absolute",
-    width:           180,
-    height:          180,
-    borderRadius:    90,
-    backgroundColor: "rgba(255,255,255,0.055)",
-    // Soft gaussian-like bloom using shadow
+    width:           200,
+    height:          200,
+    borderRadius:    100,
+    backgroundColor: "transparent",
     shadowColor:     "#FFFFFF",
     shadowOffset:    { width: 0, height: 0 },
-    shadowOpacity:   0.22,
-    shadowRadius:    40,
+    shadowOpacity:   0.18,
+    shadowRadius:    48,
   },
+
+  icon: {
+    width:  100,
+    height: 100,
+  },
+
   wordmark: {
     fontSize:      36,
     fontFamily:    "Inter_600SemiBold",
     color:         "#FFFFFF",
     letterSpacing: -0.8,
   },
+
   subtitle: {
-    fontSize:      13,
+    fontSize:      12,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.38)",
-    letterSpacing: 4.5,
+    color:         "rgba(255,255,255,0.36)",
+    letterSpacing: 4.8,
     textTransform: "uppercase",
-    marginTop:     2,
     textAlign:     "center",
   },
 });
