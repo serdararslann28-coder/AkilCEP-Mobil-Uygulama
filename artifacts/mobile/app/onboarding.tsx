@@ -137,52 +137,208 @@ function VoiceIllustration() {
 
 // ── Illustration: Create — particle constellation ────────────────────────────
 const V = 260; // SVG viewBox size
-const NODES: [number, number][] = [
-  [58, 42], [180, 28], [224, 104], [155, 152], [100, 148],
-  [36, 195], [200, 198], [136, 224],
-];
-const EDGES: [number, number][] = [
-  [0, 1], [1, 2], [0, 4], [1, 3], [2, 3], [3, 4], [4, 5], [3, 6], [5, 7], [6, 7],
+// ── Create illustration — neural-mesh AI generation visual ───────────────────
+// 12 nodes laid out as a flowing neural network: inputs → hidden → center → output
+const C_NODES: [number, number][] = [
+  [30,  60], [26, 130], [38, 200],          // 0-2  left inputs
+  [100, 42], [95, 112], [88, 192],          // 3-5  mid-left hidden
+  [130, 130],                               // 6    CENTER — focal node
+  [165, 58], [172, 168],                    // 7-8  mid-right hidden
+  [218, 48], [228, 130], [214, 208],        // 9-11 right outputs
 ];
 
-function CreateIllustration() {
-  const glow = useSharedValue(0);
+const C_EDGES: [number, number][] = [
+  // Left inputs → hidden
+  [0, 3], [0, 4], [1, 4], [1, 5], [2, 5],
+  // Hidden → center
+  [3, 6], [4, 6], [5, 6],
+  // Center → right hidden
+  [6, 7], [6, 8],
+  // Right hidden → outputs
+  [7, 9], [7, 10], [8, 10], [8, 11],
+  // Long diagonals (cross-layer flow)
+  [3, 7], [5, 8],
+  // Within-layer verticals
+  [0, 1], [1, 2], [3, 4], [4, 5], [7, 8], [9, 10], [10, 11],
+];
+
+// Floating light particles — positions as fraction of ILL
+const C_PARTICLES: Array<{ x: number; y: number; r: number; delay: number }> = [
+  { x: 0.14, y: 0.18, r: 1.5, delay: 0    },
+  { x: 0.62, y: 0.08, r: 2.0, delay: 520  },
+  { x: 0.87, y: 0.33, r: 1.5, delay: 940  },
+  { x: 0.08, y: 0.74, r: 2.0, delay: 1380 },
+  { x: 0.50, y: 0.91, r: 1.5, delay: 210  },
+  { x: 0.80, y: 0.82, r: 2.0, delay: 730  },
+  { x: 0.36, y: 0.04, r: 1.5, delay: 1120 },
+  { x: 0.93, y: 0.60, r: 1.5, delay: 420  },
+];
+
+function CreationParticle({
+  x, y, r, delay,
+}: { x: number; y: number; r: number; delay: number }) {
+  const anim = useSharedValue(0);
+
   useEffect(() => {
-    glow.value = withRepeat(
-      withTiming(1, { duration: 3500, easing: Easing.inOut(Easing.sin) }),
+    anim.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration: 2600 + delay % 400, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity:   interpolate(anim.value, [0, 0.45, 1], [0, 0.88, 0]),
+    transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -10]) }],
+  }));
+
+  const SIZE = r * 2;
+  return (
+    <Animated.View
+      style={[
+        {
+          position:        "absolute",
+          left:            ILL * x - r,
+          top:             ILL * y - r,
+          width:           SIZE,
+          height:          SIZE,
+          borderRadius:    r,
+          backgroundColor: "#FFFFFF",
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function CreateIllustration() {
+  const outerGlow = useSharedValue(0);
+  const centerPulse = useSharedValue(0);
+
+  useEffect(() => {
+    // Outer ring breathes slowly
+    outerGlow.value = withRepeat(
+      withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    );
+    // Center focal node pulses faster
+    centerPulse.value = withRepeat(
+      withTiming(1, { duration: 1700, easing: Easing.inOut(Easing.sin) }),
       -1, true,
     );
   }, []);
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(glow.value, [0, 1], [0.10, 0.26]),
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(outerGlow.value, [0, 1], [0.06, 0.22]),
   }));
+
+  const glowHaloStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(centerPulse.value, [0, 1], [0.20, 0.72]),
+    transform: [{ scale: interpolate(centerPulse.value, [0, 1], [0.75, 1.35]) }],
+  }));
+
+  const focalDotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(centerPulse.value, [0, 1], [0.88, 1.12]) }],
+  }));
+
+  // Center pixel coords within the ILL container
+  const CX = ILL / 2;
+  const CY = ILL / 2;
 
   return (
     <View style={ill.center}>
-      <Animated.View style={[ill.ring, { width: ILL * 0.50, height: ILL * 0.50, borderRadius: ILL * 0.25 }, glowStyle]} />
+
+      {/* Outer breathing ring */}
+      <Animated.View
+        style={[ill.ring, { width: ILL * 0.60, height: ILL * 0.60, borderRadius: ILL * 0.30 }, ringStyle]}
+      />
+
+      {/* Node mesh — static SVG */}
       <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
         <Defs>
           <RadialGradient id="cg" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.18} />
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.10} />
+            <Stop offset="55%"  stopColor="#fff" stopOpacity={0.03} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
         <Rect width={V} height={V} fill="url(#cg)" />
-        {EDGES.map(([a, b], i) => (
-          <Line key={i}
-            x1={NODES[a][0]} y1={NODES[a][1]}
-            x2={NODES[b][0]} y2={NODES[b][1]}
-            stroke="#fff" strokeWidth={0.6} strokeOpacity={0.25}
-          />
-        ))}
-        {NODES.map(([x, y], i) => (
-          <Circle key={i} cx={x} cy={y} r={i === 7 ? 5 : 3.5}
-            fill="#fff" fillOpacity={i === 7 ? 0.90 : 0.55}
-          />
-        ))}
+
+        {/* Edges — center-connected lines are slightly brighter */}
+        {C_EDGES.map(([a, b], i) => {
+          const hot = a === 6 || b === 6;
+          return (
+            <Line key={i}
+              x1={C_NODES[a][0]} y1={C_NODES[a][1]}
+              x2={C_NODES[b][0]} y2={C_NODES[b][1]}
+              stroke="#fff"
+              strokeWidth={hot ? 0.9 : 0.5}
+              strokeOpacity={hot ? 0.32 : 0.14}
+            />
+          );
+        })}
+
+        {/* Peripheral nodes — outputs slightly larger */}
+        {C_NODES.map(([x, y], i) => {
+          if (i === 6) return null; // center rendered as Animated.View
+          const isOutput = i >= 9;
+          return (
+            <Circle key={i}
+              cx={x} cy={y}
+              r={isOutput ? 4.5 : 3.0}
+              fill="#fff"
+              fillOpacity={isOutput ? 0.72 : 0.40}
+            />
+          );
+        })}
       </Svg>
-      {/* Brand icon floats at the constellation center */}
-      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.24, height: ILL * 0.24 }]} resizeMode="contain" />
+
+      {/* Center focal node — animated glow halo */}
+      <Animated.View
+        style={[
+          {
+            position:        "absolute",
+            left:            CX - 24,
+            top:             CY - 24,
+            width:           48,
+            height:          48,
+            borderRadius:    24,
+            backgroundColor: "transparent",
+            shadowColor:     "#FFFFFF",
+            shadowOffset:    { width: 0, height: 0 },
+            shadowOpacity:   0.65,
+            shadowRadius:    22,
+            borderWidth:     StyleSheet.hairlineWidth,
+            borderColor:     "rgba(255,255,255,0.50)",
+          },
+          glowHaloStyle,
+        ]}
+      />
+
+      {/* Center focal node — bright core dot */}
+      <Animated.View
+        style={[
+          {
+            position:        "absolute",
+            left:            CX - 5,
+            top:             CY - 5,
+            width:           10,
+            height:          10,
+            borderRadius:    5,
+            backgroundColor: "#FFFFFF",
+          },
+          focalDotStyle,
+        ]}
+      />
+
+      {/* Floating light particles */}
+      {C_PARTICLES.map((p, i) => (
+        <CreationParticle key={i} {...p} />
+      ))}
+
     </View>
   );
 }
