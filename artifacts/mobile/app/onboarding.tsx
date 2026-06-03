@@ -1,15 +1,9 @@
 /**
  * Onboarding — 5-page swipeable intro.
  *
- * The composite artwork image is sliced horizontally: each page shows
- * its 1/5 section as a true fullscreen background. The artwork is never
- * altered — only UI chrome is added (dots, buttons, skip).
- *
- * Slice logic:
- *   - Source: 5 portrait phone screens side-by-side in one PNG.
- *   - Scale the full image so each 1/5 section equals screen width.
- *   - Per-page: translate the image left by (SW × pageIndex) to reveal
- *     the correct section inside an overflow:hidden container.
+ * Each of the 5 artwork images is used as a true fullscreen background
+ * (resizeMode "cover"). No artwork is modified. Functional chrome is layered
+ * on top: animated dot indicators, Skip button, action buttons.
  */
 import { router } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
@@ -17,6 +11,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  ImageSourcePropType,
   Platform,
   StyleSheet,
   Text,
@@ -33,68 +28,59 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ── AsyncStorage key (imported by splash.tsx and auth.tsx) ───────────────────
+// ── AsyncStorage key — imported by splash.tsx and auth.tsx ───────────────────
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-// ── Composite artwork ─────────────────────────────────────────────────────────
-const SOURCE = require("../assets/images/onboarding-composite.png");
+// ── Screen artwork (individual portrait images) ───────────────────────────────
+const IMAGES: ImageSourcePropType[] = [
+  require("../assets/images/onboarding-1.jpg"),
+  require("../assets/images/onboarding-2.jpg"),
+  require("../assets/images/onboarding-3.jpg"),
+  require("../assets/images/onboarding-4.jpg"),
+  require("../assets/images/onboarding-5.jpg"),
+];
 
-const NUM_SCREENS                       = 5;
-const { width: SW, height: SH }        = Dimensions.get("window");
+const NUM_SCREENS                   = IMAGES.length;
+const { width: SW, height: SH }    = Dimensions.get("window");
 
-// ── Per-screen config ─────────────────────────────────────────────────────────
+// ── Per-screen UI config ──────────────────────────────────────────────────────
 interface ScreenCfg {
-  showSkip:    boolean;
-  showButton:  boolean;
+  showSkip:     boolean;
   buttonLabel?: string;
-  isFinal?:    boolean;
+  isFinal?:     boolean;   // uses outlined button style
 }
 
 const SCREENS: ScreenCfg[] = [
-  { showSkip: false, showButton: false },
-  { showSkip: false, showButton: true,  buttonLabel: "Devam Et" },
-  { showSkip: true,  showButton: true,  buttonLabel: "Devam Et" },
-  { showSkip: true,  showButton: true,  buttonLabel: "Devam Et" },
-  { showSkip: false, showButton: true,  buttonLabel: "AkılCEP'e Gir", isFinal: true },
+  { showSkip: true },
+  { showSkip: true,  buttonLabel: "Devam Et" },
+  { showSkip: true,  buttonLabel: "Devam Et" },
+  { showSkip: true,  buttonLabel: "Devam Et" },
+  { showSkip: false, buttonLabel: "AkılCEP'e Gir", isFinal: true },
 ];
 
-// ── Animated dot ──────────────────────────────────────────────────────────────
-function Dot({
-  index,
-  scrollX,
-}: {
-  index:   number;
-  scrollX: SharedValue<number>;
-}) {
-  const anim = useAnimatedStyle(() => {
+// ── Dot indicator ─────────────────────────────────────────────────────────────
+function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => {
     const range  = [(index - 1) * SW, index * SW, (index + 1) * SW];
-    const width  = interpolate(scrollX.value, range, [6, 24, 6],    Extrapolation.CLAMP);
-    const opac   = interpolate(scrollX.value, range, [0.28, 1, 0.28], Extrapolation.CLAMP);
-    return { width, opacity: opac };
+    const size   = interpolate(scrollX.value, range, [7, 9, 7],     Extrapolation.CLAMP);
+    const opac   = interpolate(scrollX.value, range, [0.30, 1, 0.30], Extrapolation.CLAMP);
+    return {
+      width:    size,
+      height:   size,
+      opacity:  opac,
+    };
   });
-  return <Animated.View style={[ss.dot, anim]} />;
+  return <Animated.View style={[ss.dot, style]} />;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Onboarding() {
-  const insets      = useSafeAreaInsets();
-  const listRef     = useRef<FlatList<number>>(null);
+  const insets   = useSafeAreaInsets();
+  const listRef  = useRef<FlatList<number>>(null);
   const [idx, setIdx] = useState(0);
-  const scrollX     = useSharedValue(0);
+  const scrollX  = useSharedValue(0);
 
-  // Resolve source dimensions from bundled asset metadata (synchronous).
-  const asset   = Image.resolveAssetSource(SOURCE);
-  const IMG_W   = asset.width  || 1600;
-  const IMG_H   = asset.height || 700;
-
-  // Scale so each 1/5 section fills screen width.
-  const scale    = SW / (IMG_W / NUM_SCREENS);
-  const scaledW  = IMG_W * scale;
-  const scaledH  = IMG_H * scale;
-  // Vertical offset to center the scaled image on the screen.
-  const topOff   = (SH - scaledH) / 2;
-
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Navigation helpers ────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     if (idx < NUM_SCREENS - 1) {
       listRef.current?.scrollToIndex({ index: idx + 1, animated: true });
@@ -109,16 +95,16 @@ export default function Onboarding() {
     router.replace("/chat");
   }, []);
 
-  // ── Viewability ───────────────────────────────────────────────────────────
+  // ── FlatList callbacks ────────────────────────────────────────────────────
   const onViewable = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0) setIdx(viewableItems[0].index ?? 0);
     },
     [],
   );
+
   const viewConfig = { viewAreaCoveragePercentThreshold: 50 };
 
-  // ── Scroll → SharedValue ──────────────────────────────────────────────────
   const onScroll = useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
       scrollX.value = e.nativeEvent.contentOffset.x;
@@ -136,59 +122,66 @@ export default function Onboarding() {
       return (
         <View style={ss.page}>
 
-          {/* Artwork slice — full-screen, no modifications */}
-          <View style={StyleSheet.absoluteFillObject}>
-            <Image
-              source={SOURCE}
-              style={[
-                ss.artwork,
-                {
-                  width:  scaledW,
-                  height: scaledH,
-                  left:   -(SW * pageIdx),
-                  top:    topOff,
-                },
-              ]}
-              resizeMode="stretch"
-            />
-          </View>
+          {/* Full-screen artwork — unchanged, cover fills the entire screen */}
+          <Image
+            source={IMAGES[pageIdx]}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
 
-          {/* Skip */}
+          {/* Skip — top right */}
           {cfg.showSkip && (
             <TouchableOpacity
               style={[ss.skip, { top: topPad + 14 }]}
               onPress={goSkip}
-              hitSlop={12}
-              activeOpacity={0.60}
+              hitSlop={14}
+              activeOpacity={0.55}
             >
               <Text style={ss.skipText}>Atla</Text>
             </TouchableOpacity>
           )}
 
-          {/* Dots + button */}
-          <View style={[ss.bottom, { paddingBottom: btmPad + 24 }]}>
+          {/* Bottom chrome — dots + optional action button */}
+          <View style={[ss.bottom, { paddingBottom: btmPad + 20 }]}>
+
+            {/* Dot indicators */}
             <View style={ss.dots}>
               {SCREENS.map((_, i) => (
                 <Dot key={i} index={i} scrollX={scrollX} />
               ))}
             </View>
 
-            {cfg.showButton && (
-              <TouchableOpacity
-                style={ss.btn}
-                onPress={cfg.isFinal ? goApp : goNext}
-                activeOpacity={0.82}
-              >
-                <Text style={ss.btnLabel}>{cfg.buttonLabel}</Text>
-                <Text style={ss.btnArrow}> →</Text>
-              </TouchableOpacity>
+            {/* Action button — only shown when configured */}
+            {cfg.buttonLabel && (
+              cfg.isFinal ? (
+                // Screen 5: outlined dark pill
+                <TouchableOpacity
+                  style={ss.btnOutlined}
+                  onPress={goApp}
+                  activeOpacity={0.78}
+                >
+                  <Text style={ss.btnLabelOutlined}>{cfg.buttonLabel}</Text>
+                  <Text style={ss.btnArrowOutlined}> →</Text>
+                </TouchableOpacity>
+              ) : (
+                // Screens 2–4: solid white pill
+                <TouchableOpacity
+                  style={ss.btnSolid}
+                  onPress={goNext}
+                  activeOpacity={0.78}
+                >
+                  <Text style={ss.btnLabelSolid}>{cfg.buttonLabel}</Text>
+                  <Text style={ss.btnArrowSolid}> →</Text>
+                </TouchableOpacity>
+              )
             )}
+
           </View>
 
         </View>
       );
     },
-    [insets, scaledW, scaledH, topOff, scrollX, goNext, goSkip, goApp],
+    [insets, scrollX, goNext, goSkip, goApp],
   );
 
   return (
@@ -211,19 +204,18 @@ export default function Onboarding() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+const BUTTON_W = SW - 56;
+
 const ss = StyleSheet.create({
+
+  // Each page is exactly screen-sized; image fills it with cover.
   page: {
     width:    SW,
     height:   SH,
     overflow: "hidden",
   },
 
-  // Positioned absolutely; left + top set per page via inline style.
-  artwork: {
-    position: "absolute",
-  },
-
-  // Skip button — top right
+  // Skip — top right corner
   skip: {
     position: "absolute",
     right:    22,
@@ -232,21 +224,21 @@ const ss = StyleSheet.create({
   skipText: {
     fontSize:      15,
     fontFamily:    "Inter_500Medium",
-    color:         "rgba(255,255,255,0.78)",
-    letterSpacing: -0.2,
+    color:         "rgba(255,255,255,0.85)",
+    letterSpacing: -0.1,
   },
 
-  // Bottom chrome
+  // Bottom chrome wrapper
   bottom: {
     position:        "absolute",
     bottom:          0,
     left:            0,
     right:           0,
     alignItems:      "center",
-    gap:             20,
-    paddingTop:      28,
-    // Subtle dark scrim so dots/button stay legible over any artwork
-    backgroundColor: "rgba(0,0,0,0.22)",
+    gap:             18,
+    paddingTop:      24,
+    // Subtle scrim so dots/button read well on any artwork
+    backgroundColor: "rgba(0,0,0,0.18)",
   },
 
   // Dots row
@@ -254,34 +246,58 @@ const ss = StyleSheet.create({
     flexDirection:  "row",
     alignItems:     "center",
     justifyContent: "center",
-    gap:            7,
+    gap:            8,
   },
   dot: {
-    height:          6,
-    borderRadius:    3,
+    borderRadius:    99,
     backgroundColor: "#FFFFFF",
   },
 
-  // Action button — white pill, black text (matches the artwork design)
-  btn: {
+  // Solid white pill (screens 2–4)
+  btnSolid: {
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "center",
     backgroundColor:   "#FFFFFF",
     borderRadius:      50,
-    paddingHorizontal: 36,
+    paddingHorizontal: 32,
     paddingVertical:   16,
-    width:             SW - 56,
+    width:             BUTTON_W,
   },
-  btnLabel: {
+  btnLabelSolid: {
     fontSize:      16,
     fontFamily:    "Inter_600SemiBold",
     color:         "#000000",
     letterSpacing: -0.3,
   },
-  btnArrow: {
+  btnArrowSolid: {
     fontSize:   16,
     fontFamily: "Inter_600SemiBold",
     color:      "#000000",
+  },
+
+  // Outlined dark pill (screen 5 — "AkılCEP'e Gir")
+  btnOutlined: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "center",
+    backgroundColor:   "rgba(0,0,0,0.35)",
+    borderWidth:       1.5,
+    borderColor:       "rgba(255,255,255,0.80)",
+    borderRadius:      50,
+    paddingHorizontal: 32,
+    paddingVertical:   16,
+    width:             BUTTON_W,
+  },
+  btnLabelOutlined: {
+    fontSize:      16,
+    fontFamily:    "Inter_600SemiBold",
+    color:         "#FFFFFF",
+    letterSpacing: -0.3,
+  },
+  btnArrowOutlined: {
+    fontSize:   16,
+    fontFamily: "Inter_600SemiBold",
+    color:      "#FFFFFF",
   },
 });
