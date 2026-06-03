@@ -565,77 +565,208 @@ function ResearchIllustration() {
   );
 }
 
-// ── Illustration: Ready — glowing arch portal ────────────────────────────────
-// Arch: M lx base  L lx top+r  A r r 0 0 1 rx top+r  L rx base
-const ARCH_L = 76;
-const ARCH_R = V - ARCH_L;   // = 184
-const ARCH_R2 = (ARCH_R - ARCH_L) / 2;  // radius = 54
-const ARCH_TOP = 62;
+// ── Illustration: Ready — cinematic light portal ────────────────────────────
+// Arch geometry (M left base  L left shoulder  A radius  L right shoulder  L right base)
+const ARCH_L    = 76;
+const ARCH_R    = V - ARCH_L;              // 184
+const ARCH_R2   = (ARCH_R - ARCH_L) / 2;  // 54  — semicircle radius
+const ARCH_TOP  = 62;
 const ARCH_BASE = 222;
 const ARCH_PATH = `M ${ARCH_L} ${ARCH_BASE} L ${ARCH_L} ${ARCH_TOP + ARCH_R2} A ${ARCH_R2} ${ARCH_R2} 0 0 1 ${ARCH_R} ${ARCH_TOP + ARCH_R2} L ${ARCH_R} ${ARCH_BASE}`;
 
-function ReadyIllustration() {
-  const glow = useSharedValue(0);
+// Ascending particles — spawn at arch base, drift upward and fade
+const P_PORTALS: Array<{ x: number; y: number; r: number; delay: number }> = [
+  { x: 100, y: 202, r: 1.4, delay: 0    },
+  { x: 130, y: 186, r: 1.9, delay: 660  },
+  { x: 158, y: 200, r: 1.4, delay: 1320 },
+  { x: 112, y: 172, r: 1.1, delay: 360  },
+  { x: 150, y: 176, r: 1.1, delay: 980  },
+  { x: 130, y: 212, r: 2.0, delay: 1640 },
+  { x: 118, y: 158, r: 1.0, delay: 200  },
+  { x: 143, y: 162, r: 1.0, delay: 1120 },
+];
+
+function ReadyParticle({ x, y, r, delay }: { x: number; y: number; r: number; delay: number }) {
+  const anim = useSharedValue(0);
   useEffect(() => {
-    glow.value = withRepeat(
-      withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }),
+    anim.value = withDelay(delay,
+      withRepeat(
+        withTiming(1, { duration: 3000 + (delay % 600), easing: Easing.inOut(Easing.sin) }),
+        -1, true,
+      ),
+    );
+  }, []);
+  const style = useAnimatedStyle(() => ({
+    opacity:   interpolate(anim.value, [0, 0.35, 1], [0, 0.92, 0]),
+    transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -(ILL * 0.20)]) }],
+  }));
+  const SIZE = r * 2;
+  return (
+    <Animated.View
+      style={[
+        {
+          position:        "absolute",
+          left:            (x / V) * ILL - r,
+          top:             (y / V) * ILL - r,
+          width:           SIZE,
+          height:          SIZE,
+          borderRadius:    r,
+          backgroundColor: "#FFFFFF",
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function ReadyIllustration() {
+  const portalGlow   = useSharedValue(0);
+  const horizonPulse = useSharedValue(0);
+
+  useEffect(() => {
+    // Portal inner light — slow, cinematic breath
+    portalGlow.value = withRepeat(
+      withTiming(1, { duration: 3400, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    );
+    // Horizon glow — slightly faster companion pulse
+    horizonPulse.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
       -1, true,
     );
   }, []);
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(glow.value, [0, 1], [0.12, 0.32]),
-    transform: [{ scale: interpolate(glow.value, [0, 1], [1, 1.06]) }],
+  const portalStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(portalGlow.value,   [0, 1], [0.20, 0.65]),
+    transform: [{ scale: interpolate(portalGlow.value, [0, 1], [0.80, 1.30]) }],
   }));
+  const horizonStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(horizonPulse.value, [0, 1], [0.18, 0.52]),
+  }));
+
+  // Arch key positions in ILL space
+  const PORTAL_CX     = (OC / V) * ILL;
+  const PORTAL_CY     = (((ARCH_TOP + ARCH_R2) + ARCH_BASE) / 2 / V) * ILL;
+  const ARCH_BASE_ILL = (ARCH_BASE / V) * ILL;
+  const ARCH_L_ILL    = (ARCH_L / V) * ILL;
+  const ARCH_W_ILL    = ((ARCH_R - ARCH_L) / V) * ILL;
 
   return (
     <View style={ill.center}>
-      <Animated.View style={[ill.ring, { width: ILL * 0.55, height: ILL * 0.55, borderRadius: ILL * 0.28 }, glowStyle]} />
+
+      {/* SVG — static portal structure */}
       <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
         <Defs>
-          <RadialGradient id="pg" cx="50%" cy="85%" r="55%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.22} />
+          {/* Ground horizon glow */}
+          <RadialGradient id="pg" cx="50%" cy="88%" r="52%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.28} />
+            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+          </RadialGradient>
+          {/* Portal inner light — radiates from the arch opening */}
+          <RadialGradient id="pg2" cx="50%" cy="45%" r="32%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.32} />
+            <Stop offset="55%"  stopColor="#fff" stopOpacity={0.08} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
-        <Rect width={V} height={V} fill="url(#pg)" />
+        <Rect width={V} height={V} fill="url(#pg)"  />
+        <Rect width={V} height={V} fill="url(#pg2)" />
 
-        {/* Inner glow fill */}
-        <Path d={ARCH_PATH} fill="#fff" fillOpacity={0.06} />
-        {/* Arch border */}
-        <Path d={ARCH_PATH} fill="none" stroke="#fff" strokeWidth={1.6} strokeOpacity={0.80} />
+        {/* Arch interior — soft fill conveys depth of light */}
+        <Path d={ARCH_PATH} fill="#fff" fillOpacity={0.07} />
+        {/* Arch frame */}
+        <Path d={ARCH_PATH} fill="none" stroke="#fff" strokeWidth={1.6} strokeOpacity={0.88} />
 
-        {/* Ground platform */}
+        {/* Ground threshold */}
         <Rect x={ARCH_L + 4} y={ARCH_BASE} width={ARCH_R - ARCH_L - 8} height={3}
-          rx={1.5} fill="#fff" fillOpacity={0.45}
+          rx={1.5} fill="#fff" fillOpacity={0.52}
         />
 
-        {/* Light beam from arch base */}
+        {/* Light spill downward from threshold */}
         <Path
-          d={`M ${OC - 6} ${ARCH_BASE + 3} L ${OC - 24} ${V + 10} L ${OC + 24} ${V + 10} L ${OC + 6} ${ARCH_BASE + 3} Z`}
-          fill="#fff" fillOpacity={0.06}
+          d={`M ${OC - 8} ${ARCH_BASE} L ${OC - 34} ${V + 12} L ${OC + 34} ${V + 12} L ${OC + 8} ${ARCH_BASE} Z`}
+          fill="#fff" fillOpacity={0.04}
         />
 
-        {/* Stars */}
-        {[[44, 38], [210, 54], [28, 130], [228, 140], [130, 26]].map(([x, y], i) => (
-          <Circle key={i} cx={x} cy={y} r={i === 2 ? 1.8 : 1.2} fill="#fff" fillOpacity={0.55} />
+        {/* Horizon line across the threshold */}
+        <Line
+          x1={ARCH_L + 6} y1={ARCH_BASE - 1}
+          x2={ARCH_R - 6} y2={ARCH_BASE - 1}
+          stroke="#fff" strokeWidth={0.6} strokeOpacity={0.38}
+        />
+
+        {/* Background stars */}
+        {[[44, 38], [210, 54], [28, 130], [228, 140], [130, 26], [68, 84], [194, 94]].map(([x, y], i) => (
+          <Circle key={i} cx={x} cy={y}
+            r={i < 2 ? 1.6 : 1.0}
+            fill="#fff"
+            fillOpacity={i < 2 ? 0.60 : 0.32}
+          />
         ))}
       </Svg>
-      {/* Brand icon — hero focal point inside the arch portal */}
-      <Image
-        source={LOGO}
+
+      {/* Horizon glow band — animated pulse at the threshold */}
+      <Animated.View
         style={[
-          ill.logo,
           {
-            width:    ILL * 0.32,
-            height:   ILL * 0.32,
-            position: "absolute",
-            top:      ILL * 0.42,
-            left:     ILL * 0.34,
+            position:        "absolute",
+            left:            ARCH_L_ILL,
+            top:             ARCH_BASE_ILL - 14,
+            width:           ARCH_W_ILL,
+            height:          28,
+            borderRadius:    14,
+            backgroundColor: "transparent",
+            shadowColor:     "#FFFFFF",
+            shadowOffset:    { width: 0, height: 0 },
+            shadowOpacity:   0.50,
+            shadowRadius:    18,
           },
+          horizonStyle,
         ]}
-        resizeMode="contain"
       />
+
+      {/* Portal inner light — cinematic focal glow */}
+      <Animated.View
+        style={[
+          {
+            position:        "absolute",
+            left:            PORTAL_CX - 30,
+            top:             PORTAL_CY - 30,
+            width:           60,
+            height:          60,
+            borderRadius:    30,
+            backgroundColor: "transparent",
+            shadowColor:     "#FFFFFF",
+            shadowOffset:    { width: 0, height: 0 },
+            shadowOpacity:   0.55,
+            shadowRadius:    30,
+          },
+          portalStyle,
+        ]}
+      />
+
+      {/* Focal point — single bright pinhole of light at portal center */}
+      <View
+        style={{
+          position:        "absolute",
+          left:            PORTAL_CX - 3,
+          top:             PORTAL_CY - 3,
+          width:           6,
+          height:          6,
+          borderRadius:    3,
+          backgroundColor: "#FFFFFF",
+          shadowColor:     "#FFFFFF",
+          shadowOffset:    { width: 0, height: 0 },
+          shadowOpacity:   1,
+          shadowRadius:    8,
+        }}
+      />
+
+      {/* Ascending light particles */}
+      {P_PORTALS.map((p, i) => (
+        <ReadyParticle key={i} {...p} />
+      ))}
+
     </View>
   );
 }
