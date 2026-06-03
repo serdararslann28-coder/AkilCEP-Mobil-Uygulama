@@ -37,7 +37,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
-const LOGO = require("@/assets/images/akilcep-logo.png");
+const LOGO = require("@/assets/images/akilcep-icon.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -236,8 +236,8 @@ const ss = StyleSheet.create({
     flex:       1,
   },
   logo: {
-    width:  110,
-    height: 110,
+    width:  104,
+    height: 104,
   },
   brand: {
     fontSize:      30,

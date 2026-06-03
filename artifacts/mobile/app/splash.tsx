@@ -44,7 +44,7 @@ const FORCE_SHOW_ONBOARDING = true;
 // ── Startup sound preference key ──────────────────────────────────────────────
 export const STARTUP_SOUND_KEY = "@akilcep_startup_sound";
 
-const leafLogo = require("@/assets/images/leaf-only-transparent.png");
+const brandIcon = require("@/assets/images/akilcep-icon.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -419,10 +419,11 @@ export default function SplashScreen() {
 
           {/* ── LOGO + WORDMARK ── */}
           <Animated.View style={[ss.logoWrap, logoStyle]}>
+            {/* Soft glow halo behind icon */}
+            <View style={ss.iconGlow} pointerEvents="none" />
             <Image
-              source={leafLogo}
+              source={brandIcon}
               style={ss.leafImg}
-              tintColor="rgba(255,255,255,0.92)"
               resizeMode="contain"
             />
             <Text style={ss.wordmark}>AkılCEP</Text>
@@ -466,8 +467,20 @@ const ss = StyleSheet.create({
     gap:            14,
   },
   leafImg: {
-    width:  80,
-    height: 80,
+    width:  96,
+    height: 96,
+  },
+  iconGlow: {
+    position:        "absolute",
+    width:           180,
+    height:          180,
+    borderRadius:    90,
+    backgroundColor: "rgba(255,255,255,0.055)",
+    // Soft gaussian-like bloom using shadow
+    shadowColor:     "#FFFFFF",
+    shadowOffset:    { width: 0, height: 0 },
+    shadowOpacity:   0.22,
+    shadowRadius:    40,
   },
   wordmark: {
     fontSize:      36,

@@ -44,7 +44,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-const LOGO = require("../assets/images/akilcep-logo.png");
+const LOGO = require("../assets/images/akilcep-icon.png");
 
 const { width: SW, height: SH } = Dimensions.get("window");
 const ILL = SW * 0.78;   // illustration viewport size
@@ -72,9 +72,11 @@ function WelcomeIllustration() {
 
   return (
     <View style={ill.center}>
+      {/* Soft glow bloom behind the icon */}
+      <View style={ill.iconHalo} />
       <Animated.View style={[ill.ring, { width: ILL * 0.80, height: ILL * 0.80, borderRadius: ILL * 0.40 }, outerRing]} />
       <Animated.View style={[ill.ring, { width: ILL * 0.54, height: ILL * 0.54, borderRadius: ILL * 0.27 }, innerRing]} />
-      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.60, height: ILL * 0.60 }]} resizeMode="contain" />
+      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.70, height: ILL * 0.70 }]} resizeMode="contain" />
     </View>
   );
 }
@@ -122,6 +124,8 @@ function VoiceIllustration() {
   return (
     <View style={ill.center}>
       <Animated.View style={[ill.ring, { width: ILL * 0.62, height: ILL * 0.62, borderRadius: ILL * 0.31 }, outerStyle]} />
+      {/* Brand icon sits above the voice waveform */}
+      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.21, height: ILL * 0.21, marginBottom: 20 }]} resizeMode="contain" />
       <View style={ill.waveRow}>
         {OFFSETS.map((off, i) => (
           <WaveBar key={i} offset={off} phase={phase} />
@@ -177,6 +181,8 @@ function CreateIllustration() {
           />
         ))}
       </Svg>
+      {/* Brand icon floats at the constellation center */}
+      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.24, height: ILL * 0.24 }]} resizeMode="contain" />
     </View>
   );
 }
@@ -234,6 +240,8 @@ function ResearchIllustration() {
       <Animated.View style={[ill.orbitContainer, dotStyle]}>
         <View style={ill.orbitDot} />
       </Animated.View>
+      {/* Brand icon replaces the center core dot */}
+      <Image source={LOGO} style={[ill.logo, { width: ILL * 0.20, height: ILL * 0.20 }]} resizeMode="contain" />
     </View>
   );
 }
@@ -294,6 +302,21 @@ function ReadyIllustration() {
           <Circle key={i} cx={x} cy={y} r={i === 2 ? 1.8 : 1.2} fill="#fff" fillOpacity={0.55} />
         ))}
       </Svg>
+      {/* Brand icon — hero focal point inside the arch portal */}
+      <Image
+        source={LOGO}
+        style={[
+          ill.logo,
+          {
+            width:    ILL * 0.32,
+            height:   ILL * 0.32,
+            position: "absolute",
+            top:      ILL * 0.42,
+            left:     ILL * 0.34,
+          },
+        ]}
+        resizeMode="contain"
+      />
     </View>
   );
 }
@@ -488,6 +511,18 @@ const ill = StyleSheet.create({
   // AkılCEP logo
   logo: {
     zIndex: 2,
+  },
+  // Soft white bloom behind the icon on Welcome screen
+  iconHalo: {
+    position:        "absolute",
+    width:           ILL * 0.50,
+    height:          ILL * 0.50,
+    borderRadius:    ILL * 0.25,
+    backgroundColor: "rgba(255,255,255,0.032)",
+    shadowColor:     "#FFFFFF",
+    shadowOffset:    { width: 0, height: 0 },
+    shadowOpacity:   0.16,
+    shadowRadius:    48,
   },
   // Voice waveform
   waveRow: {
