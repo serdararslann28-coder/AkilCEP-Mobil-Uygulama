@@ -1,14 +1,18 @@
 /**
- * Onboarding — AkılCEP world-class cinematic experience.
+ * AkılCEP — Onboarding
  *
- * Visual language: living white particles, flowing light, soft volumetric glow.
- * Pure black (#000000). No logos in illustrations. No humans. No robots.
+ * Design philosophy:
+ *   • Every animation mimics natural breath: slow, organic, inOut(sin) easing
+ *   • Intelligence is represented only by living white particles and flowing light
+ *   • No mechanical illustrations — only living systems
+ *   • Pure black (#000000) · white light only · no colour gradients
+ *   • 60px title, –2.5 tracking — the brand name fills the screen like a statement
  *
- * Screen 1 — AWAKENING   : particle cloud erupting from a single point of light
- * Screen 2 — THINK       : three bezier particle streams connecting flowing nodes
- * Screen 3 — UNDERSTAND  : documents, web, images converging into a stream of light
- * Screen 4 — SPEAK       : circular waveform + expanding sound ripples
- * Screen 5 — BEGIN       : monumental glowing doorway, path of light beneath
+ * Screen 1 — Awakening   : particle cloud erupting from a single point of light
+ * Screen 2 — Think       : neural constellation — glowing nodes connect like thoughts
+ * Screen 3 — Understand  : documents, web, images converging into one stream
+ * Screen 4 — Speak       : a single ring breathes, particles orbit around it
+ * Screen 5 — Begin       : monumental gateway — a path of light leads the way
  */
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -47,162 +51,165 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
+// GLOBAL CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 const { width: SW, height: SH } = Dimensions.get("window");
 
-const ILL = SW * 0.82;  // illustration container — slightly larger for drama
-const V   = 280;         // SVG viewBox size
-const CX  = ILL / 2;    // illustration centre X (pixels)
-const CY  = ILL / 2;    // illustration centre Y (pixels)
+// Illustration container — square, 84% of screen width for breathing room
+const ILL = SW * 0.84;
+const V   = 280;       // SVG viewBox size (V × V)
+const CX  = ILL / 2;  // centre X
+const CY  = ILL / 2;  // centre Y
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DETERMINISTIC PSEUDO-RANDOM  (no Math.random — deterministic per seed)
+// HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function dr(seed: number): number {
-  return Math.abs(Math.sin(seed * 127.1 + 311.7 * Math.abs(Math.cos(seed * 0.3)))) % 1;
+
+/** Deterministic pseudo-random [0, 1) from seed — no Math.random() at runtime */
+function dr(s: number): number {
+  return Math.abs(Math.sin(s * 127.1 + 311.7 * Math.abs(Math.cos(s * 0.3)))) % 1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BEZIER HELPER
-// ─────────────────────────────────────────────────────────────────────────────
-function cubicB(t: number, p0: number, p1: number, p2: number, p3: number): number {
+/** Cubic bezier at parameter t */
+function cb(t: number, p0: number, p1: number, p2: number, p3: number): number {
   const u = 1 - t;
   return u*u*u*p0 + 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t*p3;
 }
 
-/** Compute n waypoints along a cubic bezier (all in V space → converted to ILL pixels) */
+/** Compute n waypoints along a cubic bezier — returns ILL-space coordinates */
 function bezierWp(
   x0: number, y0: number, cx1: number, cy1: number,
-  cx2: number, cy2: number, x3: number, y3: number,
-  n: number,
+  cx2: number, cy2: number, x3: number, y3: number, n: number,
 ): Array<{ x: number; y: number }> {
   return Array.from({ length: n }, (_, i) => {
     const t = i / (n - 1);
-    return {
-      x: (cubicB(t, x0, cx1, cx2, x3) / V) * ILL,
-      y: (cubicB(t, y0, cy1, cy2, y3) / V) * ILL,
-    };
+    return { x: (cb(t, x0, cx1, cx2, x3) / V) * ILL, y: (cb(t, y0, cy1, cy2, y3) / V) * ILL };
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PRE-COMPUTED STREAM DATA  (Screen 2 — THINK)
-// Three bezier curves in V=280 space; particles flow along them.
-// ─────────────────────────────────────────────────────────────────────────────
-const N_WP = 22; // waypoints per stream
-
-// Stream A — central S-curve (primary, full-brightness)
-const SA = bezierWp(140, 8,  210, 82,  70, 168, 140, 272, N_WP);
-// Stream B — left sweep (secondary)
-const SB = bezierWp( 78, 28,  22, 98, 176, 174,  78, 272, N_WP);
-// Stream C — right sweep (secondary)
-const SC = bezierWp(202, 28, 258,100,  104, 174, 202, 272, N_WP);
-
-// t-key array shared by all streams
-const S_TKEYS: number[] = Array.from({ length: N_WP }, (_, i) => i / (N_WP - 1));
-
-// Pre-compute x/y offsets from ILL centre for each stream
-const SA_XO = SA.map(p => p.x - CX);
-const SA_YO = SA.map(p => p.y - CY);
-const SB_XO = SB.map(p => p.x - CX);
-const SB_YO = SB.map(p => p.y - CY);
-const SC_XO = SC.map(p => p.x - CX);
-const SC_YO = SC.map(p => p.y - CY);
-
-// Key node positions (bright intersection spheres along streams)
-const SA_NODE = { x: SA[Math.floor(N_WP * 0.45)].x, y: SA[Math.floor(N_WP * 0.45)].y };
-const SB_NODE = { x: SB[Math.floor(N_WP * 0.45)].x, y: SB[Math.floor(N_WP * 0.45)].y };
-const SC_NODE = { x: SC[Math.floor(N_WP * 0.45)].x, y: SC[Math.floor(N_WP * 0.45)].y };
+/** V-space point → offset from ILL centre */
+function voff(vx: number, vy: number): { x: number; y: number } {
+  return { x: (vx / V) * ILL - CX, y: (vy / V) * ILL - CY };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRE-COMPUTED AWAKENING PARTICLES  (Screen 1)
-// 28 particles radiate upward from centre — no symmetry, fully organic.
+// ── SCREEN 1: AWAKENING ─────────────────────────────────────────────────────
+// 28 particles radiate upward from a central bright orb.
 // ─────────────────────────────────────────────────────────────────────────────
 const AW_PTCLS = Array.from({ length: 28 }, (_, i) => {
-  const angleDeg = -90 + (dr(i * 3) * 2 - 1) * 82;      // -172° … -8° (upward)
+  // All particles are biased strongly upward (-90° ± 80°)
+  const angleDeg = -90 + (dr(i * 3) * 2 - 1) * 80;
   const angle    = angleDeg * (Math.PI / 180);
-  const dist     = 44 + dr(i * 7 + 1) * 112;              // 44 … 156 px
+  const dist     = 44 + dr(i * 7 + 1) * 112;
   return {
     endX:  CX + Math.cos(angle) * dist,
     endY:  CY + Math.sin(angle) * dist,
-    delay: dr(i * 11 + 2) * 2200,
-    dur:   2000 + dr(i * 13 + 3) * 1800,
-    r:     1.0  + dr(i * 17 + 4) * 2.4,
+    delay: dr(i * 11 + 2) * 2400,
+    dur:   2200 + dr(i * 13 + 3) * 1800,
+    r:     1.0  + dr(i * 17 + 4) * 2.2,
   };
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRE-COMPUTED CIRCULAR WAVEFORM TICKS  (Screen 4 — SPEAK)
-// 48 radial bars arranged in a circle, heights follow a 5-period sine wave.
+// ── SCREEN 2: THINK (Neural Constellation) ───────────────────────────────────
+// 8 glowing nodes at natural positions. Particles travel through the network.
 // ─────────────────────────────────────────────────────────────────────────────
-const N_TICKS    = 48;
-const TICK_R     = V * 0.36;   // ring radius in V space
-const TICK_MAX_H = 16;          // max bar height (V units)
-const TICK_MIN_H = 3;           // min bar height
+const CNODES: Array<{ vx: number; vy: number; vr: number; delay: number; dur: number }> = [
+  { vx: 70,  vy: 56,  vr: 5.0, delay: 0,    dur: 3200 },  // N0 top-left
+  { vx: 210, vy: 52,  vr: 5.0, delay: 600,  dur: 2800 },  // N1 top-right
+  { vx: 40,  vy: 152, vr: 4.0, delay: 1200, dur: 3400 },  // N2 left
+  { vx: 240, vy: 148, vr: 4.0, delay: 300,  dur: 3100 },  // N3 right
+  { vx: 140, vy: 124, vr: 8.0, delay: 400,  dur: 2600 },  // N4 centre (primary)
+  { vx: 94,  vy: 228, vr: 4.5, delay: 900,  dur: 3300 },  // N5 bottom-left
+  { vx: 190, vy: 224, vr: 4.5, delay: 1500, dur: 2900 },  // N6 bottom-right
+  { vx: 140, vy: 22,  vr: 3.5, delay: 800,  dur: 3600 },  // N7 top-centre
+];
 
-const TICKS = Array.from({ length: N_TICKS }, (_, i) => {
-  const angle    = (i / N_TICKS) * 2 * Math.PI;
-  const hFrac    = 0.5 + 0.5 * Math.sin(angle * 5);      // 5-period wave
-  const h        = TICK_MIN_H + hFrac * (TICK_MAX_H - TICK_MIN_H);
-  const cx       = V / 2 + TICK_R * Math.cos(angle);
-  const cy       = V / 2 + TICK_R * Math.sin(angle);
-  const angleDeg = angle * (180 / Math.PI);
-  const opacity  = 0.22 + 0.55 * hFrac;
-  return { cx, cy, h, angleDeg, opacity };
-});
+// Traveling particle paths (3 waypoints each — through the centre node)
+const CN_TKEYS = [0, 0.5, 1];
+const CN_P1_XO = [voff(140, 22).x,  voff(140, 124).x, voff(94,  228).x];
+const CN_P1_YO = [voff(140, 22).y,  voff(140, 124).y, voff(94,  228).y];
+const CN_P2_XO = [voff(70,  56).x,  voff(140, 124).x, voff(190, 224).x];
+const CN_P2_YO = [voff(70,  56).y,  voff(140, 124).y, voff(190, 224).y];
+const CN_P3_XO = [voff(40, 152).x,  voff(140, 124).x, voff(240, 148).x];
+const CN_P3_YO = [voff(40, 152).y,  voff(140, 124).y, voff(240, 148).y];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRE-COMPUTED GATEWAY PATH STONES  (Screen 5 — BEGIN)
-// Dots converging toward the threshold — perspective road of light.
+// ── SCREEN 3: UNDERSTAND ─────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
-const GW2_L    = 68;    // left pillar x (V space) — wider arch
-const GW2_R    = 212;   // right pillar x
-const GW2_R2   = (GW2_R - GW2_L) / 2;   // 72 — semicircle radius
-const GW2_TOP  = 44;    // top of arch (y, V space)
-const GW2_BASE = 210;   // ground threshold (y, V space)
-const GW2_CY   = GW2_TOP + GW2_R2; // pillar-top y = 116
-const GW2_PATH = `M ${GW2_L} ${GW2_BASE} L ${GW2_L} ${GW2_CY} A ${GW2_R2} ${GW2_R2} 0 0 1 ${GW2_R} ${GW2_CY} L ${GW2_R} ${GW2_BASE}`;
+const CV_DOC = { x: ILL * 0.20, y: ILL * 0.22 };
+const CV_WEB = { x: ILL * 0.80, y: ILL * 0.20 };
+const CV_IMG = { x: ILL * 0.50, y: ILL * 0.80 };
+
+const CV_PTCLS: Array<{ fromX: number; fromY: number; delay: number }> = [
+  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 0    },
+  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 1500 },
+  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 500  },
+  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 2000 },
+  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 1000 },
+  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 2500 },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── SCREEN 4: SPEAK ─────────────────────────────────────────────────────────
+// A single ring breathes. Particles orbit slowly around it.
+// ─────────────────────────────────────────────────────────────────────────────
+const BREATHE_R  = ILL * 0.34;
+const ORBIT_R    = ILL * 0.28;
+const N_ORBITAL  = 8;
+
+// Pre-compute orbit offsets (angle in radians, phase for opacity variation)
+const ORBITAL_PTS = Array.from({ length: N_ORBITAL }, (_, i) => ({
+  startAngle: (i / N_ORBITAL) * 2 * Math.PI,
+  r: 1.6 + dr(i * 31) * 1.4,
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── SCREEN 5: BEGIN (Gateway) ────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+const GW_L    = 66;
+const GW_R    = 214;
+const GW_R2   = (GW_R - GW_L) / 2;   // 74
+const GW_TOP  = 42;
+const GW_CY   = GW_TOP + GW_R2;       // 116
+const GW_BASE = 212;
+const GW_PATH = `M ${GW_L} ${GW_BASE} L ${GW_L} ${GW_CY} A ${GW_R2} ${GW_R2} 0 0 1 ${GW_R} ${GW_CY} L ${GW_R} ${GW_BASE}`;
 
 const GW_STONES = [
-  // Nearest threshold (narrow)
-  { vx: 126, vy: 213, r: 2.0, baseOp: 0.88, delay: 0    },
-  { vx: 154, vy: 213, r: 2.0, baseOp: 0.88, delay: 350  },
-  // Middle row
-  { vx: 108, vy: 224, r: 1.6, baseOp: 0.70, delay: 180  },
-  { vx: 140, vy: 222, r: 1.6, baseOp: 0.70, delay: 530  },
-  { vx: 170, vy: 224, r: 1.6, baseOp: 0.70, delay: 900  },
-  // Wide row
-  { vx:  92, vy: 236, r: 1.2, baseOp: 0.52, delay: 260  },
-  { vx: 118, vy: 234, r: 1.2, baseOp: 0.52, delay: 620  },
-  { vx: 150, vy: 234, r: 1.2, baseOp: 0.52, delay: 980  },
-  { vx: 180, vy: 236, r: 1.2, baseOp: 0.52, delay: 1340 },
-  // Far (small)
-  { vx:  76, vy: 248, r: 0.8, baseOp: 0.35, delay: 440  },
-  { vx: 104, vy: 246, r: 0.8, baseOp: 0.35, delay: 800  },
-  { vx: 140, vy: 245, r: 0.8, baseOp: 0.35, delay: 1160 },
-  { vx: 172, vy: 246, r: 0.8, baseOp: 0.35, delay: 1520 },
-  { vx: 200, vy: 248, r: 0.8, baseOp: 0.35, delay: 700  },
+  { vx: 122, vy: 215, r: 2.0, baseOp: 0.90, delay: 0    },
+  { vx: 158, vy: 215, r: 2.0, baseOp: 0.90, delay: 350  },
+  { vx: 104, vy: 226, r: 1.6, baseOp: 0.70, delay: 180  },
+  { vx: 140, vy: 224, r: 1.6, baseOp: 0.70, delay: 530  },
+  { vx: 175, vy: 226, r: 1.6, baseOp: 0.70, delay: 900  },
+  { vx:  88, vy: 238, r: 1.1, baseOp: 0.50, delay: 260  },
+  { vx: 114, vy: 236, r: 1.1, baseOp: 0.50, delay: 620  },
+  { vx: 151, vy: 236, r: 1.1, baseOp: 0.50, delay: 980  },
+  { vx: 182, vy: 238, r: 1.1, baseOp: 0.50, delay: 1340 },
+  { vx:  74, vy: 250, r: 0.8, baseOp: 0.32, delay: 440  },
+  { vx: 102, vy: 248, r: 0.8, baseOp: 0.32, delay: 800  },
+  { vx: 140, vy: 247, r: 0.8, baseOp: 0.32, delay: 1160 },
+  { vx: 173, vy: 248, r: 0.8, baseOp: 0.32, delay: 520  },
+  { vx: 200, vy: 250, r: 0.8, baseOp: 0.32, delay: 1000 },
 ];
 
-const GW2_STARS: [number, number][] = [
-  [46, 24], [98, 14], [168, 20], [226, 38],
-  [140, 8], [64, 64], [210, 58], [84, 36], [192, 30],
+const GW_STARS: [number, number][] = [
+  [44, 22], [96, 12], [170, 18], [228, 36],
+  [140, 6], [62, 60], [212, 54], [82, 34], [196, 28],
 ];
 
-const GW2_ASCEND: Array<{ xf: number; delay: number }> = [
-  { xf: (GW2_L + (GW2_R - GW2_L) * 0.25) / V, delay: 0    },
-  { xf: (GW2_L + (GW2_R - GW2_L) * 0.50) / V, delay: 800  },
-  { xf: (GW2_L + (GW2_R - GW2_L) * 0.75) / V, delay: 400  },
-  { xf: (GW2_L + (GW2_R - GW2_L) * 0.38) / V, delay: 1200 },
-  { xf: (GW2_L + (GW2_R - GW2_L) * 0.62) / V, delay: 600  },
+const GW_ASCEND: Array<{ xf: number; delay: number }> = [
+  { xf: (GW_L + (GW_R - GW_L) * 0.25) / V, delay: 0    },
+  { xf: (GW_L + (GW_R - GW_L) * 0.50) / V, delay: 900  },
+  { xf: (GW_L + (GW_R - GW_L) * 0.75) / V, delay: 450  },
+  { xf: (GW_L + (GW_R - GW_L) * 0.38) / V, delay: 1350 },
+  { xf: (GW_L + (GW_R - GW_L) * 0.62) / V, delay: 650  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REUSABLE PARTICLE COMPONENTS
+// REUSABLE ANIMATED COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Particle erupting from ILL centre toward (endX, endY) — Screen 1 */
+/** Particle erupting from centre toward (endX, endY) — Screen 1 */
 function AwakeningParticle({
   endX, endY, delay, dur, r,
 }: { endX: number; endY: number; delay: number; dur: number; r: number }) {
@@ -214,7 +221,7 @@ function AwakeningParticle({
     ));
   }, []);
   const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.12, 0.72, 1], [0, 1, 0.80, 0]),
+    opacity: interpolate(anim.value, [0, 0.12, 0.72, 1], [0, 1, 0.80, 0]),
     transform: [
       { translateX: interpolate(anim.value, [0, 1], [0, endX - CX]) },
       { translateY: interpolate(anim.value, [0, 1], [0, endY - CY]) },
@@ -223,19 +230,59 @@ function AwakeningParticle({
   const sz = r * 2;
   return (
     <Animated.View style={[{
-      position:        "absolute",
-      left:            CX - r, top: CY - r,
-      width:           sz, height: sz, borderRadius: r,
+      position: "absolute", left: CX - r, top: CY - r,
+      width: sz, height: sz, borderRadius: r,
       backgroundColor: "#FFFFFF",
-      shadowColor:     "#FFFFFF",
-      shadowOffset:    { width: 0, height: 0 },
-      shadowOpacity:   0.85, shadowRadius: r * 3,
+      shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.90, shadowRadius: r * 3,
     }, style]} />
   );
 }
 
-/** Particle that travels along a pre-computed bezier path — Screen 2 */
-function StreamDot({
+/** Glowing neural-network node — Screen 2 */
+function ConstellationNode({
+  vx, vy, vr, delay, dur,
+}: { vx: number; vy: number; vr: number; delay: number; dur: number }) {
+  const anim = useSharedValue(0);
+  useEffect(() => {
+    anim.value = withDelay(delay, withRepeat(
+      withTiming(1, { duration: dur, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    ));
+  }, []);
+  const px    = (vx / V) * ILL;
+  const py    = (vy / V) * ILL;
+  const r     = (vr / V) * ILL;
+  const glowR = r * 5;
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(anim.value, [0, 1], [0.18, 0.88]),
+    transform: [{ scale: interpolate(anim.value, [0, 1], [0.70, 1.30]) }],
+  }));
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(anim.value, [0, 1], [0.65, 1.0]),
+  }));
+  return (
+    <>
+      <Animated.View style={[{
+        position: "absolute",
+        left: px - glowR, top: py - glowR,
+        width: glowR * 2, height: glowR * 2, borderRadius: glowR,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.80, shadowRadius: glowR * 0.7,
+      }, glowStyle]} />
+      <Animated.View style={[{
+        position: "absolute",
+        left: px - r, top: py - r,
+        width: r * 2, height: r * 2, borderRadius: r,
+        backgroundColor: "#FFFFFF",
+      }, coreStyle]} />
+    </>
+  );
+}
+
+/** Particle that travels along a pre-computed path (interpolated waypoints) */
+function TravelDot({
   tKeys, xOff, yOff, delay, dur, r, baseOpacity,
 }: {
   tKeys: number[]; xOff: number[]; yOff: number[];
@@ -244,12 +291,12 @@ function StreamDot({
   const anim = useSharedValue(0);
   useEffect(() => {
     anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: dur, easing: Easing.linear }),
+      withTiming(1, { duration: dur, easing: Easing.inOut(Easing.ease) }),
       -1, false,
     ));
   }, []);
   const style = useAnimatedStyle(() => ({
-    opacity: baseOpacity * interpolate(anim.value, [0, 0.07, 0.88, 1], [0, 1, 0.85, 0]),
+    opacity: baseOpacity * interpolate(anim.value, [0, 0.08, 0.88, 1], [0, 1, 0.88, 0]),
     transform: [
       { translateX: interpolate(anim.value, tKeys, xOff, Extrapolation.CLAMP) },
       { translateY: interpolate(anim.value, tKeys, yOff, Extrapolation.CLAMP) },
@@ -258,411 +305,44 @@ function StreamDot({
   const sz = r * 2;
   return (
     <Animated.View style={[{
-      position:        "absolute",
-      left:            CX - r, top: CY - r,
-      width:           sz, height: sz, borderRadius: r,
+      position: "absolute", left: CX - r, top: CY - r,
+      width: sz, height: sz, borderRadius: r,
       backgroundColor: "#FFFFFF",
-      shadowColor:     "#FFFFFF",
-      shadowOffset:    { width: 0, height: 0 },
-      shadowOpacity:   0.90, shadowRadius: r * 2.5,
+      shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.90, shadowRadius: r * 2.5,
     }, style]} />
   );
 }
 
-/** Scatter node that floats in place — background depth for Screen 2 */
-function ScatterNode({
-  nx, ny, delay, dur,
-}: { nx: number; ny: number; delay: number; dur: number }) {
-  const anim = useSharedValue(0);
-  useEffect(() => {
-    anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: dur, easing: Easing.inOut(Easing.sin) }),
-      -1, true,
-    ));
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.5, 1], [0.16, 0.70, 0.16]),
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -9]) }],
-  }));
-  const px = (nx / V) * ILL;
-  const py = (ny / V) * ILL;
-  return (
-    <Animated.View style={[{
-      position:        "absolute",
-      left:            px - 2.5, top: py - 2.5,
-      width:           5, height: 5, borderRadius: 2.5,
-      backgroundColor: "#FFFFFF",
-      shadowColor:     "#FFFFFF",
-      shadowOffset:    { width: 0, height: 0 },
-      shadowOpacity:   0.55, shadowRadius: 5,
-    }, style]} />
-  );
-}
-
-/** Expanding concentric ring — Screen 4 */
-function RippleRing({ delay, maxR }: { delay: number; maxR: number }) {
-  const anim = useSharedValue(0);
-  useEffect(() => {
-    anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: 3400, easing: Easing.out(Easing.ease) }),
-      -1, false,
-    ));
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.12, 1], [0, 0.55, 0]),
-    transform: [{ scale: interpolate(anim.value, [0, 1], [0.04, 1]) }],
-  }));
-  const sz = maxR * 2;
-  return (
-    <Animated.View style={[{
-      position:        "absolute",
-      left:            CX - maxR, top: CY - maxR,
-      width:           sz, height: sz, borderRadius: maxR,
-      borderWidth:     StyleSheet.hairlineWidth,
-      borderColor:     "#FFFFFF",
-    }, style]} />
-  );
-}
-
-/** Floating shape wrapper — Screen 3 */
+/** Soft floating wrapper — Screen 3 */
 function FloatShell({
   delay, rise, children,
 }: { delay: number; rise: number; children: React.ReactNode }) {
   const anim = useSharedValue(0);
   useEffect(() => {
     anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: 3800, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
       -1, true,
     ));
   }, []);
   const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.5, 1], [0.50, 0.92, 0.50]),
+    opacity:   interpolate(anim.value, [0, 0.5, 1], [0.46, 0.92, 0.46]),
     transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -rise]) }],
   }));
   return <Animated.View style={style}>{children}</Animated.View>;
 }
 
-/** Path stone at gateway entrance — Screen 5 */
-function PathStone({
-  cx, cy, r, delay, baseOp,
-}: { cx: number; cy: number; r: number; delay: number; baseOp: number }) {
-  const anim = useSharedValue(0);
-  useEffect(() => {
-    anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
-      -1, true,
-    ));
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    opacity: baseOp * interpolate(anim.value, [0, 1], [0.62, 1.0]),
-  }));
-  const sz = r * 2;
-  return (
-    <Animated.View style={[{
-      position:        "absolute",
-      left:            cx - r, top: cy - r,
-      width:           sz, height: sz, borderRadius: r,
-      backgroundColor: "#FFFFFF",
-      shadowColor:     "#FFFFFF",
-      shadowOffset:    { width: 0, height: 0 },
-      shadowOpacity:   0.65, shadowRadius: r * 4,
-    }, style]} />
-  );
-}
-
-/** Gateway ascending particle through arch — Screen 5 */
-function ArchParticle({ xf, delay }: { xf: number; delay: number }) {
-  const anim = useSharedValue(0);
-  useEffect(() => {
-    anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
-      -1, true,
-    ));
-  }, []);
-  const baseY = (GW2_BASE / V) * ILL;
-  const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.25, 1], [0, 0.88, 0]),
-    transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -(ILL * 0.27)]) }],
-  }));
-  return (
-    <Animated.View style={[{
-      position:        "absolute",
-      left:            ILL * xf - 1.5, top: baseY - 1.5,
-      width:           3, height: 3, borderRadius: 1.5,
-      backgroundColor: "#FFFFFF",
-    }, style]} />
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCREEN 1 — AWAKENING
-// A single point of light erupts into a cloud of living white particles.
-// ─────────────────────────────────────────────────────────────────────────────
-function AwakeningIllustration() {
-  const orb  = useSharedValue(0);
-  const halo = useSharedValue(0);
-
-  useEffect(() => {
-    orb.value  = withRepeat(withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true);
-    halo.value = withRepeat(withTiming(1, { duration: 5500, easing: Easing.inOut(Easing.sin) }), -1, true);
-  }, []);
-
-  const orbStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(orb.value, [0, 1], [0.44, 1.0]),
-    transform: [{ scale: interpolate(orb.value, [0, 1], [0.78, 1.22]) }],
-  }));
-  const haloStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(halo.value, [0, 1], [0.50, 1.0]),
-  }));
-
-  return (
-    <View style={ill.center}>
-
-      {/* SVG: volume beam + ambient */}
-      <Animated.View style={[StyleSheet.absoluteFillObject, haloStyle]}>
-        <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
-          <Defs>
-            <RadialGradient id="aw_a" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%"   stopColor="#fff" stopOpacity={0.16} />
-              <Stop offset="48%"  stopColor="#fff" stopOpacity={0.05} />
-              <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
-            </RadialGradient>
-          </Defs>
-          <Rect width={V} height={V} fill="url(#aw_a)" />
-          {/* Primary beam — narrow upward cone */}
-          <Path
-            d={`M ${V/2} ${V/2} L ${V/2 - 18} 0 L ${V/2 + 18} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.11}
-          />
-          {/* Secondary soft beam */}
-          <Path
-            d={`M ${V/2} ${V/2 + 32} L ${V/2 - 60} 0 L ${V/2 + 60} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.04}
-          />
-          {/* Tertiary ghost beam */}
-          <Path
-            d={`M ${V/2} ${V/2 + 64} L ${V/2 - 105} 0 L ${V/2 + 105} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.018}
-          />
-          {/* Downward reflection */}
-          <Path
-            d={`M ${V/2} ${V/2} L ${V/2 - 10} ${V} L ${V/2 + 10} ${V} Z`}
-            fill="#FFFFFF" fillOpacity={0.04}
-          />
-        </Svg>
-      </Animated.View>
-
-      {/* Erupting particles */}
-      {AW_PTCLS.map((p, i) => <AwakeningParticle key={i} {...p} />)}
-
-      {/* Outer halo glow */}
-      <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 64, top: CY - 64,
-        width:           128, height: 128, borderRadius: 64,
-        backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.60, shadowRadius: 58,
-      }, orbStyle]} />
-
-      {/* Middle glow */}
-      <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 28, top: CY - 28,
-        width:           56, height: 56, borderRadius: 28,
-        borderWidth:     StyleSheet.hairlineWidth,
-        borderColor:     "rgba(255,255,255,0.38)",
-        backgroundColor: "transparent",
-      }, orbStyle]} />
-
-      {/* Core: single white point */}
-      <View style={{
-        position:        "absolute",
-        left:            CX - 5, top: CY - 5,
-        width:           10, height: 10, borderRadius: 5,
-        backgroundColor: "#FFFFFF",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   1, shadowRadius: 14,
-      }} />
-
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCREEN 2 — THINK
-// Three bezier particle streams flow from top to bottom, connecting thought-nodes.
-// ─────────────────────────────────────────────────────────────────────────────
-const SCATTER_NODES: Array<[number, number, number, number]> = [
-  // [nx, ny, delay, dur]
-  [30,  44,  0,    3200], [88,  18,  400,  2900],
-  [178, 28,  200,  3400], [238, 60,  700,  2800],
-  [252, 145, 500,  3100], [224, 222, 1000, 2700],
-  [162, 260, 300,  3300], [82,  258, 800,  3000],
-  [18,  200, 600,  2800], [8,   110, 100,  3400],
-  [54,  150, 900,  2900], [216, 160, 1100, 3100],
-];
-
-const STREAM_DUR = 2900;
-
-function ThinkIllustration() {
-  const nodePulse = useSharedValue(0);
-  useEffect(() => {
-    nodePulse.value = withRepeat(
-      withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.sin) }), -1, true,
-    );
-  }, []);
-  const nodeStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(nodePulse.value, [0, 1], [0.44, 1.0]),
-    transform: [{ scale: interpolate(nodePulse.value, [0, 1], [0.82, 1.22]) }],
-  }));
-
-  return (
-    <View style={ill.center}>
-
-      {/* SVG: faint bezier trail lines + ambient glow */}
-      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
-        <Defs>
-          <RadialGradient id="th_bg" cx="50%" cy="48%" r="52%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.09} />
-            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
-          </RadialGradient>
-        </Defs>
-        <Rect width={V} height={V} fill="url(#th_bg)" />
-        {/* Stream A trail */}
-        <Path d="M 140 8 C 210 82 70 168 140 272"
-          fill="none" stroke="#FFFFFF" strokeWidth={0.6} strokeOpacity={0.13}
-        />
-        {/* Stream B trail */}
-        <Path d="M 78 28 C 22 98 176 174 78 272"
-          fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.08}
-        />
-        {/* Stream C trail */}
-        <Path d="M 202 28 C 258 100 104 174 202 272"
-          fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.08}
-        />
-      </Svg>
-
-      {/* Background scatter nodes */}
-      {SCATTER_NODES.map(([nx, ny, delay, dur], i) => (
-        <ScatterNode key={i} nx={nx} ny={ny} delay={delay} dur={dur} />
-      ))}
-
-      {/* Stream A — 5 particles (primary) */}
-      {Array.from({ length: 5 }, (_, i) => (
-        <StreamDot key={`a${i}`}
-          tKeys={S_TKEYS} xOff={SA_XO} yOff={SA_YO}
-          delay={(STREAM_DUR / 5) * i} dur={STREAM_DUR}
-          r={2.4} baseOpacity={1.0}
-        />
-      ))}
-
-      {/* Stream B — 4 particles (secondary left) */}
-      {Array.from({ length: 4 }, (_, i) => (
-        <StreamDot key={`b${i}`}
-          tKeys={S_TKEYS} xOff={SB_XO} yOff={SB_YO}
-          delay={(STREAM_DUR / 4) * i + 240} dur={STREAM_DUR * 0.94}
-          r={1.8} baseOpacity={0.68}
-        />
-      ))}
-
-      {/* Stream C — 4 particles (secondary right) */}
-      {Array.from({ length: 4 }, (_, i) => (
-        <StreamDot key={`c${i}`}
-          tKeys={S_TKEYS} xOff={SC_XO} yOff={SC_YO}
-          delay={(STREAM_DUR / 4) * i + 480} dur={STREAM_DUR * 0.96}
-          r={1.8} baseOpacity={0.68}
-        />
-      ))}
-
-      {/* Bright intersection nodes — where streams "meet" */}
-      {/* Node A (brightest — primary stream midpoint) */}
-      <Animated.View style={[{
-        position:        "absolute",
-        left:            SA_NODE.x - 14, top: SA_NODE.y - 14,
-        width:           28, height: 28, borderRadius: 14,
-        backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.80, shadowRadius: 20,
-      }, nodeStyle]} />
-      <View style={{
-        position:        "absolute",
-        left:            SA_NODE.x - 3.5, top: SA_NODE.y - 3.5,
-        width:           7, height: 7, borderRadius: 3.5,
-        backgroundColor: "#FFFFFF",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   1, shadowRadius: 6,
-      }} />
-
-      {/* Node B (left stream) */}
-      <Animated.View style={[{
-        position:        "absolute",
-        left:            SB_NODE.x - 8, top: SB_NODE.y - 8,
-        width:           16, height: 16, borderRadius: 8,
-        backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.50, shadowRadius: 10,
-      }, nodeStyle]} />
-      <View style={{
-        position:        "absolute",
-        left:            SB_NODE.x - 2.5, top: SB_NODE.y - 2.5,
-        width:           5, height: 5, borderRadius: 2.5,
-        backgroundColor: "#FFFFFF", opacity: 0.80,
-      }} />
-
-      {/* Node C (right stream) */}
-      <Animated.View style={[{
-        position:        "absolute",
-        left:            SC_NODE.x - 8, top: SC_NODE.y - 8,
-        width:           16, height: 16, borderRadius: 8,
-        backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.50, shadowRadius: 10,
-      }, nodeStyle]} />
-      <View style={{
-        position:        "absolute",
-        left:            SC_NODE.x - 2.5, top: SC_NODE.y - 2.5,
-        width:           5, height: 5, borderRadius: 2.5,
-        backgroundColor: "#FFFFFF", opacity: 0.80,
-      }} />
-
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCREEN 3 — UNDERSTAND
-// Documents, web pages and images flow into a single luminous stream of light.
-// ─────────────────────────────────────────────────────────────────────────────
-const CV_DOC = { x: ILL * 0.20, y: ILL * 0.24 };
-const CV_WEB = { x: ILL * 0.80, y: ILL * 0.22 };
-const CV_IMG = { x: ILL * 0.50, y: ILL * 0.80 };
-
-const CV_PTCLS: Array<{ fromX: number; fromY: number; delay: number }> = [
-  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 0    },
-  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 1400 },
-  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 480  },
-  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 1880 },
-  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 960  },
-  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 2360 },
-];
-
+/** Particle converging from a card toward the focal point — Screen 3 */
 function ConvergeParticle({ fromX, fromY, delay }: { fromX: number; fromY: number; delay: number }) {
   const anim = useSharedValue(0);
   useEffect(() => {
     anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: 2600, easing: Easing.in(Easing.ease) }),
+      withTiming(1, { duration: 2800, easing: Easing.in(Easing.ease) }),
       -1, false,
     ));
   }, []);
   const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(anim.value, [0, 0.10, 0.80, 1], [0, 0.95, 0.72, 0]),
+    opacity:   interpolate(anim.value, [0, 0.10, 0.82, 1], [0, 0.95, 0.75, 0]),
     transform: [
       { translateX: interpolate(anim.value, [0, 1], [fromX - CX, 0]) },
       { translateY: interpolate(anim.value, [0, 1], [fromY - CY, 0]) },
@@ -670,24 +350,272 @@ function ConvergeParticle({ fromX, fromY, delay }: { fromX: number; fromY: numbe
   }));
   return (
     <Animated.View style={[{
-      position:        "absolute",
-      left:            CX - 3, top: CY - 3,
-      width:           6, height: 6, borderRadius: 3,
+      position: "absolute", left: CX - 3, top: CY - 3,
+      width: 6, height: 6, borderRadius: 3,
       backgroundColor: "#FFFFFF",
     }, style]} />
   );
 }
 
-function UnderstandIllustration() {
-  const center = useSharedValue(0);
+/** Single orbital particle circling the breathing ring — Screen 4 */
+function OrbitalParticle({ startAngle, r }: { startAngle: number; r: number }) {
+  const angle = useSharedValue(startAngle);
   useEffect(() => {
-    center.value = withRepeat(
-      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }), -1, true,
+    angle.value = withRepeat(
+      withTiming(startAngle + 2 * Math.PI, {
+        duration: 14000 + r * 2000,
+        easing: Easing.linear,
+      }), -1, false,
     );
   }, []);
-  const centerStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(center.value, [0, 1], [0.35, 1.0]),
-    transform: [{ scale: interpolate(center.value, [0, 1], [0.80, 1.20]) }],
+  const sz = r * 2;
+  const style = useAnimatedStyle(() => {
+    "worklet";
+    const opacity = 0.28 + 0.55 * ((Math.sin(angle.value * 2.5 + startAngle) + 1) / 2);
+    return {
+      opacity,
+      transform: [
+        { translateX: ORBIT_R * Math.cos(angle.value) },
+        { translateY: ORBIT_R * Math.sin(angle.value) },
+      ],
+    };
+  });
+  return (
+    <Animated.View style={[{
+      position: "absolute",
+      left: CX - r, top: CY - r,
+      width: sz, height: sz, borderRadius: r,
+      backgroundColor: "#FFFFFF",
+      shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.80, shadowRadius: r * 3,
+    }, style]} />
+  );
+}
+
+/** Expanding concentric ring emanating outward — Screen 4 */
+function RippleRing({ delay }: { delay: number }) {
+  const anim = useSharedValue(0);
+  useEffect(() => {
+    anim.value = withDelay(delay, withRepeat(
+      withTiming(1, { duration: 4200, easing: Easing.out(Easing.ease) }),
+      -1, false,
+    ));
+  }, []);
+  const maxR = CX * 0.95;
+  const style = useAnimatedStyle(() => ({
+    opacity:   interpolate(anim.value, [0, 0.10, 1], [0, 0.48, 0]),
+    transform: [{ scale: interpolate(anim.value, [0, 1], [0.04, 1]) }],
+  }));
+  return (
+    <Animated.View style={[{
+      position: "absolute",
+      left: CX - maxR, top: CY - maxR,
+      width: maxR * 2, height: maxR * 2, borderRadius: maxR,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: "#FFFFFF",
+    }, style]} />
+  );
+}
+
+/** Perspective path stone leading to the gateway — Screen 5 */
+function PathStone({ vx, vy, r, baseOp, delay }: {
+  vx: number; vy: number; r: number; baseOp: number; delay: number;
+}) {
+  const anim = useSharedValue(0);
+  useEffect(() => {
+    anim.value = withDelay(delay, withRepeat(
+      withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    ));
+  }, []);
+  const px = (vx / V) * ILL;
+  const py = (vy / V) * ILL;
+  const pr = (r  / V) * ILL * 4;
+  const style = useAnimatedStyle(() => ({
+    opacity: baseOp * interpolate(anim.value, [0, 1], [0.58, 1.0]),
+  }));
+  return (
+    <Animated.View style={[{
+      position: "absolute",
+      left: px - pr, top: py - pr,
+      width: pr * 2, height: pr * 2, borderRadius: pr,
+      backgroundColor: "#FFFFFF",
+      shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.65, shadowRadius: pr * 3,
+    }, style]} />
+  );
+}
+
+/** Particle ascending through the arch — Screen 5 */
+function ArchParticle({ xf, delay }: { xf: number; delay: number }) {
+  const anim = useSharedValue(0);
+  useEffect(() => {
+    anim.value = withDelay(delay, withRepeat(
+      withTiming(1, { duration: 3800, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    ));
+  }, []);
+  const baseY = (GW_BASE / V) * ILL;
+  const style = useAnimatedStyle(() => ({
+    opacity:   interpolate(anim.value, [0, 0.25, 1], [0, 0.90, 0]),
+    transform: [{ translateY: interpolate(anim.value, [0, 1], [0, -ILL * 0.26]) }],
+  }));
+  return (
+    <Animated.View style={[{
+      position: "absolute",
+      left: ILL * xf - 1.5, top: baseY - 1.5,
+      width: 3, height: 3, borderRadius: 1.5,
+      backgroundColor: "#FFFFFF",
+    }, style]} />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN 1 — AWAKENING
+// A single bright point. Particles erupt upward — the birth of intelligence.
+// ─────────────────────────────────────────────────────────────────────────────
+function AwakeningIllustration() {
+  const orb  = useSharedValue(0);
+  const halo = useSharedValue(0);
+  useEffect(() => {
+    orb.value  = withRepeat(withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }), -1, true);
+    halo.value = withRepeat(withTiming(1, { duration: 6000, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, []);
+  const orbStyle  = useAnimatedStyle(() => ({
+    opacity:   interpolate(orb.value,  [0, 1], [0.40, 1.0]),
+    transform: [{ scale: interpolate(orb.value, [0, 1], [0.75, 1.25]) }],
+  }));
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(halo.value, [0, 1], [0.45, 1.0]),
+  }));
+
+  return (
+    <View style={illSt.centre}>
+      <Animated.View style={[StyleSheet.absoluteFillObject, haloStyle]}>
+        <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+          <Defs>
+            <RadialGradient id="aw_rad" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%"   stopColor="#fff" stopOpacity={0.18} />
+              <Stop offset="50%"  stopColor="#fff" stopOpacity={0.06} />
+              <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+            </RadialGradient>
+          </Defs>
+          <Rect width={V} height={V} fill="url(#aw_rad)" />
+          {/* Primary light cone */}
+          <Path d={`M ${V/2} ${V/2} L ${V/2-20} 0 L ${V/2+20} 0 Z`}
+            fill="#FFFFFF" fillOpacity={0.12} />
+          {/* Wide diffuse cone */}
+          <Path d={`M ${V/2} ${V/2+40} L ${V/2-72} 0 L ${V/2+72} 0 Z`}
+            fill="#FFFFFF" fillOpacity={0.04} />
+          {/* Ghost cone */}
+          <Path d={`M ${V/2} ${V/2+80} L ${V/2-118} 0 L ${V/2+118} 0 Z`}
+            fill="#FFFFFF" fillOpacity={0.016} />
+        </Svg>
+      </Animated.View>
+
+      {/* 28 erupting particles */}
+      {AW_PTCLS.map((p, i) => <AwakeningParticle key={i} {...p} />)}
+
+      {/* Outer glow halo */}
+      <Animated.View style={[{
+        position: "absolute", left: CX-70, top: CY-70,
+        width: 140, height: 140, borderRadius: 70,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.62, shadowRadius: 64,
+      }, orbStyle]} />
+
+      {/* Middle ring */}
+      <Animated.View style={[{
+        position: "absolute", left: CX-30, top: CY-30,
+        width: 60, height: 60, borderRadius: 30,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255,255,255,0.36)",
+        backgroundColor: "transparent",
+      }, orbStyle]} />
+
+      {/* Core orb */}
+      <View style={{
+        position: "absolute", left: CX-6, top: CY-6,
+        width: 12, height: 12, borderRadius: 6,
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 18,
+      }} />
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN 2 — THINK (Neural Constellation)
+// 8 glowing nodes breathe independently. Particles travel through the network.
+// ─────────────────────────────────────────────────────────────────────────────
+function ThinkIllustration() {
+  return (
+    <View style={illSt.centre}>
+      {/* SVG: static connection lines */}
+      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+        <Defs>
+          <RadialGradient id="th_bg" cx="50%" cy="44%" r="54%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.10} />
+            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+          </RadialGradient>
+        </Defs>
+        <Rect width={V} height={V} fill="url(#th_bg)" />
+
+        {/* Primary spoke connections (to centre N4) */}
+        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.20}
+          d="M 140 22 Q 152 78 140 124
+             M 70 56 Q 100 88 140 124
+             M 210 52 Q 184 86 140 124
+             M 40 152 Q 86 140 140 124
+             M 240 148 Q 196 138 140 124
+             M 140 124 Q 118 172 94 228
+             M 140 124 Q 164 170 190 224"
+        />
+        {/* Outer connections */}
+        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.40} strokeOpacity={0.10}
+          d="M 70 56 Q 140 32 210 52
+             M 94 228 Q 142 248 190 224
+             M 70 56 Q 54 104 40 152
+             M 210 52 Q 228 102 240 148"
+        />
+      </Svg>
+
+      {/* 8 pulsing constellation nodes */}
+      {CNODES.map((n, i) => <ConstellationNode key={i} {...n} />)}
+
+      {/* Traveling particles — 3 paths through the network */}
+      <TravelDot tKeys={CN_TKEYS} xOff={CN_P1_XO} yOff={CN_P1_YO}
+        delay={0}    dur={3400} r={2.4} baseOpacity={1.0} />
+      <TravelDot tKeys={CN_TKEYS} xOff={CN_P1_XO} yOff={CN_P1_YO}
+        delay={1700} dur={3400} r={2.4} baseOpacity={0.72} />
+
+      <TravelDot tKeys={CN_TKEYS} xOff={CN_P2_XO} yOff={CN_P2_YO}
+        delay={600}  dur={3200} r={2.2} baseOpacity={0.90} />
+      <TravelDot tKeys={CN_TKEYS} xOff={CN_P2_XO} yOff={CN_P2_YO}
+        delay={2200} dur={3200} r={2.2} baseOpacity={0.60} />
+
+      <TravelDot tKeys={CN_TKEYS} xOff={CN_P3_XO} yOff={CN_P3_YO}
+        delay={1200} dur={3600} r={2.0} baseOpacity={0.80} />
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN 3 — UNDERSTAND
+// Documents, images, web — each a floating card — converge into one focal point.
+// ─────────────────────────────────────────────────────────────────────────────
+function UnderstandIllustration() {
+  const centre = useSharedValue(0);
+  useEffect(() => {
+    centre.value = withRepeat(
+      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }), -1, true,
+    );
+  }, []);
+  const centreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(centre.value, [0, 1], [0.30, 1.0]),
+    transform: [{ scale: interpolate(centre.value, [0, 1], [0.78, 1.22]) }],
   }));
 
   const docVX = (CV_DOC.x / ILL) * V;
@@ -698,50 +626,39 @@ function UnderstandIllustration() {
   const imgVY = (CV_IMG.y / ILL) * V;
 
   return (
-    <View style={ill.center}>
-
-      {/* SVG: ambient + dashed stream paths */}
+    <View style={illSt.centre}>
+      {/* SVG: dashed stream paths */}
       <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
         <Defs>
           <RadialGradient id="cv_bg" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.12} />
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.14} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
         <Rect width={V} height={V} fill="url(#cv_bg)" />
-        <Path
-          d={`M ${docVX} ${docVY} Q ${V*0.35} ${docVY*0.82} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5}
-          strokeOpacity={0.18} strokeDasharray="2,7"
-        />
-        <Path
-          d={`M ${webVX} ${webVY} Q ${V*0.66} ${webVY*0.82} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5}
-          strokeOpacity={0.18} strokeDasharray="2,7"
-        />
-        <Path
-          d={`M ${imgVX} ${imgVY} Q ${V/2} ${imgVY*1.18} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5}
-          strokeOpacity={0.18} strokeDasharray="2,7"
-        />
+        <Path d={`M ${docVX} ${docVY} Q ${V*0.34} ${V*0.38} ${V/2} ${V/2}`}
+          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
+        <Path d={`M ${webVX} ${webVY} Q ${V*0.66} ${V*0.36} ${V/2} ${V/2}`}
+          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
+        <Path d={`M ${imgVX} ${imgVY} Q ${V/2} ${imgVY*1.14} ${V/2} ${V/2}`}
+          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
       </Svg>
 
-      {/* Shape 1: Document */}
+      {/* Document card */}
       <View style={{ position: "absolute", left: CV_DOC.x - 28, top: CV_DOC.y - 38 }}>
-        <FloatShell delay={0} rise={12}>
+        <FloatShell delay={0} rise={13}>
           <View style={{
-            width:           56, height: 72,
-            borderWidth:     StyleSheet.hairlineWidth,
-            borderColor:     "rgba(255,255,255,0.60)",
-            borderRadius:    6,
-            backgroundColor: "rgba(255,255,255,0.04)",
+            width: 56, height: 72, borderRadius: 8,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: "rgba(255,255,255,0.62)",
+            backgroundColor: "rgba(255,255,255,0.042)",
           }}>
-            {[0,1,2,3,4].map(i => (
+            {[0, 1, 2, 3, 4].map(i => (
               <View key={i} style={{
-                position:        "absolute",
-                left:            10, top: 14 + i * 10,
-                width:           i >= 4 ? 22 : i >= 3 ? 28 : 36,
-                height:          0.8,
+                position: "absolute",
+                left: 10, top: 14 + i * 10,
+                width: i >= 4 ? 20 : i >= 3 ? 28 : 36,
+                height: 0.8,
                 backgroundColor: "rgba(255,255,255,0.28)",
               }} />
             ))}
@@ -749,55 +666,53 @@ function UnderstandIllustration() {
         </FloatShell>
       </View>
 
-      {/* Shape 2: Web / Globe */}
-      <View style={{ position: "absolute", left: CV_WEB.x - 32, top: CV_WEB.y - 32 }}>
-        <FloatShell delay={800} rise={10}>
+      {/* Globe / web card */}
+      <View style={{ position: "absolute", left: CV_WEB.x - 32, top: CV_WEB.y - 34 }}>
+        <FloatShell delay={1100} rise={10}>
           <View style={{
-            width:           64, height: 64,
-            borderRadius:    32,
-            borderWidth:     StyleSheet.hairlineWidth,
-            borderColor:     "rgba(255,255,255,0.60)",
-            backgroundColor: "rgba(255,255,255,0.04)",
-            overflow:        "hidden",
+            width: 64, height: 64, borderRadius: 32,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: "rgba(255,255,255,0.62)",
+            backgroundColor: "rgba(255,255,255,0.042)",
+            overflow: "hidden",
           }}>
             <Svg width={64} height={64} viewBox="0 0 64 64">
-              {/* Vertical meridian */}
-              <Path d="M 32 2 Q 44 32 32 62 Q 20 32 32 2"
-                fill="none" stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.30}
-              />
-              {/* Horizontal parallels */}
-              <Path d="M 6 24 Q 32 18 58 24" fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
-              <Path d="M 6 40 Q 32 46 58 40" fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
+              <Path d="M 32 3 Q 46 32 32 61 Q 18 32 32 3"
+                fill="none" stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.30} />
+              <Path d="M 5 24 Q 32 18 59 24"
+                fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
+              <Path d="M 5 40 Q 32 46 59 40"
+                fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
+              <Circle cx="32" cy="32" r="29" fill="none"
+                stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.18} />
             </Svg>
           </View>
         </FloatShell>
       </View>
 
-      {/* Shape 3: Image frame */}
-      <View style={{ position: "absolute", left: CV_IMG.x - 40, top: CV_IMG.y - 30 }}>
-        <FloatShell delay={1600} rise={14}>
+      {/* Image card */}
+      <View style={{ position: "absolute", left: CV_IMG.x - 42, top: CV_IMG.y - 32 }}>
+        <FloatShell delay={2200} rise={15}>
           <View style={{
-            width:           80, height: 60,
-            borderWidth:     StyleSheet.hairlineWidth,
-            borderColor:     "rgba(255,255,255,0.60)",
-            borderRadius:    8,
-            backgroundColor: "rgba(255,255,255,0.04)",
+            width: 84, height: 64, borderRadius: 10,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: "rgba(255,255,255,0.62)",
+            backgroundColor: "rgba(255,255,255,0.042)",
           }}>
-            {/* Image "horizon" — minimal landscape suggestion */}
             <View style={{
-              position:        "absolute", right: 10, top: 10,
-              width:           16, height: 16, borderRadius: 8,
-              borderWidth:     0.7, borderColor: "rgba(255,255,255,0.38)",
+              position: "absolute", right: 12, top: 12,
+              width: 18, height: 18, borderRadius: 9,
+              borderWidth: 0.7, borderColor: "rgba(255,255,255,0.40)",
             }} />
             <View style={{
-              position:        "absolute", left: 10, bottom: 14,
-              width:           38, height: 0.8,
-              backgroundColor: "rgba(255,255,255,0.24)",
+              position: "absolute", left: 10, bottom: 18,
+              width: 40, height: 0.8,
+              backgroundColor: "rgba(255,255,255,0.26)",
             }} />
             <View style={{
-              position:        "absolute", left: 10, bottom: 21,
-              width:           26, height: 0.8,
-              backgroundColor: "rgba(255,255,255,0.14)",
+              position: "absolute", left: 10, bottom: 25,
+              width: 28, height: 0.8,
+              backgroundColor: "rgba(255,255,255,0.16)",
             }} />
           </View>
         </FloatShell>
@@ -805,247 +720,221 @@ function UnderstandIllustration() {
 
       {/* Centre focal glow */}
       <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 32, top: CY - 32,
-        width:           64, height: 64, borderRadius: 32,
+        position: "absolute", left: CX-36, top: CY-36,
+        width: 72, height: 72, borderRadius: 36,
         backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.75, shadowRadius: 32,
-      }, centerStyle]} />
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.80, shadowRadius: 36,
+      }, centreStyle]} />
       <View style={{
-        position:        "absolute",
-        left:            CX - 4.5, top: CY - 4.5,
-        width:           9, height: 9, borderRadius: 4.5,
+        position: "absolute", left: CX-5, top: CY-5,
+        width: 10, height: 10, borderRadius: 5,
         backgroundColor: "#FFFFFF",
       }} />
 
-      {/* Flowing convergence particles */}
+      {/* Converging particles */}
       {CV_PTCLS.map((p, i) => <ConvergeParticle key={i} {...p} />)}
-
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 4 — SPEAK
-// Circular waveform radiates from a central orb. Expanding sound ripples.
+// A single ring breathes slowly. 8 particles orbit around it like a voice.
 // ─────────────────────────────────────────────────────────────────────────────
 function SpeakIllustration() {
-  const pulse  = useSharedValue(0);
-  const rotate = useSharedValue(0);
-
+  const breath = useSharedValue(0);
   useEffect(() => {
-    pulse.value  = withRepeat(
-      withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true,
-    );
-    rotate.value = withRepeat(
-      withTiming(1, { duration: 22000, easing: Easing.linear }), -1, false,
+    breath.value = withRepeat(
+      withTiming(1, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
     );
   }, []);
 
+  const mainRingStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breath.value, [0, 1], [0.55, 1.0]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.88, 1.12]) }],
+  }));
+  const midRingStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breath.value, [0, 1], [0.22, 0.46]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.91, 1.07]) }],
+  }));
+  const innerRingStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breath.value, [0, 1], [0.12, 0.28]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.94, 1.04]) }],
+  }));
   const orbStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(pulse.value, [0, 1], [0.55, 1.0]),
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.82, 1.18]) }],
+    opacity:   interpolate(breath.value, [0, 1], [0.55, 1.0]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.80, 1.20]) }],
   }));
-  const tickStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(pulse.value, [0, 1], [0.65, 1.0]),
-    transform: [{ rotate: `${interpolate(rotate.value, [0, 1], [0, 360])}deg` }],
-  }));
+
+  const R  = BREATHE_R;
+  const R2 = R * 0.68;
+  const R3 = R * 0.42;
 
   return (
-    <View style={ill.center}>
-
-      {/* SVG: circular waveform ticks + ambient glow */}
-      <Animated.View style={[StyleSheet.absoluteFillObject, tickStyle]}>
-        <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
-          <Defs>
-            <RadialGradient id="sp_bg" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%"   stopColor="#fff" stopOpacity={0.12} />
-              <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
-            </RadialGradient>
-          </Defs>
-          <Rect width={V} height={V} fill="url(#sp_bg)" />
-
-          {/* Circular waveform ticks — 48 radial bars */}
-          {TICKS.map((t, i) => (
-            <Rect key={i}
-              x={t.cx - 0.8}
-              y={t.cy - t.h}
-              width={1.6}
-              height={t.h}
-              fill="#FFFFFF"
-              fillOpacity={t.opacity}
-              transform={`rotate(${t.angleDeg + 90}, ${t.cx}, ${t.cy})`}
-            />
-          ))}
-
-          {/* Inner guide circles */}
-          <Circle cx={V/2} cy={V/2} r={TICK_R - 2}
-            fill="none" stroke="#FFFFFF" strokeWidth={0.4} strokeOpacity={0.14}
-          />
-          <Circle cx={V/2} cy={V/2} r={TICK_R * 0.55}
-            fill="none" stroke="#FFFFFF" strokeWidth={0.3} strokeOpacity={0.08}
-          />
-        </Svg>
-      </Animated.View>
+    <View style={illSt.centre}>
+      {/* Ambient background radial glow */}
+      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+        <Defs>
+          <RadialGradient id="sp_bg" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.14} />
+            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+          </RadialGradient>
+        </Defs>
+        <Rect width={V} height={V} fill="url(#sp_bg)" />
+      </Svg>
 
       {/* Expanding ripple rings */}
-      {[0, 850, 1700, 2550].map((d, i) => (
-        <RippleRing key={i} delay={d} maxR={CX * 0.96} />
+      {[0, 1050, 2100, 3150].map((d, i) => <RippleRing key={i} delay={d} />)}
+
+      {/* Primary breathing ring */}
+      <Animated.View style={[{
+        position: "absolute", left: CX-R, top: CY-R,
+        width: R*2, height: R*2, borderRadius: R,
+        borderWidth: StyleSheet.hairlineWidth * 1.5,
+        borderColor: "#FFFFFF",
+      }, mainRingStyle]} />
+
+      {/* Middle ring */}
+      <Animated.View style={[{
+        position: "absolute", left: CX-R2, top: CY-R2,
+        width: R2*2, height: R2*2, borderRadius: R2,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "#FFFFFF",
+      }, midRingStyle]} />
+
+      {/* Inner ring */}
+      <Animated.View style={[{
+        position: "absolute", left: CX-R3, top: CY-R3,
+        width: R3*2, height: R3*2, borderRadius: R3,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "#FFFFFF",
+      }, innerRingStyle]} />
+
+      {/* Orbiting particles */}
+      {ORBITAL_PTS.map((p, i) => (
+        <OrbitalParticle key={i} startAngle={p.startAngle} r={p.r} />
       ))}
 
-      {/* Central glow orb */}
+      {/* Central orb glow */}
       <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 36, top: CY - 36,
-        width:           72, height: 72, borderRadius: 36,
+        position: "absolute", left: CX-28, top: CY-28,
+        width: 56, height: 56, borderRadius: 28,
         backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.85, shadowRadius: 40,
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.90, shadowRadius: 32,
       }, orbStyle]} />
 
-      {/* Core bright dot */}
+      {/* Core dot */}
       <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 7, top: CY - 7,
-        width:           14, height: 14, borderRadius: 7,
+        position: "absolute", left: CX-7, top: CY-7,
+        width: 14, height: 14, borderRadius: 7,
         backgroundColor: "#FFFFFF",
       }, orbStyle]} />
-
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 5 — BEGIN
-// A monumental glowing doorway opens. A path of light leads the way inside.
+// A monumental glowing gateway. A path of light leads toward endless brightness.
 // ─────────────────────────────────────────────────────────────────────────────
 function BeginIllustration() {
-  const portalGlow = useSharedValue(0);
-  const threshPl   = useSharedValue(0);
-
+  const glow    = useSharedValue(0);
+  const thresh  = useSharedValue(0);
   useEffect(() => {
-    portalGlow.value = withRepeat(
-      withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) }), -1, true,
-    );
-    threshPl.value = withRepeat(
-      withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }), -1, true,
-    );
+    glow.value   = withRepeat(withTiming(1, { duration: 4800, easing: Easing.inOut(Easing.sin) }), -1, true);
+    thresh.value = withRepeat(withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true);
   }, []);
 
-  const portalStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(portalGlow.value, [0, 1], [0.20, 0.68]),
-    transform: [{ scale: interpolate(portalGlow.value, [0, 1], [0.78, 1.22]) }],
+  const portalStyle  = useAnimatedStyle(() => ({
+    opacity:   interpolate(glow.value,   [0, 1], [0.18, 0.65]),
+    transform: [{ scale: interpolate(glow.value, [0, 1], [0.76, 1.24]) }],
   }));
-  const threshStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(threshPl.value, [0, 1], [0.24, 0.62]),
+  const threshStyle  = useAnimatedStyle(() => ({
+    opacity: interpolate(thresh.value, [0, 1], [0.22, 0.60]),
   }));
 
-  const gwLILL   = (GW2_L    / V) * ILL;
-  const gwWILL   = ((GW2_R - GW2_L) / V) * ILL;
-  const baseILL  = (GW2_BASE / V) * ILL;
-  const midArchY = ((GW2_CY + GW2_BASE) / 2 / V) * ILL;
+  const gwLILL   = (GW_L   / V) * ILL;
+  const gwWILL   = ((GW_R - GW_L) / V) * ILL;
+  const baseILL  = (GW_BASE / V) * ILL;
+  const archMidY = ((GW_CY + GW_BASE) / 2 / V) * ILL;
 
   return (
-    <View style={ill.center}>
-
-      {/* SVG: arch structure + stars + light fills */}
+    <View style={illSt.centre}>
       <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
         <Defs>
-          {/* Interior light from arch centre */}
-          <RadialGradient id="gw_in" cx="50%" cy="52%" r="40%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.26} />
-            <Stop offset="50%"  stopColor="#fff" stopOpacity={0.08} />
+          <RadialGradient id="gw_in" cx="50%" cy="50%" r="44%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.28} />
+            <Stop offset="55%"  stopColor="#fff" stopOpacity={0.08} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
-          {/* Ground glow */}
-          <RadialGradient id="gw_gnd" cx="50%" cy="90%" r="46%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.18} />
+          <RadialGradient id="gw_gnd" cx="50%" cy="92%" r="44%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.20} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
-
         <Rect width={V} height={V} fill="url(#gw_in)"  />
         <Rect width={V} height={V} fill="url(#gw_gnd)" />
 
-        {/* Arch interior — very faint fill */}
-        <Path d={GW2_PATH} fill="#FFFFFF" fillOpacity={0.055} />
+        {/* Arch interior fill */}
+        <Path d={GW_PATH} fill="#FFFFFF" fillOpacity={0.06} />
 
-        {/* Arch frame — the threshold structure */}
-        <Path d={GW2_PATH} fill="none" stroke="#FFFFFF" strokeWidth={1.4} strokeOpacity={0.85} />
+        {/* Arch structure */}
+        <Path d={GW_PATH} fill="none" stroke="#FFFFFF"
+          strokeWidth={1.5} strokeOpacity={0.88} />
 
-        {/* Ground threshold bar */}
-        <Line
-          x1={GW2_L + 2} y1={GW2_BASE}
-          x2={GW2_R - 2} y2={GW2_BASE}
-          stroke="#FFFFFF" strokeWidth={3} strokeOpacity={0.55}
-        />
+        {/* Threshold ground bar */}
+        <Line x1={GW_L+3} y1={GW_BASE} x2={GW_R-3} y2={GW_BASE}
+          stroke="#FFFFFF" strokeWidth={3.5} strokeOpacity={0.60} />
 
-        {/* Light spill — fan below threshold */}
+        {/* Light spill downward */}
         <Path
-          d={`M ${V/2 - 7} ${GW2_BASE} L ${V/2 - 32} ${V+8} L ${V/2+32} ${V+8} L ${V/2+7} ${GW2_BASE} Z`}
-          fill="#FFFFFF" fillOpacity={0.05}
-        />
+          d={`M ${V/2-8} ${GW_BASE} L ${V/2-36} ${V+10} L ${V/2+36} ${V+10} L ${V/2+8} ${GW_BASE} Z`}
+          fill="#FFFFFF" fillOpacity={0.046} />
 
-        {/* Stars above arch */}
-        {GW2_STARS.map(([x, y], i) => (
+        {/* Stars */}
+        {GW_STARS.map(([x, y], i) => (
           <Circle key={i} cx={x} cy={y}
-            r={i < 3 ? 1.6 : 1.0}
-            fill="#FFFFFF"
-            fillOpacity={i < 3 ? 0.72 : 0.40}
-          />
+            r={i < 3 ? 1.7 : 1.0} fill="#FFFFFF"
+            fillOpacity={i < 3 ? 0.76 : 0.42} />
         ))}
       </Svg>
 
-      {/* Path stones — perspective road of light beneath the arch */}
-      {GW_STONES.map((s, i) => (
-        <PathStone key={i}
-          cx={(s.vx / V) * ILL}
-          cy={(s.vy / V) * ILL}
-          r={(s.r / V) * ILL * 3.5}
-          delay={s.delay}
-          baseOp={s.baseOp}
-        />
-      ))}
+      {/* Path stones — perspective road of light */}
+      {GW_STONES.map((s, i) => <PathStone key={i} {...s} />)}
 
-      {/* Threshold glow band */}
+      {/* Threshold glow bar */}
       <Animated.View style={[{
-        position:        "absolute",
-        left:            gwLILL, top: baseILL - 16,
-        width:           gwWILL, height: 32, borderRadius: 16,
+        position: "absolute",
+        left: gwLILL, top: baseILL - 18,
+        width: gwWILL, height: 36, borderRadius: 18,
         backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.55, shadowRadius: 22,
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.60, shadowRadius: 24,
       }, threshStyle]} />
 
-      {/* Portal interior glow */}
+      {/* Portal interior radiance */}
       <Animated.View style={[{
-        position:        "absolute",
-        left:            CX - 40, top: midArchY - 40,
-        width:           80, height: 80, borderRadius: 40,
+        position: "absolute", left: CX-44, top: archMidY-44,
+        width: 88, height: 88, borderRadius: 44,
         backgroundColor: "transparent",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   0.70, shadowRadius: 48,
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.75, shadowRadius: 54,
       }, portalStyle]} />
 
       {/* Focal pinhole */}
       <View style={{
-        position:        "absolute",
-        left:            CX - 4, top: midArchY - 4,
-        width:           8, height: 8, borderRadius: 4,
+        position: "absolute", left: CX-4.5, top: archMidY-4.5,
+        width: 9, height: 9, borderRadius: 4.5,
         backgroundColor: "#FFFFFF",
-        shadowColor:     "#FFFFFF",
-        shadowOffset:    { width: 0, height: 0 },
-        shadowOpacity:   1, shadowRadius: 12,
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 14,
       }} />
 
       {/* Ascending particles */}
-      {GW2_ASCEND.map((p, i) => <ArchParticle key={i} xf={p.xf} delay={p.delay} />)}
-
+      {GW_ASCEND.map((p, i) => <ArchParticle key={i} {...p} />)}
     </View>
   );
 }
@@ -1065,53 +954,42 @@ interface ScreenCfg {
 const SCREENS: ScreenCfg[] = [
   {
     Illustration: AwakeningIllustration,
-    title:        "AkılCEP",
-    subtitle:     "Cebindeki akıl.",
-    showSkip:     false,
-    buttonLabel:  "Keşfet",
+    title: "AkılCEP", subtitle: "Cebindeki akıl.",
+    showSkip: false, buttonLabel: "Keşfet",
   },
   {
     Illustration: ThinkIllustration,
-    title:        "Düşün.",
-    subtitle:     "Her soruya daha akıllı yaklaş.",
-    showSkip:     true,
-    buttonLabel:  "Devam",
+    title: "Düşün.", subtitle: "Her soruya daha akıllı yaklaş.",
+    showSkip: true, buttonLabel: "Devam",
   },
   {
     Illustration: UnderstandIllustration,
-    title:        "Anla.",
-    subtitle:     "Web, belgeler ve görseller tek yerde.",
-    showSkip:     true,
-    buttonLabel:  "Devam",
+    title: "Anla.", subtitle: "Web, belgeler ve görseller tek yerde.",
+    showSkip: true, buttonLabel: "Devam",
   },
   {
     Illustration: SpeakIllustration,
-    title:        "Konuş.",
-    subtitle:     "Yazmak zorunda değilsin.",
-    showSkip:     true,
-    buttonLabel:  "Devam",
+    title: "Konuş.", subtitle: "Yazmak zorunda değilsin.",
+    showSkip: true, buttonLabel: "Devam",
   },
   {
     Illustration: BeginIllustration,
-    title:        "Başlayalım.",
-    subtitle:     "AkılCEP seninle.",
-    showSkip:     false,
-    buttonLabel:  "Başla",
-    isFinal:      true,
+    title: "Başlayalım.", subtitle: "AkılCEP seninle.",
+    showSkip: false, buttonLabel: "Başla", isFinal: true,
   },
 ];
 
-const NUM_SCREENS = SCREENS.length;
+const NUM = SCREENS.length;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DOT INDICATOR
+// PAGE INDICATOR
 // ─────────────────────────────────────────────────────────────────────────────
-function Dot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
+function PageDot({ index, scrollX }: { index: number; scrollX: SharedValue<number> }) {
   const style = useAnimatedStyle(() => {
-    const r    = [(index - 1) * SW, index * SW, (index + 1) * SW];
-    const size = interpolate(scrollX.value, r, [4, 7, 4],        Extrapolation.CLAMP);
-    const opac = interpolate(scrollX.value, r, [0.18, 1, 0.18],  Extrapolation.CLAMP);
-    return { width: size, height: size, opacity: opac };
+    const r   = [(index - 1) * SW, index * SW, (index + 1) * SW];
+    const sz  = interpolate(scrollX.value, r, [4, 8, 4],        Extrapolation.CLAMP);
+    const op  = interpolate(scrollX.value, r, [0.16, 1, 0.16],  Extrapolation.CLAMP);
+    return { width: sz, opacity: op };
   });
   return <Animated.View style={[ss.dot, style]} />;
 }
@@ -1126,12 +1004,12 @@ export default function Onboarding() {
   const scrollX = useSharedValue(0);
 
   const goNext = useCallback(() => {
-    if (idx < NUM_SCREENS - 1)
+    if (idx < NUM - 1)
       listRef.current?.scrollToIndex({ index: idx + 1, animated: true });
   }, [idx]);
 
   const goSkip = useCallback(() => {
-    listRef.current?.scrollToIndex({ index: NUM_SCREENS - 1, animated: true });
+    listRef.current?.scrollToIndex({ index: NUM - 1, animated: true });
   }, []);
 
   const goAuth = useCallback(() => { router.replace("/auth"); }, []);
@@ -1149,21 +1027,21 @@ export default function Onboarding() {
   );
 
   const renderItem = useCallback(
-    ({ item: pageIdx }: { item: number }) => {
-      const cfg    = SCREENS[pageIdx];
+    ({ item: pi }: { item: number }) => {
+      const cfg    = SCREENS[pi];
       const topPad = Platform.OS === "web" ? 20 : insets.top;
-      const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
+      const btmPad = Platform.OS === "web" ? 40 : insets.bottom;
 
       return (
         <View style={ss.page}>
 
-          {/* Illustration — upper area */}
-          <View style={[ss.illArea, { paddingTop: topPad + 8 }]}>
+          {/* Illustration — upper 58% */}
+          <View style={[ss.illArea, { paddingTop: topPad + 6 }]}>
             <cfg.Illustration />
           </View>
 
-          {/* Text — lower area */}
-          <View style={[ss.textArea, { paddingBottom: btmPad + 56 + 60 + 40 }]}>
+          {/* Text — lower 42% */}
+          <View style={[ss.textArea, { paddingBottom: btmPad + 68 + 64 + 40 }]}>
             <Text style={ss.title}>{cfg.title}</Text>
             <Text style={ss.subtitle}>{cfg.subtitle}</Text>
           </View>
@@ -1171,34 +1049,32 @@ export default function Onboarding() {
           {/* Skip */}
           {cfg.showSkip && (
             <TouchableOpacity
-              style={[ss.skip, { top: topPad + 16 }]}
+              style={[ss.skip, { top: topPad + 18 }]}
               onPress={goSkip}
-              hitSlop={14}
-              activeOpacity={0.50}
+              hitSlop={16}
+              activeOpacity={0.45}
             >
-              <Text style={ss.skipText}>Atla</Text>
+              <Text style={ss.skipTxt}>Atla</Text>
             </TouchableOpacity>
           )}
 
           {/* Dots */}
-          <View style={[ss.dotsBar, { bottom: btmPad + 26 + 56 + 38 }]}>
-            {SCREENS.map((_, i) => (
-              <Dot key={i} index={i} scrollX={scrollX} />
-            ))}
+          <View style={[ss.dots, { bottom: btmPad + 30 + 68 + 40 }]}>
+            {SCREENS.map((_, i) => <PageDot key={i} index={i} scrollX={scrollX} />)}
           </View>
 
-          {/* CTA Button */}
-          <View style={[ss.btnBar, { bottom: btmPad + 26 }]}>
-            {cfg.isFinal ? (
-              <TouchableOpacity style={ss.btnFinal} onPress={goAuth} activeOpacity={0.80}>
-                <Text style={ss.btnFinalLabel}>{cfg.buttonLabel}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={ss.btnSolid} onPress={goNext} activeOpacity={0.80}>
-                <Text style={ss.btnSolidLabel}>{cfg.buttonLabel}</Text>
-                <Text style={ss.btnArrow}> →</Text>
-              </TouchableOpacity>
-            )}
+          {/* CTA */}
+          <View style={[ss.btnBar, { bottom: btmPad + 30 }]}>
+            {cfg.isFinal
+              ? (
+                <FinalButton onPress={goAuth} label={cfg.buttonLabel} />
+              ) : (
+                <TouchableOpacity style={ss.btnSolid} onPress={goNext} activeOpacity={0.80}>
+                  <Text style={ss.btnSolidLbl}>{cfg.buttonLabel}</Text>
+                  <Text style={ss.btnArrow}> →</Text>
+                </TouchableOpacity>
+              )
+            }
           </View>
 
         </View>
@@ -1210,12 +1086,10 @@ export default function Onboarding() {
   return (
     <FlatList
       ref={listRef}
-      data={Array.from({ length: NUM_SCREENS }, (_, i) => i)}
+      data={Array.from({ length: NUM }, (_, i) => i)}
       renderItem={renderItem}
       keyExtractor={(i) => String(i)}
-      horizontal
-      pagingEnabled
-      bounces={false}
+      horizontal pagingEnabled bounces={false}
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
       onScroll={onScroll}
@@ -1226,130 +1100,131 @@ export default function Onboarding() {
   );
 }
 
+/** Special glowing "Başla" button for the final screen */
+function FinalButton({ onPress, label }: { onPress: () => void; label: string }) {
+  const glow = useSharedValue(0);
+  useEffect(() => {
+    glow.value = withRepeat(
+      withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }),
+      -1, true,
+    );
+  }, []);
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: interpolate(glow.value, [0, 1], [0.12, 0.40]),
+    shadowRadius:  interpolate(glow.value, [0, 1], [6,    22  ]),
+  }));
+  const W = SW - 44;
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+      <Animated.View style={[{
+        flexDirection: "row", alignItems: "center", justifyContent: "center",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 100,
+        paddingHorizontal: 36, paddingVertical: 21,
+        width: W,
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+      }, glowStyle]}>
+        <Text style={ss.btnFinalLbl}>{label}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STYLES
 // ─────────────────────────────────────────────────────────────────────────────
-const BUTTON_W = SW - 44;
-
-const ill = StyleSheet.create({
-  center: {
-    width:          ILL,
-    height:         ILL,
-    alignItems:     "center",
-    justifyContent: "center",
+const illSt = StyleSheet.create({
+  centre: {
+    width: ILL, height: ILL,
+    alignItems: "center", justifyContent: "center",
   },
 });
 
+const BUTTON_W = SW - 44;
+
 const ss = StyleSheet.create({
-
   page: {
-    width:           SW,
-    height:          SH,
+    width: SW, height: SH,
     backgroundColor: "#000000",
-    overflow:        "hidden",
+    overflow: "hidden",
   },
-
   illArea: {
-    flex:           5,
-    alignItems:     "center",
-    justifyContent: "center",
+    flex: 58, alignItems: "center", justifyContent: "center",
   },
-
   textArea: {
-    flex:              3,
-    paddingHorizontal: 38,
-    justifyContent:    "flex-start",
-    gap:               14,
+    flex: 42,
+    paddingHorizontal: 40,
+    justifyContent: "flex-start",
+    gap: 16,
   },
 
-  // Cinematic large title
+  // Title — monumental, brand-statement weight
   title: {
-    fontSize:      56,
+    fontSize:      60,
     fontFamily:    "Inter_700Bold",
     color:         "#FFFFFF",
-    letterSpacing: -1.8,
-    lineHeight:    62,
+    letterSpacing: -2.5,
+    lineHeight:    66,
   },
 
-  // Soft minimal subtitle
+  // Subtitle — minimal, soft
   subtitle: {
     fontSize:      17,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.46)",
+    color:         "rgba(255,255,255,0.40)",
     letterSpacing: -0.2,
-    lineHeight:    25,
+    lineHeight:    26,
   },
 
   skip: {
-    position: "absolute",
-    right:    28,
-    zIndex:   10,
+    position: "absolute", right: 28, zIndex: 10,
   },
-  skipText: {
+  skipTxt: {
     fontSize:      14,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.32)",
+    color:         "rgba(255,255,255,0.30)",
     letterSpacing: -0.1,
   },
 
-  dotsBar: {
-    position:       "absolute",
-    left:           0, right: 0,
-    flexDirection:  "row",
-    alignItems:     "center",
-    justifyContent: "center",
-    gap:            10,
+  dots: {
+    position: "absolute", left: 0, right: 0,
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 10,
   },
   dot: {
-    borderRadius:    99,
+    height: 8, borderRadius: 99,
     backgroundColor: "#FFFFFF",
   },
 
   btnBar: {
-    position:   "absolute",
-    left:       0, right: 0,
+    position: "absolute", left: 0, right: 0,
     alignItems: "center",
   },
 
-  // Screens 1–4: large solid white pill
+  // Screens 1–4: solid white pill
   btnSolid: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "center",
-    backgroundColor:   "#FFFFFF",
-    borderRadius:      100,
-    paddingHorizontal: 36,
-    paddingVertical:   20,
-    width:             BUTTON_W,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 100,
+    paddingHorizontal: 36, paddingVertical: 21,
+    width: BUTTON_W,
   },
-  btnSolidLabel: {
+  btnSolidLbl: {
     fontSize:      17,
     fontFamily:    "Inter_600SemiBold",
     color:         "#000000",
     letterSpacing: -0.4,
   },
   btnArrow: {
-    fontSize:   17,
-    fontFamily: "Inter_600SemiBold",
-    color:      "#000000",
+    fontSize:   17, fontFamily: "Inter_600SemiBold",
+    color: "#000000",
   },
 
-  // Screen 5: luminous glass pill — entering the gateway
-  btnFinal: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "center",
-    backgroundColor:   "#FFFFFF",
-    borderRadius:      100,
-    paddingHorizontal: 36,
-    paddingVertical:   20,
-    width:             BUTTON_W,
-  },
-  btnFinalLabel: {
+  // Screen 5: final "Başla" label
+  btnFinalLbl: {
     fontSize:      17,
     fontFamily:    "Inter_700Bold",
     color:         "#000000",
     letterSpacing: -0.5,
   },
-
 });
