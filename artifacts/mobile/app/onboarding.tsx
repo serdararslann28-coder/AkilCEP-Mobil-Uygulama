@@ -126,25 +126,57 @@ const AW_CLOUD = Array.from({ length: 38 }, (_, i) => {
 // ── SCREEN 2: THINK (Neural Constellation) ───────────────────────────────────
 // 8 glowing nodes at natural positions. Particles travel through the network.
 // ─────────────────────────────────────────────────────────────────────────────
-const CNODES: Array<{ vx: number; vy: number; vr: number; delay: number; dur: number }> = [
-  { vx: 70,  vy: 56,  vr: 5.0, delay: 0,    dur: 3200 },  // N0 top-left
-  { vx: 210, vy: 52,  vr: 5.0, delay: 600,  dur: 2800 },  // N1 top-right
-  { vx: 40,  vy: 152, vr: 4.0, delay: 1200, dur: 3400 },  // N2 left
-  { vx: 240, vy: 148, vr: 4.0, delay: 300,  dur: 3100 },  // N3 right
-  { vx: 140, vy: 124, vr: 8.0, delay: 400,  dur: 2600 },  // N4 centre (primary)
-  { vx: 94,  vy: 228, vr: 4.5, delay: 900,  dur: 3300 },  // N5 bottom-left
-  { vx: 190, vy: 224, vr: 4.5, delay: 1500, dur: 2900 },  // N6 bottom-right
-  { vx: 140, vy: 22,  vr: 3.5, delay: 800,  dur: 3600 },  // N7 top-centre
-];
+// ── SCREEN 2: THINK ──────────────────────────────────────────────────────────
+// 55 Lissajous particles + 120 SVG dust dots + connection web + traveling sparks.
+// The SVG layer creates the "thousands of particles" density at near-zero cost.
+// Traveling sparks move along hub-to-hub paths — a thought completing its circuit.
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Traveling particle paths (3 waypoints each — through the centre node)
-const CN_TKEYS = [0, 0.5, 1];
-const CN_P1_XO = [voff(140, 22).x,  voff(140, 124).x, voff(94,  228).x];
-const CN_P1_YO = [voff(140, 22).y,  voff(140, 124).y, voff(94,  228).y];
-const CN_P2_XO = [voff(70,  56).x,  voff(140, 124).x, voff(190, 224).x];
-const CN_P2_YO = [voff(70,  56).y,  voff(140, 124).y, voff(190, 224).y];
-const CN_P3_XO = [voff(40, 152).x,  voff(140, 124).x, voff(240, 148).x];
-const CN_P3_YO = [voff(40, 152).y,  voff(140, 124).y, voff(240, 148).y];
+// 55 floating particles — same visual DNA as Screen 1 but more spread out.
+// rFrac^0.50 (vs 0.68) → more uniform distribution = fills the illustration evenly.
+const TH_CLOUD = Array.from({ length: 55 }, (_, i) => {
+  const angle  = i * PHI * 2 * Math.PI;
+  const rFrac  = Math.pow(dr(i * 13 + 2), 0.50);
+  const dist   = rFrac * ILL * 0.44;
+  const r      = Math.max(0.7, 0.9 + (1 - rFrac) * 2.8 + dr(i * 13 + 8) * 1.0);
+  const op     = Math.min(0.90, 0.13 + (1 - rFrac) * 0.52 + dr(i * 13 + 9) * 0.16);
+  return {
+    bx:  Math.cos(angle) * dist,
+    by:  Math.sin(angle) * dist,
+    dx:  7  + dr(i * 13 + 3) * 20,
+    dy:  7  + dr(i * 13 + 4) * 20,
+    px:  dr(i * 13 + 5) * Math.PI * 2,
+    py:  dr(i * 13 + 6) * Math.PI * 2,
+    dur: 2800 + dr(i * 13 + 7) * 4200,   // faster than S1 — thoughts move quickly
+    r, op,
+  };
+});
+
+// 120 static SVG dust dots — these never move, they only exist.
+// Combined with the 55 floating particles the eye reads "thousands".
+const TH_DUST = Array.from({ length: 120 }, (_, i) => {
+  const angle  = i * PHI * 2 * Math.PI;
+  const rFrac  = Math.pow(dr(i * 17 + 11), 0.60);
+  const dist   = rFrac * (V * 0.48);
+  return {
+    cx: V / 2 + Math.cos(angle) * dist,
+    cy: V / 2 + Math.sin(angle) * dist,
+    r:  0.42 + dr(i * 17 + 12) * 0.68,
+    op: (0.05 + dr(i * 17 + 13) * 0.12) * (1 - rFrac * 0.52),
+  };
+});
+
+// Hub-to-hub travel paths — thought-sparks that travel through the central node.
+// Centre hub is always V/2, V/2 → voff returns (0, 0) there.
+const TH_TKEYS = [0, 0.5, 1];
+const TH_PA_XO = [voff(140,  32).x, voff(140, 140).x, voff( 88, 232).x];
+const TH_PA_YO = [voff(140,  32).y, voff(140, 140).y, voff( 88, 232).y];
+const TH_PB_XO = [voff( 62,  68).x, voff(140, 140).x, voff(196, 228).x];
+const TH_PB_YO = [voff( 62,  68).y, voff(140, 140).y, voff(196, 228).y];
+const TH_PC_XO = [voff( 44, 158).x, voff(140, 140).x, voff(236, 150).x];
+const TH_PC_YO = [voff( 44, 158).y, voff(140, 140).y, voff(236, 150).y];
+const TH_PD_XO = [voff(218,  72).x, voff(140, 140).x, voff( 88, 232).x];
+const TH_PD_YO = [voff(218,  72).y, voff(140, 140).y, voff( 88, 232).y];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── SCREEN 3: UNDERSTAND ─────────────────────────────────────────────────────
