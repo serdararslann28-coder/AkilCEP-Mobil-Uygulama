@@ -1,25 +1,28 @@
 /**
- * Splash — AkılCEP ultra-minimal brand moment.
+ * AkılCEP — Splash Screen
  *
- * Timeline:
- *   0.00 s  black screen
- *   0.30 s  icon fades in (700 ms ease-out cubic)
- *   0.50 s  wordmark "AkılCEP" fades in (600 ms)
- *   1.10 s  subtitle "cebindeki akıl" fades in (500 ms)
- *   2.60 s  everything fades to black (400 ms)
- *   3.00 s  navigate → /welcome (new user) or /chat (returning)
+ * The first emotional contact between the brand and the user.
+ * Nothing ornamental. Only light, particles, and a name.
  *
- * Background: pure black. No rings. No arcs. No gradients.
- * Logo is the only thing that matters.
+ * Timeline (ms):
+ *   0      Black screen — absolute silence
+ *   400    A single white point materialises in the dark
+ *   800    It expands — slow, deliberate, like breath
+ *   1200   Particles drift outward, floating without rush
+ *   1600   "AkılCEP" and subtitle fade in from below
+ *   2500   Screen fades to black (300 ms)
+ *   2800   Navigate → /onboarding (new) or /chat (returning)
+ *
+ * Rules:
+ *   No logo · No buttons · No cards · No gradients · No robots
+ *   Only white light on pure black
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio }      from "expo-av";
-import { router }     from "expo-router";
-import { StatusBar }  from "expo-status-bar";
-import React, { useEffect, useRef } from "react";
+import { router }    from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect } from "react";
 import {
   Dimensions,
-  Image,
   StyleSheet,
   Text,
   View,
@@ -36,163 +39,202 @@ import Animated, {
 
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
-// ── Dev flag ──────────────────────────────────────────────────────────────────
-const FORCE_SHOW_ONBOARDING = true;
-
-// ── Startup sound preference key ──────────────────────────────────────────────
+// Retained for profile.tsx compatibility — startup sound preference key
 export const STARTUP_SOUND_KEY = "@akilcep_startup_sound";
 
-const brandIcon = require("@/assets/images/akilcep-icon.png");
-
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
 const { width: SW, height: SH } = Dimensions.get("window");
 
-// A handful of faint stars — deterministic, very restrained
-const STARS = Array.from({ length: 10 }, (_, i) => ({
-  x:    ((i * 137.508) % 100) / 100 * SW,
-  y:    (8 + (i * 71.3 + 17) % 38) / 100 * SH,
-  r:    i % 3 === 0 ? 1.0 : 1.5,
-  op:   0.10 + (i % 5) * 0.045,
-}));
+// Optical centre — slightly above geometric centre
+const OX = SW / 2;
+const OY = SH * 0.40;
 
-// ── Timing constants (ms) ─────────────────────────────────────────────────────
-const T_ICON      = 300;
-const T_WORDMARK  = 500;
-const T_SUBTITLE  = 1100;
-const T_FADE_OUT  = 2600;
-const T_NAVIGATE  = 3000;
+// Timing (ms)
+const T_LIGHT      = 400;
+const T_EXPAND     = 800;
+const T_PARTICLES  = 1200;
+const T_TEXT       = 1600;
+const T_FADE_OUT   = 2500;
+const T_NAVIGATE   = 2800;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DETERMINISTIC RANDOM
+// ─────────────────────────────────────────────────────────────────────────────
+function dr(s: number): number {
+  return Math.abs(Math.sin(s * 127.1 + 311.7 * Math.abs(Math.cos(s * 0.3)))) % 1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARTICLE DATA
+// ─────────────────────────────────────────────────────────────────────────────
+// 14 particles — evenly fanned around the orb with natural variation
+const PARTICLES = Array.from({ length: 14 }, (_, i) => {
+  // Even angular distribution + small jitter for organic feel
+  const baseAngle = (i / 14) * 2 * Math.PI;
+  const jitter    = (dr(i * 7 + 3) - 0.5) * 0.38;
+  const angle     = baseAngle + jitter;
+  const dist      = 44 + dr(i * 13 + 1) * 90;
+  return {
+    endX:    Math.cos(angle) * dist,
+    endY:    Math.sin(angle) * dist,
+    delay:   T_PARTICLES + dr(i * 11 + 2) * 360,
+    dur:     1400 + dr(i * 17 + 4) * 900,
+    r:       1.0  + dr(i * 23 + 5) * 2.0,
+    opacity: 0.36 + dr(i * 29 + 6) * 0.55,
+  };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARTICLE COMPONENT
+// One-shot: appears at delay, drifts outward, stays visible through navigation
+// ─────────────────────────────────────────────────────────────────────────────
+function SplashParticle({
+  endX, endY, delay, dur, r, opacity,
+}: {
+  endX: number; endY: number; delay: number;
+  dur: number; r: number; opacity: number;
+}) {
+  const prog = useSharedValue(0);
+  useEffect(() => {
+    prog.value = withDelay(delay,
+      withTiming(1, { duration: dur, easing: Easing.out(Easing.quad) }),
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity:   opacity * interpolate(prog.value, [0, 0.10, 1], [0, 1, 0.72]),
+    transform: [
+      { translateX: endX * prog.value },
+      { translateY: endY * prog.value },
+    ],
+  }));
+
+  const sz = r * 2;
+  return (
+    <Animated.View style={[{
+      position:        "absolute",
+      left:            -r,
+      top:             -r,
+      width:           sz,
+      height:          sz,
+      borderRadius:    r,
+      backgroundColor: "#FFFFFF",
+      shadowColor:     "#FFFFFF",
+      shadowOffset:    { width: 0, height: 0 },
+      shadowOpacity:   0.80,
+      shadowRadius:    r * 2.8,
+    }, style]} />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SPLASH
+// ─────────────────────────────────────────────────────────────────────────────
 export default function SplashScreen() {
-  // ── Audio ref ────────────────────────────────────────────────────────────
-  const soundRef = useRef<Audio.Sound | null>(null);
 
-  // ── Animated values ──────────────────────────────────────────────────────
-  const iconOp     = useSharedValue(0);
-  const wordmarkOp = useSharedValue(0);
-  const subtitleOp = useSharedValue(0);
-  const glowPulse  = useSharedValue(0);
-  const masterOp   = useSharedValue(1);
+  // ── Animation values ────────────────────────────────────────────────────
+  // 0.4 s — the point of light appears
+  const lightOp   = useSharedValue(0);
 
-  // Destination resolved from AsyncStorage before 3 s
-  const destination = useRef<"/chat" | "/welcome">("/welcome");
+  // 0.8 s — it expands from a pinprick to its full size
+  const expandPrg = useSharedValue(0);
+
+  // Continuous breathing, begins once expanded (~1.4 s)
+  const breathePrg = useSharedValue(0);
+
+  // 1.6 s — text materialises, rising gently from below
+  const textOp    = useSharedValue(0);
+  const textY     = useSharedValue(16);
+
+  // Master opacity — fades to black before navigation
+  const masterOp  = useSharedValue(1);
 
   useEffect(() => {
-    // Resolve destination
-    if (!FORCE_SHOW_ONBOARDING) {
-      AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-        if (val) destination.current = "/chat";
-      }).catch(() => {});
-    }
-
-    // ── Animation sequence ────────────────────────────────────────────────
-
-    // 0.3 s — icon emerges
-    iconOp.value = withDelay(T_ICON,
-      withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }),
+    // ── 0.4 s: light appears (opacity in) ─────────────────────────────
+    lightOp.value = withDelay(T_LIGHT,
+      withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) }),
     );
 
-    // 0.5 s — wordmark
-    wordmarkOp.value = withDelay(T_WORDMARK,
-      withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }),
+    // ── 0.8 s: light expands (scale in) ───────────────────────────────
+    expandPrg.value = withDelay(T_EXPAND,
+      withTiming(1, { duration: 640, easing: Easing.out(Easing.ease) }),
     );
 
-    // 1.1 s — subtitle
-    subtitleOp.value = withDelay(T_SUBTITLE,
-      withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) }),
-    );
-
-    // Glow breathe — starts with icon, continuous
-    glowPulse.value = withDelay(T_ICON,
+    // ── 1.4 s: breathing begins, continuous ───────────────────────────
+    breathePrg.value = withDelay(T_EXPAND + 600,
       withRepeat(
-        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
         -1,
         true,
       ),
     );
 
-    // 2.6 s — fade to black
-    masterOp.value = withDelay(T_FADE_OUT,
-      withTiming(0, { duration: 400, easing: Easing.in(Easing.ease) }),
+    // ── 1.6 s: typography fades in, lifts slightly ────────────────────
+    textOp.value = withDelay(T_TEXT,
+      withTiming(1, { duration: 640, easing: Easing.out(Easing.ease) }),
+    );
+    textY.value = withDelay(T_TEXT,
+      withTiming(0, { duration: 640, easing: Easing.out(Easing.ease) }),
     );
 
-    // ── Audio ─────────────────────────────────────────────────────────────
-    let rampInId:  ReturnType<typeof setInterval> | null = null;
-    let rampOutId: ReturnType<typeof setInterval> | null = null;
+    // ── 2.5 s: fade to black ──────────────────────────────────────────
+    masterOp.value = withDelay(T_FADE_OUT,
+      withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }),
+    );
 
-    AsyncStorage.getItem(STARTUP_SOUND_KEY).then((pref) => {
-      if (pref === "off") return;
-      Audio.Sound.createAsync(
-        require("@/assets/sounds/startup.mp3"),
-        { shouldPlay: false, volume: 0, progressUpdateIntervalMillis: 80 },
-      ).then(({ sound }) => {
-        soundRef.current = sound;
-      }).catch(() => {});
-    }).catch(() => {});
-
-    // Start playback at icon fade-in, ramp in over 500 ms
-    const audioStart = setTimeout(() => {
-      const s = soundRef.current;
-      if (!s) return;
-      s.playAsync().catch(() => {});
-      const TARGET = 0.85;
-      const STEPS  = 20;
-      const STEP_MS = 500 / STEPS;
-      let step = 0;
-      rampInId = setInterval(() => {
-        step++;
-        s.setVolumeAsync(Math.min(TARGET, (step / STEPS) * TARGET)).catch(() => {});
-        if (step >= STEPS) { clearInterval(rampInId!); rampInId = null; }
-      }, STEP_MS);
-    }, T_ICON);
-
-    // Ramp out at 2.35 s over 650 ms, synced with fade-to-black
-    const audioFade = setTimeout(() => {
-      const s = soundRef.current;
-      if (!s) return;
-      const START   = 0.85;
-      const STEPS   = 26;
-      const STEP_MS = 650 / STEPS;
-      let step = 0;
-      rampOutId = setInterval(() => {
-        step++;
-        s.setVolumeAsync(Math.max(0, START * (1 - step / STEPS))).catch(() => {});
-        if (step >= STEPS) { clearInterval(rampOutId!); rampOutId = null; }
-      }, STEP_MS);
-    }, 2350);
-
-    // Navigate
-    const nav = setTimeout(() => {
-      router.replace(destination.current);
+    // ── 2.8 s: navigate ───────────────────────────────────────────────
+    const nav = setTimeout(async () => {
+      try {
+        const done = await AsyncStorage.getItem(ONBOARDING_KEY);
+        router.replace(done === "true" ? "/chat" : "/onboarding");
+      } catch {
+        router.replace("/onboarding");
+      }
     }, T_NAVIGATE);
 
-    return () => {
-      clearTimeout(audioStart);
-      clearTimeout(audioFade);
-      clearTimeout(nav);
-      if (rampInId)  clearInterval(rampInId);
-      if (rampOutId) clearInterval(rampOutId);
-      soundRef.current?.unloadAsync().catch(() => {});
-      soundRef.current = null;
-    };
+    return () => clearTimeout(nav);
   }, []);
 
-  // ── Animated styles ──────────────────────────────────────────────────────
-  const iconStyle = useAnimatedStyle(() => ({
-    opacity: iconOp.value,
+  // ── Animated styles ──────────────────────────────────────────────────
+
+  // Outer ambient bloom — appears then breathes
+  const outerGlowStyle = useAnimatedStyle(() => {
+    const base    = interpolate(expandPrg.value, [0, 1], [0.08, 1]);
+    const breath  = interpolate(breathePrg.value, [0, 1], [1, 1.18]);
+    return {
+      opacity:   lightOp.value * interpolate(expandPrg.value, [0, 1], [0.30, 0.85]),
+      transform: [{ scale: base * breath }],
+    };
+  });
+
+  // Inner glow ring — tighter, brighter
+  const innerGlowStyle = useAnimatedStyle(() => {
+    const base   = interpolate(expandPrg.value, [0, 1], [0.08, 1]);
+    const breath = interpolate(breathePrg.value, [0, 1], [1, 1.12]);
+    return {
+      opacity:   lightOp.value * interpolate(expandPrg.value, [0, 1], [0.50, 1.0]),
+      transform: [{ scale: base * breath }],
+    };
+  });
+
+  // Core dot — tiny, the seed of everything
+  const coreStyle = useAnimatedStyle(() => {
+    const scale = interpolate(expandPrg.value, [0, 0.4, 1], [0.15, 0.60, 1]);
+    return {
+      opacity:   lightOp.value,
+      transform: [{ scale }],
+    };
+  });
+
+  // Text block
+  const textStyle = useAnimatedStyle(() => ({
+    opacity:   textOp.value,
+    transform: [{ translateY: textY.value }],
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(glowPulse.value, [0, 1], [0.00, 1.00]),
-    transform: [{ scale: interpolate(glowPulse.value, [0, 1], [0.92, 1.08]) }],
-  }));
-
-  const wordmarkStyle = useAnimatedStyle(() => ({
-    opacity: wordmarkOp.value,
-  }));
-
-  const subtitleStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOp.value,
-  }));
-
+  // Master — wraps everything
   const masterStyle = useAnimatedStyle(() => ({
     opacity: masterOp.value,
   }));
@@ -203,55 +245,41 @@ export default function SplashScreen() {
 
       <Animated.View style={[StyleSheet.absoluteFill, masterStyle]}>
 
-        {/* Stars — 10 very faint dots, purely decorative */}
-        {STARS.map((s, i) => (
-          <View
-            key={i}
-            style={[
-              ss.star,
-              {
-                left:         s.x,
-                top:          s.y,
-                width:        s.r,
-                height:       s.r,
-                borderRadius: s.r / 2,
-                opacity:      s.op,
-              },
-            ]}
-          />
-        ))}
+        {/* ── Orb + particles (centred at optical centre) ── */}
+        <View style={[ss.orbAnchor, { left: OX, top: OY }]}>
 
-        {/* Center composition */}
-        <View style={ss.center}>
+          {/* Outer ambient bloom */}
+          <Animated.View style={[ss.outerGlow, outerGlowStyle]} />
 
-          {/* Glow halo — breathes behind the icon */}
-          <Animated.View style={[ss.glow, glowStyle]} />
+          {/* Inner tight glow */}
+          <Animated.View style={[ss.innerGlow, innerGlowStyle]} />
 
-          {/* Brand icon */}
-          <Animated.View style={iconStyle}>
-            <Image
-              source={brandIcon}
-              style={ss.icon}
-              resizeMode="contain"
-            />
-          </Animated.View>
+          {/* Core pinprick */}
+          <Animated.View style={[ss.core, coreStyle]} />
 
-          {/* Wordmark */}
-          <Animated.Text style={[ss.wordmark, wordmarkStyle]}>
-            AkılCEP
-          </Animated.Text>
-
-          {/* Subtitle */}
-          <Animated.View style={subtitleStyle}>
-            <Text style={ss.subtitle}>cebindeki akıl</Text>
-          </Animated.View>
+          {/* Particles */}
+          {PARTICLES.map((p, i) => <SplashParticle key={i} {...p} />)}
 
         </View>
+
+        {/* ── Typography ── */}
+        <Animated.View style={[ss.textBlock, textStyle]}>
+          <Text style={ss.title}>AkılCEP</Text>
+          <Text style={ss.subtitle}>Cebindeki akıl.</Text>
+        </Animated.View>
 
       </Animated.View>
     </View>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+// Orb radii
+const R_OUTER = 72;   // ambient bloom shadow
+const R_INNER = 28;   // inner glow shadow
+const R_CORE  = 5;    // solid white dot
 
 const ss = StyleSheet.create({
   root: {
@@ -259,55 +287,80 @@ const ss = StyleSheet.create({
     backgroundColor: "#000000",
   },
 
-  star: {
-    position:        "absolute",
-    backgroundColor: "#FFFFFF",
-  },
-
-  // Vertically centered, sits at ~42% from top for optical balance
-  center: {
+  // Zero-size anchor at OX, OY — children use negative margins to centre
+  orbAnchor: {
     position:       "absolute",
-    top:            0,
-    left:           0,
-    right:          0,
-    bottom:         0,
     alignItems:     "center",
     justifyContent: "center",
-    gap:            16,
-    paddingBottom:  SH * 0.06,
   },
 
-  // Soft radial glow — no border, just a shadow bloom
-  glow: {
+  // Outer bloom — large, very soft
+  outerGlow: {
     position:        "absolute",
-    width:           200,
-    height:          200,
-    borderRadius:    100,
+    width:           R_OUTER * 2,
+    height:          R_OUTER * 2,
+    borderRadius:    R_OUTER,
+    left:            -R_OUTER,
+    top:             -R_OUTER,
     backgroundColor: "transparent",
     shadowColor:     "#FFFFFF",
     shadowOffset:    { width: 0, height: 0 },
-    shadowOpacity:   0.18,
-    shadowRadius:    48,
+    shadowOpacity:   0.65,
+    shadowRadius:    R_OUTER,
   },
 
-  icon: {
-    width:  100,
-    height: 100,
+  // Inner glow — crisper halo
+  innerGlow: {
+    position:        "absolute",
+    width:           R_INNER * 2,
+    height:          R_INNER * 2,
+    borderRadius:    R_INNER,
+    left:            -R_INNER,
+    top:             -R_INNER,
+    backgroundColor: "transparent",
+    shadowColor:     "#FFFFFF",
+    shadowOffset:    { width: 0, height: 0 },
+    shadowOpacity:   0.90,
+    shadowRadius:    R_INNER * 0.9,
   },
 
-  wordmark: {
-    fontSize:      36,
-    fontFamily:    "Inter_600SemiBold",
+  // Core — the original point of light
+  core: {
+    position:        "absolute",
+    width:           R_CORE * 2,
+    height:          R_CORE * 2,
+    borderRadius:    R_CORE,
+    left:            -R_CORE,
+    top:             -R_CORE,
+    backgroundColor: "#FFFFFF",
+    shadowColor:     "#FFFFFF",
+    shadowOffset:    { width: 0, height: 0 },
+    shadowOpacity:   1,
+    shadowRadius:    16,
+  },
+
+  // Typography block — appears after particles
+  textBlock: {
+    position:      "absolute",
+    left:          40,
+    right:         40,
+    top:           OY + R_OUTER + 52,
+    gap:           12,
+  },
+
+  title: {
+    fontSize:      56,
+    fontFamily:    "Inter_700Bold",
     color:         "#FFFFFF",
-    letterSpacing: -0.8,
+    letterSpacing: -2.2,
+    lineHeight:    62,
   },
 
   subtitle: {
-    fontSize:      12,
+    fontSize:      16,
     fontFamily:    "Inter_400Regular",
     color:         "rgba(255,255,255,0.36)",
-    letterSpacing: 4.8,
-    textTransform: "uppercase",
-    textAlign:     "center",
+    letterSpacing: -0.1,
+    lineHeight:    24,
   },
 });
