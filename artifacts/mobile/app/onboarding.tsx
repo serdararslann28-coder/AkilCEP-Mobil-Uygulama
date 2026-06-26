@@ -94,19 +94,31 @@ function voff(vx: number, vy: number): { x: number; y: number } {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── SCREEN 1: AWAKENING ─────────────────────────────────────────────────────
-// 28 particles radiate upward from a central bright orb.
+// 38 living particles float on Lissajous paths around a central orb.
+// They are the continuation of the splash light — now dispersed and alive.
 // ─────────────────────────────────────────────────────────────────────────────
-const AW_PTCLS = Array.from({ length: 28 }, (_, i) => {
-  // All particles are biased strongly upward (-90° ± 80°)
-  const angleDeg = -90 + (dr(i * 3) * 2 - 1) * 80;
-  const angle    = angleDeg * (Math.PI / 180);
-  const dist     = 44 + dr(i * 7 + 1) * 112;
+
+// Golden-ratio spiral distributes particles naturally across the illustration.
+// Particles closer to the centre are larger, brighter, and slower — depth effect.
+const PHI = (1 + Math.sqrt(5)) / 2;
+
+const AW_CLOUD = Array.from({ length: 38 }, (_, i) => {
+  const angle  = i * PHI * 2 * Math.PI;
+  // Power distribution skewed toward centre — denser inner cloud
+  const rFrac  = Math.pow(dr(i * 7 + 1), 0.68);
+  const dist   = rFrac * ILL * 0.43;
+  // Closer particles: larger, brighter, slower drift
+  const r      = Math.max(0.8, 1.1 + (1 - rFrac) * 3.6 + dr(i * 7 + 6) * 1.2);
+  const op     = Math.min(0.95, 0.18 + (1 - rFrac) * 0.62 + dr(i * 7 + 7) * 0.18);
   return {
-    endX:  CX + Math.cos(angle) * dist,
-    endY:  CY + Math.sin(angle) * dist,
-    delay: dr(i * 11 + 2) * 2400,
-    dur:   2200 + dr(i * 13 + 3) * 1800,
-    r:     1.0  + dr(i * 17 + 4) * 2.2,
+    bx:  Math.cos(angle) * dist,           // base X offset from illustration centre
+    by:  Math.sin(angle) * dist,           // base Y offset
+    dx:  6  + dr(i * 7 + 2) * 18,         // Lissajous drift amplitude X
+    dy:  6  + dr(i * 7 + 3) * 18,         // Lissajous drift amplitude Y
+    px:  dr(i * 7 + 4) * Math.PI * 2,     // phase X (distributes start positions)
+    py:  dr(i * 7 + 5) * Math.PI * 2,     // phase Y
+    dur: 3800 + dr(i * 7 + 6) * 5200,     // 3.8 – 9.0 s loop — feels organic
+    r, op,
   };
 });
 
@@ -209,32 +221,60 @@ const GW_ASCEND: Array<{ xf: number; delay: number }> = [
 // REUSABLE ANIMATED COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Particle erupting from centre toward (endX, endY) — Screen 1 */
-function AwakeningParticle({
-  endX, endY, delay, dur, r,
-}: { endX: number; endY: number; delay: number; dur: number; r: number }) {
+/**
+ * Living particle floating on a Lissajous path — Screen 1 Awakening.
+ *
+ * Each particle continuously traces its own organic elliptical path around
+ * a base position. Independent X/Y frequencies + phase offsets make each
+ * particle's trajectory unique — no two move the same way.
+ *
+ * Math notes:
+ *   t  = anim.value × 2π  (linear 0→1 maps to a full cycle)
+ *   x  = bx + dx × sin(t + px)
+ *   y  = by + dy × cos(t + py)   ← cos gives 90° offset from sin → ellipse
+ *   op varies at half the spatial frequency — a slow brightness pulse
+ */
+function CloudParticle({
+  bx, by, dx, dy, px, py, dur, r, op,
+}: {
+  bx: number; by: number; dx: number; dy: number;
+  px: number; py: number; dur: number; r: number; op: number;
+}) {
   const anim = useSharedValue(0);
   useEffect(() => {
-    anim.value = withDelay(delay, withRepeat(
-      withTiming(1, { duration: dur, easing: Easing.out(Easing.quad) }),
+    anim.value = withRepeat(
+      withTiming(1, { duration: dur, easing: Easing.linear }),
       -1, false,
-    ));
+    );
   }, []);
-  const style = useAnimatedStyle(() => ({
-    opacity: interpolate(anim.value, [0, 0.12, 0.72, 1], [0, 1, 0.80, 0]),
-    transform: [
-      { translateX: interpolate(anim.value, [0, 1], [0, endX - CX]) },
-      { translateY: interpolate(anim.value, [0, 1], [0, endY - CY]) },
-    ],
-  }));
+
   const sz = r * 2;
+  const style = useAnimatedStyle(() => {
+    "worklet";
+    const t   = anim.value * 2 * Math.PI;
+    const opa = op * (0.50 + 0.50 * Math.sin(t * 0.5 + px));
+    return {
+      opacity:   Math.max(0, opa),
+      transform: [
+        { translateX: bx + dx * Math.sin(t + px) },
+        { translateY: by + dy * Math.cos(t + py) },
+      ],
+    };
+  });
+
   return (
     <Animated.View style={[{
-      position: "absolute", left: CX - r, top: CY - r,
-      width: sz, height: sz, borderRadius: r,
+      position:        "absolute",
+      left:            CX - r,
+      top:             CY - r,
+      width:           sz,
+      height:          sz,
+      borderRadius:    r,
       backgroundColor: "#FFFFFF",
-      shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.90, shadowRadius: r * 3,
+      shadowColor:     "#FFFFFF",
+      shadowOffset:    { width: 0, height: 0 },
+      shadowOpacity:   0.80,
+      shadowRadius:    r * 3.2,
     }, style]} />
   );
 }
@@ -472,76 +512,127 @@ function ArchParticle({ xf, delay }: { xf: number; delay: number }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 1 — AWAKENING
-// A single bright point. Particles erupt upward — the birth of intelligence.
+//
+// The white light from the Splash Screen has dispersed — the intelligence
+// is now alive in the particles. 38 particles float on individual Lissajous
+// paths, each breathing at its own rhythm. The central orb is the origin:
+// quieter now, but still glowing. Depth is created by particle size and
+// brightness — inner particles are larger and brighter than outer ones.
 // ─────────────────────────────────────────────────────────────────────────────
 function AwakeningIllustration() {
-  const orb  = useSharedValue(0);
-  const halo = useSharedValue(0);
+  // Three independent breath timers for orb layers
+  const breathA = useSharedValue(0);
+  const breathB = useSharedValue(0);
+  const breathC = useSharedValue(0);
+
   useEffect(() => {
-    orb.value  = withRepeat(withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }), -1, true);
-    halo.value = withRepeat(withTiming(1, { duration: 6000, easing: Easing.inOut(Easing.sin) }), -1, true);
+    // Outer ambient — slowest, widest swing
+    breathA.value = withRepeat(
+      withTiming(1, { duration: 5600, easing: Easing.inOut(Easing.sin) }), -1, true,
+    );
+    // Inner halo — slightly faster
+    breathB.value = withRepeat(
+      withTiming(1, { duration: 3800, easing: Easing.inOut(Easing.sin) }), -1, true,
+    );
+    // Core — subtle pulsing brightness
+    breathC.value = withRepeat(
+      withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }), -1, true,
+    );
   }, []);
-  const orbStyle  = useAnimatedStyle(() => ({
-    opacity:   interpolate(orb.value,  [0, 1], [0.40, 1.0]),
-    transform: [{ scale: interpolate(orb.value, [0, 1], [0.75, 1.25]) }],
+
+  // Outer bloom: large, very soft, breathes slowly
+  const outerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathA.value, [0, 1], [0.28, 0.72]),
+    transform: [{ scale: interpolate(breathA.value, [0, 1], [0.82, 1.18]) }],
   }));
-  const haloStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(halo.value, [0, 1], [0.45, 1.0]),
+
+  // Inner glow ring: crisper boundary of the source
+  const innerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.38, 0.90]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.88, 1.12]) }],
+  }));
+
+  // Razor-thin ring: the orb's silhouette
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.20, 0.52]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.90, 1.10]) }],
+  }));
+
+  // Core dot: very tight breathing — it feels alive
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathC.value, [0, 1], [0.72, 1.0]),
+    transform: [{ scale: interpolate(breathC.value, [0, 1], [0.90, 1.10]) }],
   }));
 
   return (
     <View style={illSt.centre}>
-      <Animated.View style={[StyleSheet.absoluteFillObject, haloStyle]}>
-        <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
-          <Defs>
-            <RadialGradient id="aw_rad" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%"   stopColor="#fff" stopOpacity={0.18} />
-              <Stop offset="50%"  stopColor="#fff" stopOpacity={0.06} />
-              <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
-            </RadialGradient>
-          </Defs>
-          <Rect width={V} height={V} fill="url(#aw_rad)" />
-          {/* Primary light cone */}
-          <Path d={`M ${V/2} ${V/2} L ${V/2-20} 0 L ${V/2+20} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.12} />
-          {/* Wide diffuse cone */}
-          <Path d={`M ${V/2} ${V/2+40} L ${V/2-72} 0 L ${V/2+72} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.04} />
-          {/* Ghost cone */}
-          <Path d={`M ${V/2} ${V/2+80} L ${V/2-118} 0 L ${V/2+118} 0 Z`}
-            fill="#FFFFFF" fillOpacity={0.016} />
-        </Svg>
-      </Animated.View>
 
-      {/* 28 erupting particles */}
-      {AW_PTCLS.map((p, i) => <AwakeningParticle key={i} {...p} />)}
+      {/* Ambient background — very faint radial atmosphere */}
+      <Svg
+        width={ILL} height={ILL}
+        viewBox={`0 0 ${V} ${V}`}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      >
+        <Defs>
+          <RadialGradient id="aw1_bg" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.14} />
+            <Stop offset="42%"  stopColor="#fff" stopOpacity={0.04} />
+            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+          </RadialGradient>
+        </Defs>
+        <Rect width={V} height={V} fill="url(#aw1_bg)" />
+      </Svg>
 
-      {/* Outer glow halo */}
+      {/* 38 living particles — each traces a unique Lissajous path */}
+      {AW_CLOUD.map((p, i) => <CloudParticle key={i} {...p} />)}
+
+      {/* Outer ambient bloom — the aura of the source */}
       <Animated.View style={[{
-        position: "absolute", left: CX-70, top: CY-70,
-        width: 140, height: 140, borderRadius: 70,
+        position:        "absolute",
+        left:            CX - 80, top: CY - 80,
+        width:           160, height: 160, borderRadius: 80,
         backgroundColor: "transparent",
-        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.62, shadowRadius: 64,
-      }, orbStyle]} />
+        shadowColor:     "#FFFFFF",
+        shadowOffset:    { width: 0, height: 0 },
+        shadowOpacity:   0.55,
+        shadowRadius:    72,
+      }, outerStyle]} />
 
-      {/* Middle ring */}
+      {/* Inner glow — tighter halo */}
       <Animated.View style={[{
-        position: "absolute", left: CX-30, top: CY-30,
-        width: 60, height: 60, borderRadius: 30,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: "rgba(255,255,255,0.36)",
+        position:        "absolute",
+        left:            CX - 36, top: CY - 36,
+        width:           72, height: 72, borderRadius: 36,
         backgroundColor: "transparent",
-      }, orbStyle]} />
+        shadowColor:     "#FFFFFF",
+        shadowOffset:    { width: 0, height: 0 },
+        shadowOpacity:   0.85,
+        shadowRadius:    32,
+      }, innerStyle]} />
 
-      {/* Core orb */}
-      <View style={{
-        position: "absolute", left: CX-6, top: CY-6,
-        width: 12, height: 12, borderRadius: 6,
+      {/* Razor ring — orb boundary, very faint */}
+      <Animated.View style={[{
+        position:        "absolute",
+        left:            CX - 22, top: CY - 22,
+        width:           44, height: 44, borderRadius: 22,
+        borderWidth:     StyleSheet.hairlineWidth,
+        borderColor:     "rgba(255,255,255,0.55)",
+        backgroundColor: "transparent",
+      }, ringStyle]} />
+
+      {/* Core — the original point of light from the splash */}
+      <Animated.View style={[{
+        position:        "absolute",
+        left:            CX - 6, top: CY - 6,
+        width:           12, height: 12, borderRadius: 6,
         backgroundColor: "#FFFFFF",
-        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1, shadowRadius: 18,
-      }} />
+        shadowColor:     "#FFFFFF",
+        shadowOffset:    { width: 0, height: 0 },
+        shadowOpacity:   1,
+        shadowRadius:    14,
+      }, coreStyle]} />
+
     </View>
   );
 }
@@ -955,7 +1046,7 @@ const SCREENS: ScreenCfg[] = [
   {
     Illustration: AwakeningIllustration,
     title: "AkılCEP", subtitle: "Cebindeki akıl.",
-    showSkip: false, buttonLabel: "Keşfet",
+    showSkip: false, buttonLabel: "Devam Et",
   },
   {
     Illustration: ThinkIllustration,
