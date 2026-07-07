@@ -277,9 +277,9 @@ const ss = StyleSheet.create({
   },
   tagline: {
     fontSize:      15,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.38)",
-    letterSpacing: -0.1,
+    fontFamily:    "Inter_500Medium",
+    color:         "#E5E5E5",
+    letterSpacing: -0.15,
     textAlign:     "center",
   },
 
@@ -299,9 +299,9 @@ const ss = StyleSheet.create({
   },
   dividerText: {
     fontSize:      12,
-    fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.28)",
-    letterSpacing: -0.1,
+    fontFamily:    "Inter_500Medium",
+    color:         "#B3B3B3",
+    letterSpacing: 0.1,
   },
 
   // Button stack
@@ -347,10 +347,10 @@ const ss = StyleSheet.create({
   btnGlassLabel: {
     flex:          1,
     textAlign:     "center",
-    fontSize:      15,
-    fontFamily:    "Inter_500Medium",
-    color:         "rgba(255,255,255,0.78)",
-    letterSpacing: -0.2,
+    fontSize:      16,
+    fontFamily:    "Inter_600SemiBold",
+    color:         "#FFFFFF",
+    letterSpacing: -0.3,
     marginLeft:    -24,
   },
 
@@ -371,14 +371,15 @@ const ss = StyleSheet.create({
   legal: {
     fontSize:      12,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.22)",
+    color:         "#8A8A8A",
     textAlign:     "center",
-    lineHeight:    18,
+    lineHeight:    19,
     paddingHorizontal: 16,
     marginTop:     6,
   },
   legalLink: {
-    color: "rgba(255,255,255,0.40)",
+    color:      "#AAAAAA",
+    fontFamily: "Inter_500Medium",
   },
 
   // Gradient fade at very bottom
