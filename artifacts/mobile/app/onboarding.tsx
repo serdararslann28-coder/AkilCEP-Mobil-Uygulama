@@ -177,33 +177,107 @@ const TH_PD_YO = [voff(218,  72).y, voff(140, 140).y, voff( 88, 232).y];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── SCREEN 3: UNDERSTAND ─────────────────────────────────────────────────────
+// Knowledge exists in three outer clusters. The central light draws it inward.
+// Thin flowing lines show the connections. Sparks travel toward intelligence.
 // ─────────────────────────────────────────────────────────────────────────────
-const CV_DOC = { x: ILL * 0.20, y: ILL * 0.22 };
-const CV_WEB = { x: ILL * 0.80, y: ILL * 0.20 };
-const CV_IMG = { x: ILL * 0.50, y: ILL * 0.80 };
 
-const CV_PTCLS: Array<{ fromX: number; fromY: number; delay: number }> = [
-  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 0    },
-  { fromX: CV_DOC.x, fromY: CV_DOC.y, delay: 1500 },
-  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 500  },
-  { fromX: CV_WEB.x, fromY: CV_WEB.y, delay: 2000 },
-  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 1000 },
-  { fromX: CV_IMG.x, fromY: CV_IMG.y, delay: 2500 },
-];
+// Three outer cluster hubs in V-space (upper-left, upper-right, lower)
+const UN_HUBS = [
+  { vx:  62, vy:  70 },
+  { vx: 218, vy:  68 },
+  { vx: 140, vy: 228 },
+] as const;
+
+// 12 particles per cluster — tight grouping creates visible "islands" of knowledge
+const UN_CLOUD = UN_HUBS.flatMap(({ vx, vy }, hi) =>
+  Array.from({ length: 12 }, (_, i) => {
+    const seed   = hi * 100 + i;
+    const angle  = i * PHI * 2 * Math.PI;
+    const spread = (0.04 + dr(seed * 7 + 1) * 0.08) * ILL;
+    const r      = Math.max(0.7, 0.8 + dr(seed * 7 + 2) * 1.8);
+    const op     = 0.18 + dr(seed * 7 + 3) * 0.52;
+    return {
+      bx:  voff(vx, vy).x + Math.cos(angle) * spread,
+      by:  voff(vx, vy).y + Math.sin(angle) * spread,
+      dx:  2 + dr(seed * 7 + 4) * 7,
+      dy:  2 + dr(seed * 7 + 5) * 7,
+      px:  dr(seed * 7 + 6) * Math.PI * 2,
+      py:  dr(seed * 7 + 7) * Math.PI * 2,
+      dur: 3800 + dr(seed * 7 + 8) * 4200,
+      r, op,
+    };
+  })
+);
+
+// 14 inner particles — knowledge already integrated into the light
+const UN_INNER = Array.from({ length: 14 }, (_, i) => {
+  const angle = i * PHI * 2 * Math.PI;
+  const rFrac = Math.pow(dr(i * 31 + 50), 0.65);
+  const dist  = rFrac * ILL * 0.22;
+  const r     = Math.max(0.7, 0.9 + (1 - rFrac) * 1.8 + dr(i * 31 + 51) * 0.5);
+  const op    = 0.16 + (1 - rFrac) * 0.42 + dr(i * 31 + 52) * 0.12;
+  return {
+    bx:  Math.cos(angle) * dist,
+    by:  Math.sin(angle) * dist,
+    dx:  3 + dr(i * 31 + 53) * 8,
+    dy:  3 + dr(i * 31 + 54) * 8,
+    px:  dr(i * 31 + 55) * Math.PI * 2,
+    py:  dr(i * 31 + 56) * Math.PI * 2,
+    dur: 3600 + dr(i * 31 + 57) * 4400,
+    r, op,
+  };
+});
+
+// Inbound travel paths: each outer cluster → central light (3 paths × 2 sparks)
+const UN_TKEYS = [0, 0.5, 1];
+const UN_PA_XO = [voff( 62,  70).x, voff( 98, 102).x, voff(140, 140).x];
+const UN_PA_YO = [voff( 62,  70).y, voff( 98, 102).y, voff(140, 140).y];
+const UN_PB_XO = [voff(218,  68).x, voff(182, 100).x, voff(140, 140).x];
+const UN_PB_YO = [voff(218,  68).y, voff(182, 100).y, voff(140, 140).y];
+const UN_PC_XO = [voff(140, 228).x, voff(140, 188).x, voff(140, 140).x];
+const UN_PC_YO = [voff(140, 228).y, voff(140, 188).y, voff(140, 140).y];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── SCREEN 4: SPEAK ─────────────────────────────────────────────────────────
-// A single ring breathes. Particles orbit slowly around it.
+// ── SCREEN 4: SPEAK ──────────────────────────────────────────────────────────
+// Intelligence radiates outward. Knowledge flows from the light into the world.
+// 14 sparks emit from centre in organic (non-uniform) directions, then dissolve.
 // ─────────────────────────────────────────────────────────────────────────────
-const BREATHE_R  = ILL * 0.34;
-const ORBIT_R    = ILL * 0.28;
-const N_ORBITAL  = 8;
 
-// Pre-compute orbit offsets (angle in radians, phase for opacity variation)
-const ORBITAL_PTS = Array.from({ length: N_ORBITAL }, (_, i) => ({
-  startAngle: (i / N_ORBITAL) * 2 * Math.PI,
-  r: 1.6 + dr(i * 31) * 1.4,
-}));
+// Non-uniform angles — avoids mechanical star/snowflake pattern
+const SP_ANGLES = [0.00, 0.52, 0.92, 1.44, 1.88, 2.28, 2.76, 3.20, 3.68, 4.14, 4.60, 5.08, 5.52, 5.98];
+
+// Emission paths: (0,0) centre → mid → outward, pre-computed as CX/CY offsets
+const SP_TKEYS = [0, 0.5, 1];
+const SP_EMIT  = SP_ANGLES.map((angle, i) => {
+  const dist = ILL * (0.28 + dr(i * 41 + 1) * 0.14);
+  return {
+    xOff:  [0, Math.cos(angle) * dist * 0.48, Math.cos(angle) * dist],
+    yOff:  [0, Math.sin(angle) * dist * 0.48, Math.sin(angle) * dist],
+    dur:   2800 + dr(i * 41 + 2) * 1400,
+    delay: Math.round(dr(i * 41 + 3) * 2800),
+    r:     1.2 + dr(i * 41 + 4) * 1.4,
+    op:    0.58 + dr(i * 41 + 5) * 0.42,
+  };
+});
+
+// 24 ambient cloud — the field the light speaks into
+const SP_CLOUD = Array.from({ length: 24 }, (_, i) => {
+  const angle = i * PHI * 2 * Math.PI;
+  const rFrac = Math.pow(dr(i * 37 + 6), 0.62);
+  const dist  = rFrac * ILL * 0.40;
+  const r     = Math.max(0.7, 0.9 + (1 - rFrac) * 2.4 + dr(i * 37 + 7) * 0.8);
+  const op    = Math.min(0.85, 0.12 + (1 - rFrac) * 0.48 + dr(i * 37 + 8) * 0.16);
+  return {
+    bx:  Math.cos(angle) * dist,
+    by:  Math.sin(angle) * dist,
+    dx:  6  + dr(i * 37 + 9)  * 16,
+    dy:  6  + dr(i * 37 + 10) * 16,
+    px:  dr(i * 37 + 11) * Math.PI * 2,
+    py:  dr(i * 37 + 12) * Math.PI * 2,
+    dur: 3400 + dr(i * 37 + 13) * 4600,
+    r, op,
+  };
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── SCREEN 5: BEGIN (Gateway) ────────────────────────────────────────────────
@@ -509,8 +583,8 @@ function OrbitalParticle({ startAngle, r }: { startAngle: number; r: number }) {
     return {
       opacity,
       transform: [
-        { translateX: ORBIT_R * Math.cos(angle.value) },
-        { translateY: ORBIT_R * Math.sin(angle.value) },
+        { translateX: ILL * 0.28 * Math.cos(angle.value) },
+        { translateY: ILL * 0.28 * Math.sin(angle.value) },
       ],
     };
   });
@@ -874,234 +948,216 @@ function ThinkIllustration() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 3 — UNDERSTAND
-// Documents, images, web — each a floating card — converge into one focal point.
+// Three knowledge clusters at the periphery. Flowing lines connect them to the
+// central light. Sparks travel inward — knowledge becoming intelligence.
 // ─────────────────────────────────────────────────────────────────────────────
 function UnderstandIllustration() {
-  const centre = useSharedValue(0);
-  useEffect(() => {
-    centre.value = withRepeat(
-      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }), -1, true,
-    );
-  }, []);
-  const centreStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(centre.value, [0, 1], [0.30, 1.0]),
-    transform: [{ scale: interpolate(centre.value, [0, 1], [0.78, 1.22]) }],
-  }));
+  const breathA = useSharedValue(0);
+  const breathB = useSharedValue(0);
+  const breathC = useSharedValue(0);
 
-  const docVX = (CV_DOC.x / ILL) * V;
-  const docVY = (CV_DOC.y / ILL) * V;
-  const webVX = (CV_WEB.x / ILL) * V;
-  const webVY = (CV_WEB.y / ILL) * V;
-  const imgVX = (CV_IMG.x / ILL) * V;
-  const imgVY = (CV_IMG.y / ILL) * V;
+  useEffect(() => {
+    breathA.value = withRepeat(withTiming(1, { duration: 5200, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathB.value = withRepeat(withTiming(1, { duration: 3500, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathC.value = withRepeat(withTiming(1, { duration: 2300, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, []);
+
+  const outerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathA.value, [0, 1], [0.24, 0.65]),
+    transform: [{ scale: interpolate(breathA.value, [0, 1], [0.83, 1.17]) }],
+  }));
+  const innerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.36, 0.90]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.88, 1.12]) }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.18, 0.50]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.90, 1.10]) }],
+  }));
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathC.value, [0, 1], [0.70, 1.0]),
+    transform: [{ scale: interpolate(breathC.value, [0, 1], [0.88, 1.12]) }],
+  }));
 
   return (
     <View style={illSt.centre}>
-      {/* SVG: dashed stream paths */}
-      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+
+      {/* SVG: ambient glow + connection web from clusters to centre */}
+      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`}
+        style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <Defs>
-          <RadialGradient id="cv_bg" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.14} />
+          <RadialGradient id="un3_bg" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.12} />
+            <Stop offset="45%"  stopColor="#fff" stopOpacity={0.04} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
-        <Rect width={V} height={V} fill="url(#cv_bg)" />
-        <Path d={`M ${docVX} ${docVY} Q ${V*0.34} ${V*0.38} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
-        <Path d={`M ${webVX} ${webVY} Q ${V*0.66} ${V*0.36} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
-        <Path d={`M ${imgVX} ${imgVY} Q ${V/2} ${imgVY*1.14} ${V/2} ${V/2}`}
-          fill="none" stroke="#FFFFFF" strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="2,8" />
+        <Rect width={V} height={V} fill="url(#un3_bg)" />
+
+        {/* Primary connection lines — outer clusters to central light */}
+        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.42} strokeOpacity={0.14}
+          d="M  62  70 Q  98 102 140 140
+             M 218  68 Q 182 100 140 140
+             M 140 228 Q 144 190 140 140"
+        />
+
+        {/* Secondary web — clusters connected to each other */}
+        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.30} strokeOpacity={0.07}
+          d="M  62  70 Q 140  44 218  68
+             M  62  70 Q  58 152 140 228
+             M 218  68 Q 222 152 140 228"
+        />
+
+        {/* Hub accent dots — tiny glow at each cluster centre */}
+        <Circle cx={62}  cy={70}  r={1.8} fill="#FFFFFF" fillOpacity={0.42} />
+        <Circle cx={218} cy={68}  r={1.8} fill="#FFFFFF" fillOpacity={0.42} />
+        <Circle cx={140} cy={228} r={1.8} fill="#FFFFFF" fillOpacity={0.42} />
       </Svg>
 
-      {/* Document card */}
-      <View style={{ position: "absolute", left: CV_DOC.x - 28, top: CV_DOC.y - 38 }}>
-        <FloatShell delay={0} rise={13}>
-          <View style={{
-            width: 56, height: 72, borderRadius: 8,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: "rgba(255,255,255,0.62)",
-            backgroundColor: "rgba(255,255,255,0.042)",
-          }}>
-            {[0, 1, 2, 3, 4].map(i => (
-              <View key={i} style={{
-                position: "absolute",
-                left: 10, top: 14 + i * 10,
-                width: i >= 4 ? 20 : i >= 3 ? 28 : 36,
-                height: 0.8,
-                backgroundColor: "rgba(255,255,255,0.28)",
-              }} />
-            ))}
-          </View>
-        </FloatShell>
-      </View>
+      {/* 36 cluster particles — knowledge in the world, not yet understood */}
+      {UN_CLOUD.map((p, i) => <CloudParticle key={i} {...p} />)}
 
-      {/* Globe / web card */}
-      <View style={{ position: "absolute", left: CV_WEB.x - 32, top: CV_WEB.y - 34 }}>
-        <FloatShell delay={1100} rise={10}>
-          <View style={{
-            width: 64, height: 64, borderRadius: 32,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: "rgba(255,255,255,0.62)",
-            backgroundColor: "rgba(255,255,255,0.042)",
-            overflow: "hidden",
-          }}>
-            <Svg width={64} height={64} viewBox="0 0 64 64">
-              <Path d="M 32 3 Q 46 32 32 61 Q 18 32 32 3"
-                fill="none" stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.30} />
-              <Path d="M 5 24 Q 32 18 59 24"
-                fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
-              <Path d="M 5 40 Q 32 46 59 40"
-                fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.22} />
-              <Circle cx="32" cy="32" r="29" fill="none"
-                stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.18} />
-            </Svg>
-          </View>
-        </FloatShell>
-      </View>
+      {/* 14 inner particles — knowledge already drawn into the light */}
+      {UN_INNER.map((p, i) => <CloudParticle key={i + 36} {...p} />)}
 
-      {/* Image card */}
-      <View style={{ position: "absolute", left: CV_IMG.x - 42, top: CV_IMG.y - 32 }}>
-        <FloatShell delay={2200} rise={15}>
-          <View style={{
-            width: 84, height: 64, borderRadius: 10,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: "rgba(255,255,255,0.62)",
-            backgroundColor: "rgba(255,255,255,0.042)",
-          }}>
-            <View style={{
-              position: "absolute", right: 12, top: 12,
-              width: 18, height: 18, borderRadius: 9,
-              borderWidth: 0.7, borderColor: "rgba(255,255,255,0.40)",
-            }} />
-            <View style={{
-              position: "absolute", left: 10, bottom: 18,
-              width: 40, height: 0.8,
-              backgroundColor: "rgba(255,255,255,0.26)",
-            }} />
-            <View style={{
-              position: "absolute", left: 10, bottom: 25,
-              width: 28, height: 0.8,
-              backgroundColor: "rgba(255,255,255,0.16)",
-            }} />
-          </View>
-        </FloatShell>
-      </View>
+      {/* 6 inbound sparks — the act of understanding, moment by moment */}
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PA_XO} yOff={UN_PA_YO} delay={0}    dur={3200} r={2.4} baseOpacity={1.00} />
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PA_XO} yOff={UN_PA_YO} delay={1600} dur={3200} r={2.0} baseOpacity={0.68} />
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PB_XO} yOff={UN_PB_YO} delay={600}  dur={3400} r={2.2} baseOpacity={0.90} />
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PB_XO} yOff={UN_PB_YO} delay={2200} dur={3400} r={1.8} baseOpacity={0.60} />
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PC_XO} yOff={UN_PC_YO} delay={1000} dur={3600} r={2.2} baseOpacity={0.85} />
+      <TravelDot tKeys={UN_TKEYS} xOff={UN_PC_XO} yOff={UN_PC_YO} delay={2600} dur={3600} r={1.6} baseOpacity={0.55} />
 
-      {/* Centre focal glow */}
+      {/* Central light — the intelligence drawing knowledge inward */}
       <Animated.View style={[{
-        position: "absolute", left: CX-36, top: CY-36,
+        position: "absolute", left: CX - 80, top: CY - 80,
+        width: 160, height: 160, borderRadius: 80,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.50, shadowRadius: 70,
+      }, outerStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 36, top: CY - 36,
         width: 72, height: 72, borderRadius: 36,
         backgroundColor: "transparent",
         shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.80, shadowRadius: 36,
-      }, centreStyle]} />
-      <View style={{
-        position: "absolute", left: CX-5, top: CY-5,
-        width: 10, height: 10, borderRadius: 5,
+        shadowOpacity: 0.82, shadowRadius: 30,
+      }, innerStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 22, top: CY - 22,
+        width: 44, height: 44, borderRadius: 22,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255,255,255,0.50)",
+        backgroundColor: "transparent",
+      }, ringStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 6, top: CY - 6,
+        width: 12, height: 12, borderRadius: 6,
         backgroundColor: "#FFFFFF",
-      }} />
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 14,
+      }, coreStyle]} />
 
-      {/* Converging particles */}
-      {CV_PTCLS.map((p, i) => <ConvergeParticle key={i} {...p} />)}
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 4 — SPEAK
-// A single ring breathes slowly. 8 particles orbit around it like a voice.
+// Intelligence radiates outward. 14 knowledge sparks emit from the centre in
+// organic directions — not uniform, not mechanical. The light speaks.
 // ─────────────────────────────────────────────────────────────────────────────
 function SpeakIllustration() {
-  const breath = useSharedValue(0);
+  const breathA = useSharedValue(0);
+  const breathB = useSharedValue(0);
+  const breathC = useSharedValue(0);
+
   useEffect(() => {
-    breath.value = withRepeat(
-      withTiming(1, { duration: 4400, easing: Easing.inOut(Easing.sin) }),
-      -1, true,
-    );
+    // Slightly quicker pulse — the light is actively emitting
+    breathA.value = withRepeat(withTiming(1, { duration: 4600, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathB.value = withRepeat(withTiming(1, { duration: 3100, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathC.value = withRepeat(withTiming(1, { duration: 2100, easing: Easing.inOut(Easing.sin) }), -1, true);
   }, []);
 
-  const mainRingStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(breath.value, [0, 1], [0.55, 1.0]),
-    transform: [{ scale: interpolate(breath.value, [0, 1], [0.88, 1.12]) }],
+  const outerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathA.value, [0, 1], [0.26, 0.72]),
+    transform: [{ scale: interpolate(breathA.value, [0, 1], [0.80, 1.20]) }],
   }));
-  const midRingStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(breath.value, [0, 1], [0.22, 0.46]),
-    transform: [{ scale: interpolate(breath.value, [0, 1], [0.91, 1.07]) }],
+  const innerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.38, 0.95]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.86, 1.14]) }],
   }));
-  const innerRingStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(breath.value, [0, 1], [0.12, 0.28]),
-    transform: [{ scale: interpolate(breath.value, [0, 1], [0.94, 1.04]) }],
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.20, 0.54]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.88, 1.12]) }],
   }));
-  const orbStyle = useAnimatedStyle(() => ({
-    opacity:   interpolate(breath.value, [0, 1], [0.55, 1.0]),
-    transform: [{ scale: interpolate(breath.value, [0, 1], [0.80, 1.20]) }],
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathC.value, [0, 1], [0.72, 1.0]),
+    transform: [{ scale: interpolate(breathC.value, [0, 1], [0.86, 1.14]) }],
   }));
-
-  const R  = BREATHE_R;
-  const R2 = R * 0.68;
-  const R3 = R * 0.42;
 
   return (
     <View style={illSt.centre}>
-      {/* Ambient background radial glow */}
-      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+
+      {/* Ambient atmosphere — brighter than other screens; the light is loud */}
+      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`}
+        style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <Defs>
-          <RadialGradient id="sp_bg" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.14} />
+          <RadialGradient id="sp4_bg" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.16} />
+            <Stop offset="40%"  stopColor="#fff" stopOpacity={0.05} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
-        <Rect width={V} height={V} fill="url(#sp_bg)" />
+        <Rect width={V} height={V} fill="url(#sp4_bg)" />
       </Svg>
 
-      {/* Expanding ripple rings */}
-      {[0, 1050, 2100, 3150].map((d, i) => <RippleRing key={i} delay={d} />)}
+      {/* 24 ambient particles — the field the light speaks into */}
+      {SP_CLOUD.map((p, i) => <CloudParticle key={i} {...p} />)}
 
-      {/* Primary breathing ring */}
-      <Animated.View style={[{
-        position: "absolute", left: CX-R, top: CY-R,
-        width: R*2, height: R*2, borderRadius: R,
-        borderWidth: StyleSheet.hairlineWidth * 1.5,
-        borderColor: "#FFFFFF",
-      }, mainRingStyle]} />
-
-      {/* Middle ring */}
-      <Animated.View style={[{
-        position: "absolute", left: CX-R2, top: CY-R2,
-        width: R2*2, height: R2*2, borderRadius: R2,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: "#FFFFFF",
-      }, midRingStyle]} />
-
-      {/* Inner ring */}
-      <Animated.View style={[{
-        position: "absolute", left: CX-R3, top: CY-R3,
-        width: R3*2, height: R3*2, borderRadius: R3,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: "#FFFFFF",
-      }, innerRingStyle]} />
-
-      {/* Orbiting particles */}
-      {ORBITAL_PTS.map((p, i) => (
-        <OrbitalParticle key={i} startAngle={p.startAngle} r={p.r} />
+      {/* 14 outward emission sparks — knowledge leaving the light */}
+      {SP_EMIT.map((p, i) => (
+        <TravelDot key={i}
+          tKeys={SP_TKEYS}
+          xOff={p.xOff}
+          yOff={p.yOff}
+          delay={p.delay}
+          dur={p.dur}
+          r={p.r}
+          baseOpacity={p.op}
+        />
       ))}
 
-      {/* Central orb glow */}
+      {/* Central light — slightly larger pulse: the voice of intelligence */}
       <Animated.View style={[{
-        position: "absolute", left: CX-28, top: CY-28,
-        width: 56, height: 56, borderRadius: 28,
+        position: "absolute", left: CX - 90, top: CY - 90,
+        width: 180, height: 180, borderRadius: 90,
         backgroundColor: "transparent",
         shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.90, shadowRadius: 32,
-      }, orbStyle]} />
-
-      {/* Core dot */}
+        shadowOpacity: 0.55, shadowRadius: 80,
+      }, outerStyle]} />
       <Animated.View style={[{
-        position: "absolute", left: CX-7, top: CY-7,
+        position: "absolute", left: CX - 38, top: CY - 38,
+        width: 76, height: 76, borderRadius: 38,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.88, shadowRadius: 34,
+      }, innerStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 24, top: CY - 24,
+        width: 48, height: 48, borderRadius: 24,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255,255,255,0.54)",
+        backgroundColor: "transparent",
+      }, ringStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 7, top: CY - 7,
         width: 14, height: 14, borderRadius: 7,
         backgroundColor: "#FFFFFF",
-      }, orbStyle]} />
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 16,
+      }, coreStyle]} />
+
     </View>
   );
 }
