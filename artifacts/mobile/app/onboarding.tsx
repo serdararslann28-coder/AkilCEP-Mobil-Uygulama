@@ -123,9 +123,6 @@ const AW_CLOUD = Array.from({ length: 38 }, (_, i) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── SCREEN 2: THINK (Neural Constellation) ───────────────────────────────────
-// 8 glowing nodes at natural positions. Particles travel through the network.
-// ─────────────────────────────────────────────────────────────────────────────
 // ── SCREEN 2: THINK ──────────────────────────────────────────────────────────
 // 55 Lissajous particles + 120 SVG dust dots + connection web + traveling sparks.
 // The SVG layer creates the "thousands of particles" density at near-zero cost.
@@ -311,7 +308,7 @@ function CloudParticle({
   );
 }
 
-/** Glowing neural-network node — Screen 2 */
+/** @deprecated — ConstellationNode replaced by CloudParticle + SVG dust in Screen 2 */
 function ConstellationNode({
   vx, vy, vr, delay, dur,
 }: { vx: number; vy: number; vr: number; delay: number; dur: number }) {
@@ -670,57 +667,142 @@ function AwakeningIllustration() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCREEN 2 — THINK (Neural Constellation)
-// 8 glowing nodes breathe independently. Particles travel through the network.
+// SCREEN 2 — THINK
+// Dense particle field: 120 SVG dust dots + 55 Lissajous particles + connection
+// web + 8 traveling sparks. The SVG layer creates the "thousands" density at
+// near-zero cost; the animated layer gives the field life.
 // ─────────────────────────────────────────────────────────────────────────────
 function ThinkIllustration() {
+  const breathA = useSharedValue(0);
+  const breathB = useSharedValue(0);
+  const breathC = useSharedValue(0);
+  const pulse   = useSharedValue(0);
+
+  useEffect(() => {
+    breathA.value = withRepeat(withTiming(1, { duration: 5800, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathB.value = withRepeat(withTiming(1, { duration: 3900, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathC.value = withRepeat(withTiming(1, { duration: 2700, easing: Easing.inOut(Easing.sin) }), -1, true);
+    pulse.value   = withRepeat(withTiming(1, { duration: 6200, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, []);
+
+  const outerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathA.value, [0, 1], [0.24, 0.68]),
+    transform: [{ scale: interpolate(breathA.value, [0, 1], [0.84, 1.16]) }],
+  }));
+  const innerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.36, 0.88]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.88, 1.12]) }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.18, 0.48]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.90, 1.10]) }],
+  }));
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathC.value, [0, 1], [0.70, 1.0]),
+    transform: [{ scale: interpolate(breathC.value, [0, 1], [0.88, 1.12]) }],
+  }));
+  // The entire SVG dust field gently breathes — collective hum of thoughts
+  const fieldStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.72, 1.0]),
+  }));
+
   return (
     <View style={illSt.centre}>
-      {/* SVG: static connection lines */}
-      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
-        <Defs>
-          <RadialGradient id="th_bg" cx="50%" cy="44%" r="54%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.10} />
-            <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
-          </RadialGradient>
-        </Defs>
-        <Rect width={V} height={V} fill="url(#th_bg)" />
 
-        {/* Primary spoke connections (to centre N4) */}
-        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.55} strokeOpacity={0.20}
-          d="M 140 22 Q 152 78 140 124
-             M 70 56 Q 100 88 140 124
-             M 210 52 Q 184 86 140 124
-             M 40 152 Q 86 140 140 124
-             M 240 148 Q 196 138 140 124
-             M 140 124 Q 118 172 94 228
-             M 140 124 Q 164 170 190 224"
-        />
-        {/* Outer connections */}
-        <Path fill="none" stroke="#FFFFFF" strokeWidth={0.40} strokeOpacity={0.10}
-          d="M 70 56 Q 140 32 210 52
-             M 94 228 Q 142 248 190 224
-             M 70 56 Q 54 104 40 152
-             M 210 52 Q 228 102 240 148"
-        />
-      </Svg>
+      {/* SVG layer: ambient glow + 120 static dust dots + connection web */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, fieldStyle]} pointerEvents="none">
+        <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`}
+          style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <Defs>
+            <RadialGradient id="th2_bg" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%"   stopColor="#fff" stopOpacity={0.12} />
+              <Stop offset="40%"  stopColor="#fff" stopOpacity={0.04} />
+              <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+            </RadialGradient>
+          </Defs>
+          <Rect width={V} height={V} fill="url(#th2_bg)" />
 
-      {/* 8 pulsing constellation nodes */}
-      {CNODES.map((n, i) => <ConstellationNode key={i} {...n} />)}
+          {/* 120 static dust dots — the sleeping field of thought */}
+          {TH_DUST.map((d, i) => (
+            <Circle key={i} cx={d.cx} cy={d.cy} r={d.r} fill="#FFFFFF" fillOpacity={d.op} />
+          ))}
 
-      {/* Traveling particles — 3 paths through the network */}
-      <TravelDot tKeys={CN_TKEYS} xOff={CN_P1_XO} yOff={CN_P1_YO}
-        delay={0}    dur={3400} r={2.4} baseOpacity={1.0} />
-      <TravelDot tKeys={CN_TKEYS} xOff={CN_P1_XO} yOff={CN_P1_YO}
-        delay={1700} dur={3400} r={2.4} baseOpacity={0.72} />
+          {/* Primary connection web — hub spokes to centre */}
+          <Path fill="none" stroke="#FFFFFF" strokeWidth={0.45} strokeOpacity={0.14}
+            d="M 140 32 Q 148 86 140 140
+               M 62 68 Q 98 102 140 140
+               M 218 72 Q 182 104 140 140
+               M 44 158 Q 88 150 140 140
+               M 236 150 Q 192 146 140 140
+               M 88 232 Q 112 186 140 140
+               M 196 228 Q 168 184 140 140"
+          />
 
-      <TravelDot tKeys={CN_TKEYS} xOff={CN_P2_XO} yOff={CN_P2_YO}
-        delay={600}  dur={3200} r={2.2} baseOpacity={0.90} />
-      <TravelDot tKeys={CN_TKEYS} xOff={CN_P2_XO} yOff={CN_P2_YO}
-        delay={2200} dur={3200} r={2.2} baseOpacity={0.60} />
+          {/* Secondary web — outer hub-to-hub connections */}
+          <Path fill="none" stroke="#FFFFFF" strokeWidth={0.35} strokeOpacity={0.08}
+            d="M 62 68 Q 100 50 140 32
+               M 218 72 Q 180 52 140 32
+               M 62 68 Q 52 114 44 158
+               M 218 72 Q 228 110 236 150
+               M 88 232 Q 62 196 44 158
+               M 196 228 Q 218 188 236 150
+               M 88 232 Q 142 252 196 228
+               M 62 68 Q 140 48 218 72"
+          />
 
-      <TravelDot tKeys={CN_TKEYS} xOff={CN_P3_XO} yOff={CN_P3_YO}
-        delay={1200} dur={3600} r={2.0} baseOpacity={0.80} />
+          {/* Tertiary web — faint long-range links */}
+          <Path fill="none" stroke="#FFFFFF" strokeWidth={0.28} strokeOpacity={0.05}
+            d="M 22 88 Q 42 78 62 68
+               M 258 84 Q 238 78 218 72
+               M 22 192 Q 32 172 44 158
+               M 258 164 Q 248 156 236 150"
+          />
+        </Svg>
+      </Animated.View>
+
+      {/* 55 living Lissajous particles — same visual language as Screen 1 */}
+      {TH_CLOUD.map((p, i) => <CloudParticle key={i} {...p} />)}
+
+      {/* Traveling thought-sparks — 8 sparks across 4 paths */}
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PA_XO} yOff={TH_PA_YO} delay={0}    dur={3200} r={2.6} baseOpacity={1.00} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PA_XO} yOff={TH_PA_YO} delay={1600} dur={3200} r={2.2} baseOpacity={0.68} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PB_XO} yOff={TH_PB_YO} delay={500}  dur={3000} r={2.4} baseOpacity={0.90} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PB_XO} yOff={TH_PB_YO} delay={2100} dur={3000} r={2.0} baseOpacity={0.60} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PC_XO} yOff={TH_PC_YO} delay={1100} dur={3400} r={2.2} baseOpacity={0.82} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PC_XO} yOff={TH_PC_YO} delay={2700} dur={3400} r={1.8} baseOpacity={0.54} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PD_XO} yOff={TH_PD_YO} delay={800}  dur={2900} r={2.0} baseOpacity={0.76} />
+      <TravelDot tKeys={TH_TKEYS} xOff={TH_PD_XO} yOff={TH_PD_YO} delay={2400} dur={2900} r={1.6} baseOpacity={0.50} />
+
+      {/* Central orb — same 3-layer breathing system as Screen 1 */}
+      <Animated.View style={[{
+        position: "absolute", left: CX - 80, top: CY - 80,
+        width: 160, height: 160, borderRadius: 80,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.52, shadowRadius: 72,
+      }, outerStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 36, top: CY - 36,
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: "transparent",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.82, shadowRadius: 30,
+      }, innerStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 22, top: CY - 22,
+        width: 44, height: 44, borderRadius: 22,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255,255,255,0.50)",
+        backgroundColor: "transparent",
+      }, ringStyle]} />
+      <Animated.View style={[{
+        position: "absolute", left: CX - 6, top: CY - 6,
+        width: 12, height: 12, borderRadius: 6,
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1, shadowRadius: 14,
+      }, coreStyle]} />
+
     </View>
   );
 }
@@ -1083,7 +1165,7 @@ const SCREENS: ScreenCfg[] = [
   {
     Illustration: ThinkIllustration,
     title: "Düşün.", subtitle: "Her soruya daha akıllı yaklaş.",
-    showSkip: true, buttonLabel: "Devam",
+    showSkip: true, buttonLabel: "Devam Et",
   },
   {
     Illustration: UnderstandIllustration,
