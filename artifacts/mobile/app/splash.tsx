@@ -186,12 +186,8 @@ export default function SplashScreen() {
 
     // ── 2.8 s: navigate ───────────────────────────────────────────────
     const nav = setTimeout(async () => {
-      try {
-        const done = await AsyncStorage.getItem(ONBOARDING_KEY);
-        router.replace(done === "true" ? "/chat" : "/onboarding");
-      } catch {
-        router.replace("/onboarding");
-      }
+      // DEV: always show onboarding for UI/animation testing
+      router.replace("/onboarding");
     }, T_NAVIGATE);
 
     return () => clearTimeout(nav);
