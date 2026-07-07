@@ -247,6 +247,71 @@ const GW_ASCEND: Array<{ xf: number; delay: number }> = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ── SCREEN 5: BEGIN (Living Intelligence) ────────────────────────────────────
+// A single white light at the origin. Particles rise in gentle streams,
+// dispersing upward into a calm bloom — the mind opening for the first time.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Origin in illustration space: V(140, 200) — sits in the lower third.
+// BL_ORIG_YO is the Y offset from CY (positive = below centre).
+const BL_ORIG_YO = voff(140, 200).y;
+
+// 28 bloom particles floating above the origin — thoughts that have arrived.
+// BL_VERT shifts the entire cloud upward by 20% of the illustration height.
+const BL_VERT  = -ILL * 0.20;
+const BL_CLOUD = Array.from({ length: 28 }, (_, i) => {
+  const angle = i * PHI * 2 * Math.PI;
+  const rFrac = Math.pow(dr(i * 23 + 4), 0.52);
+  const dist  = rFrac * ILL * 0.38;
+  const r     = Math.max(0.8, 1.0 + (1 - rFrac) * 2.2 + dr(i * 23 + 9) * 0.8);
+  const op    = Math.min(0.88, 0.14 + (1 - rFrac) * 0.50 + dr(i * 23 + 10) * 0.16);
+  return {
+    bx:  Math.cos(angle) * dist,
+    by:  Math.sin(angle) * dist + BL_VERT,
+    dx:  4  + dr(i * 23 + 5) * 12,
+    dy:  4  + dr(i * 23 + 6) * 10,
+    px:  dr(i * 23 + 7) * Math.PI * 2,
+    py:  dr(i * 23 + 8) * Math.PI * 2,
+    dur: 4600 + dr(i * 23 + 11) * 5200,   // serene — slower than S1/S2
+    r, op,
+  };
+});
+
+// 18 rising streams: each travels from near the origin upward into the bloom.
+// Defined as [startVx, startVy], [midVx, midVy], [endVx, endVy] in V-space.
+// Pre-computed into xOff/yOff arrays (ILL offsets from CX/CY) via voff().
+const BL_TKEYS = [0, 0.5, 1];
+const BL_PATHS = (
+  [
+    { s: [136, 200], m: [118, 140], e: [ 80,  58] },
+    { s: [140, 202], m: [140, 128], e: [140,  42] },
+    { s: [144, 200], m: [162, 136], e: [200,  64] },
+    { s: [134, 202], m: [108, 140], e: [ 68,  88] },
+    { s: [142, 198], m: [170, 130], e: [212,  78] },
+    { s: [138, 200], m: [122, 132], e: [ 96,  68] },
+    { s: [140, 202], m: [156, 122], e: [192,  50] },
+    { s: [136, 198], m: [112, 124], e: [ 76,  56] },
+    { s: [144, 200], m: [160, 142], e: [186,  96] },
+    { s: [138, 202], m: [128, 130], e: [108,  52] },
+    { s: [142, 200], m: [154, 120], e: [168,  44] },
+    { s: [136, 198], m: [116, 126], e: [ 88,  72] },
+    { s: [140, 202], m: [148, 138], e: [158,  80] },
+    { s: [144, 200], m: [162, 118], e: [220,  90] },
+    { s: [138, 202], m: [126, 132], e: [100,  60] },
+    { s: [140, 198], m: [140, 138], e: [140,  76] },
+    { s: [136, 200], m: [118, 120], e: [ 92,  46] },
+    { s: [144, 202], m: [164, 132], e: [210,  54] },
+  ] as const
+).map(({ s, m, e }, i) => ({
+  xOff:  [voff(s[0], s[1]).x, voff(m[0], m[1]).x, voff(e[0], e[1]).x],
+  yOff:  [voff(s[0], s[1]).y, voff(m[0], m[1]).y, voff(e[0], e[1]).y],
+  dur:   3400 + dr(i * 29 + 14) * 1600,
+  delay: Math.round(dr(i * 29 + 15) * 2800),
+  r:     1.2  + dr(i * 29 + 16) * 1.4,
+  op:    0.50 + dr(i * 29 + 17) * 0.50,
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
 // REUSABLE ANIMATED COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1043,103 +1108,112 @@ function SpeakIllustration() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 5 — BEGIN
-// A monumental glowing gateway. A path of light leads toward endless brightness.
+// A living intelligence: particles rise from a single white light and bloom
+// into a calm, flowing structure above — the mind fully awake.
 // ─────────────────────────────────────────────────────────────────────────────
 function BeginIllustration() {
-  const glow    = useSharedValue(0);
-  const thresh  = useSharedValue(0);
+  const breathA = useSharedValue(0);
+  const breathB = useSharedValue(0);
+  const breathC = useSharedValue(0);
+
   useEffect(() => {
-    glow.value   = withRepeat(withTiming(1, { duration: 4800, easing: Easing.inOut(Easing.sin) }), -1, true);
-    thresh.value = withRepeat(withTiming(1, { duration: 2800, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathA.value = withRepeat(withTiming(1, { duration: 5400, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathB.value = withRepeat(withTiming(1, { duration: 3600, easing: Easing.inOut(Easing.sin) }), -1, true);
+    breathC.value = withRepeat(withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }), -1, true);
   }, []);
 
-  const portalStyle  = useAnimatedStyle(() => ({
-    opacity:   interpolate(glow.value,   [0, 1], [0.18, 0.65]),
-    transform: [{ scale: interpolate(glow.value, [0, 1], [0.76, 1.24]) }],
+  // Same 3-layer orb system as S1/S2 — visual language continuity
+  const outerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathA.value, [0, 1], [0.22, 0.62]),
+    transform: [{ scale: interpolate(breathA.value, [0, 1], [0.82, 1.18]) }],
   }));
-  const threshStyle  = useAnimatedStyle(() => ({
-    opacity: interpolate(thresh.value, [0, 1], [0.22, 0.60]),
+  const innerStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.35, 0.88]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.88, 1.12]) }],
   }));
-
-  const gwLILL   = (GW_L   / V) * ILL;
-  const gwWILL   = ((GW_R - GW_L) / V) * ILL;
-  const baseILL  = (GW_BASE / V) * ILL;
-  const archMidY = ((GW_CY + GW_BASE) / 2 / V) * ILL;
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathB.value, [0, 1], [0.16, 0.46]),
+    transform: [{ scale: interpolate(breathB.value, [0, 1], [0.90, 1.10]) }],
+  }));
+  const coreStyle = useAnimatedStyle(() => ({
+    opacity:   interpolate(breathC.value, [0, 1], [0.68, 1.0]),
+    transform: [{ scale: interpolate(breathC.value, [0, 1], [0.88, 1.12]) }],
+  }));
 
   return (
     <View style={illSt.centre}>
-      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`} style={StyleSheet.absoluteFillObject}>
+
+      {/* SVG: ambient atmosphere — bloom at top, source glow at origin */}
+      <Svg width={ILL} height={ILL} viewBox={`0 0 ${V} ${V}`}
+        style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <Defs>
-          <RadialGradient id="gw_in" cx="50%" cy="50%" r="44%">
-            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.28} />
-            <Stop offset="55%"  stopColor="#fff" stopOpacity={0.08} />
+          <RadialGradient id="bl5_top" cx="50%" cy="28%" r="54%">
+            <Stop offset="0%"   stopColor="#fff" stopOpacity={0.10} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
-          <RadialGradient id="gw_gnd" cx="50%" cy="92%" r="44%">
+          <RadialGradient id="bl5_src" cx="50%" cy="74%" r="26%">
             <Stop offset="0%"   stopColor="#fff" stopOpacity={0.20} />
             <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
           </RadialGradient>
         </Defs>
-        <Rect width={V} height={V} fill="url(#gw_in)"  />
-        <Rect width={V} height={V} fill="url(#gw_gnd)" />
-
-        {/* Arch interior fill */}
-        <Path d={GW_PATH} fill="#FFFFFF" fillOpacity={0.06} />
-
-        {/* Arch structure */}
-        <Path d={GW_PATH} fill="none" stroke="#FFFFFF"
-          strokeWidth={1.5} strokeOpacity={0.88} />
-
-        {/* Threshold ground bar */}
-        <Line x1={GW_L+3} y1={GW_BASE} x2={GW_R-3} y2={GW_BASE}
-          stroke="#FFFFFF" strokeWidth={3.5} strokeOpacity={0.60} />
-
-        {/* Light spill downward */}
-        <Path
-          d={`M ${V/2-8} ${GW_BASE} L ${V/2-36} ${V+10} L ${V/2+36} ${V+10} L ${V/2+8} ${GW_BASE} Z`}
-          fill="#FFFFFF" fillOpacity={0.046} />
-
-        {/* Stars */}
-        {GW_STARS.map(([x, y], i) => (
-          <Circle key={i} cx={x} cy={y}
-            r={i < 3 ? 1.7 : 1.0} fill="#FFFFFF"
-            fillOpacity={i < 3 ? 0.76 : 0.42} />
-        ))}
+        <Rect width={V} height={V} fill="url(#bl5_top)" />
+        <Rect width={V} height={V} fill="url(#bl5_src)" />
       </Svg>
 
-      {/* Path stones — perspective road of light */}
-      {GW_STONES.map((s, i) => <PathStone key={i} {...s} />)}
+      {/* 28 bloom particles — thoughts fully formed, floating above */}
+      {BL_CLOUD.map((p, i) => <CloudParticle key={i} {...p} />)}
 
-      {/* Threshold glow bar */}
+      {/* 18 rising streams — each spark rises from the source to the bloom */}
+      {BL_PATHS.map((p, i) => (
+        <TravelDot key={i}
+          tKeys={BL_TKEYS}
+          xOff={p.xOff}
+          yOff={p.yOff}
+          delay={p.delay}
+          dur={p.dur}
+          r={p.r}
+          baseOpacity={p.op}
+        />
+      ))}
+
+      {/* Origin light — the source — sits in the lower third of the illustration */}
+      {/* Outer bloom */}
       <Animated.View style={[{
         position: "absolute",
-        left: gwLILL, top: baseILL - 18,
-        width: gwWILL, height: 36, borderRadius: 18,
+        left: CX - 70, top: CY + BL_ORIG_YO - 70,
+        width: 140, height: 140, borderRadius: 70,
         backgroundColor: "transparent",
         shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.60, shadowRadius: 24,
-      }, threshStyle]} />
-
-      {/* Portal interior radiance */}
+        shadowOpacity: 0.52, shadowRadius: 68,
+      }, outerStyle]} />
+      {/* Inner halo */}
       <Animated.View style={[{
-        position: "absolute", left: CX-44, top: archMidY-44,
-        width: 88, height: 88, borderRadius: 44,
+        position: "absolute",
+        left: CX - 28, top: CY + BL_ORIG_YO - 28,
+        width: 56, height: 56, borderRadius: 28,
         backgroundColor: "transparent",
         shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.75, shadowRadius: 54,
-      }, portalStyle]} />
-
-      {/* Focal pinhole */}
-      <View style={{
-        position: "absolute", left: CX-4.5, top: archMidY-4.5,
-        width: 9, height: 9, borderRadius: 4.5,
+        shadowOpacity: 0.86, shadowRadius: 26,
+      }, innerStyle]} />
+      {/* Razor ring */}
+      <Animated.View style={[{
+        position: "absolute",
+        left: CX - 18, top: CY + BL_ORIG_YO - 18,
+        width: 36, height: 36, borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(255,255,255,0.52)",
+        backgroundColor: "transparent",
+      }, ringStyle]} />
+      {/* Core */}
+      <Animated.View style={[{
+        position: "absolute",
+        left: CX - 5, top: CY + BL_ORIG_YO - 5,
+        width: 10, height: 10, borderRadius: 5,
         backgroundColor: "#FFFFFF",
         shadowColor: "#FFFFFF", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1, shadowRadius: 14,
-      }} />
+        shadowOpacity: 1, shadowRadius: 12,
+      }, coreStyle]} />
 
-      {/* Ascending particles */}
-      {GW_ASCEND.map((p, i) => <ArchParticle key={i} {...p} />)}
     </View>
   );
 }
@@ -1247,7 +1321,7 @@ export default function Onboarding() {
 
           {/* Text — lower 42% */}
           <View style={[ss.textArea, { paddingBottom: btmPad + 68 + 64 + 40 }]}>
-            <Text style={ss.title}>{cfg.title}</Text>
+            <Text style={ss.title} numberOfLines={1} adjustsFontSizeToFit>{cfg.title}</Text>
             <Text style={ss.subtitle}>{cfg.subtitle}</Text>
           </View>
 
@@ -1372,11 +1446,11 @@ const ss = StyleSheet.create({
     lineHeight:    66,
   },
 
-  // Subtitle — minimal, soft
+  // Subtitle — minimal, premium, slightly elevated readability
   subtitle: {
     fontSize:      17,
     fontFamily:    "Inter_400Regular",
-    color:         "rgba(255,255,255,0.40)",
+    color:         "rgba(255,255,255,0.56)",
     letterSpacing: -0.2,
     lineHeight:    26,
   },
