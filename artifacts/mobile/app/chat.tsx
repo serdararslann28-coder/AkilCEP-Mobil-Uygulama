@@ -923,7 +923,7 @@ export default function ChatScreen() {
               </Pressable>
             </Animated.View>
 
-            {/* Input pill — solid fill, shadow carrier (no overflow:hidden) */}
+            {/* Input pill — text + mic only; AI button is a dock sibling */}
             <Animated.View style={[ss.inputRowShadow, inputGlowStyle]}>
               {/* Inner — clips content to pill radius */}
               <View style={[ss.inputRowGlass, {
@@ -941,7 +941,7 @@ export default function ChatScreen() {
                   />
                 </Animated.View>
 
-                {/* Text field */}
+                {/* Text field — takes all remaining pill width */}
                 <View style={ss.textInputWrap}>
                   <TextInput
                     style={[
@@ -961,66 +961,62 @@ export default function ChatScreen() {
                   />
                 </View>
 
-                {/* Right controls */}
-                <View style={ss.rightRow}>
+                {/* Mic — sits at right edge of pill; paddingRight + dock gap = 16px to AI */}
+                <View style={ss.micArea}>
+                  <Animated.View
+                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    pointerEvents="none"
+                  />
+                  <AkilMic
+                    listening={sttListening}
+                    size={24}
+                    color={sttListening
+                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
+                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
+                    onPressIn={() => {
+                      micPressGlow.value = withTiming(1, PRESS_IN);
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
+                    onPress={handleSttPress}
+                    hitSlop={8}
+                  />
+                </View>
 
-                  {/* AkilMic — premium custom icon */}
-                  <View style={ss.micArea}>
-                    <Animated.View
-                      style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
-                      pointerEvents="none"
-                    />
-                    <AkilMic
-                      listening={sttListening}
-                      size={24}
-                      color={sttListening
-                        ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
-                        : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
-                      onPressIn={() => {
-                        micPressGlow.value = withTiming(1, PRESS_IN);
-                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                      onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
-                      onPress={handleSttPress}
-                      hitSlop={8}
-                    />
-                  </View>
-
-                  {/* AI voice button — solid black circle */}
-                  <Animated.View style={[ss.sendWrap, aiCombinedStyle]}>
-                    <Pressable
-                      style={ss.aiCirclePressable}
-                      onPressIn={() => {
-                        sendPressGlow.value = withTiming(1, PRESS_IN);
-                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      }}
-                      onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
-                      onPress={hasText ? handleSend : () => {
-                        if (Platform.OS === "web") {
-                          Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
-                          return;
-                        }
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        router.push("/voice");
-                      }}
-                      hitSlop={4}
-                    >
-                      <Animated.View
-                        style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
-                        pointerEvents="none"
-                      />
-                      <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                        <Feather name="arrow-up" size={18} color="#FFFFFF" />
-                      </Animated.View>
-                      <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                        <WaveformBars active={voiceActive || sttListening} />
-                      </Animated.View>
-                    </Pressable>
-                  </Animated.View>
-
-                </View>{/* rightRow */}
               </View>{/* inputRowGlass */}
             </Animated.View>{/* inputRowShadow */}
+
+            {/* AI voice button — standalone dock sibling; dock gap:8 separates it from pill */}
+            <Animated.View style={[ss.aiCircleWrap, aiCombinedStyle]}>
+              <Pressable
+                style={ss.aiCirclePressable}
+                onPressIn={() => {
+                  sendPressGlow.value = withTiming(1, PRESS_IN);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+                onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
+                onPress={hasText ? handleSend : () => {
+                  if (Platform.OS === "web") {
+                    Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                    return;
+                  }
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push("/voice");
+                }}
+                hitSlop={4}
+              >
+                <Animated.View
+                  style={[StyleSheet.absoluteFill, { borderRadius: 25, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                  pointerEvents="none"
+                />
+                <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                  <Feather name="arrow-up" size={18} color="#FFFFFF" />
+                </Animated.View>
+                <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                  <WaveformBars active={voiceActive || sttListening} />
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
 
           </View>{/* inputDock */}
         </View>
@@ -1412,7 +1408,7 @@ const ss = StyleSheet.create({
     overflow:          "hidden",
     minHeight:         58,
     paddingLeft:       18,
-    paddingRight:      6,
+    paddingRight:      8,
     borderWidth:       0,
   },
 
@@ -1439,13 +1435,12 @@ const ss = StyleSheet.create({
     paddingRight:    6,
   },
 
-  // Mic hit area — marginRight creates 16px optical gap to AI button
+  // Mic hit area — no marginRight; spacing to AI button comes from pill paddingRight + dock gap
   micArea: {
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
-    marginRight:    16,
   },
 
   // AI voice button — solid black circle
