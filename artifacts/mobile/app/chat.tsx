@@ -254,15 +254,15 @@ export default function ChatScreen() {
 
   // Soft white glow on focus — luxurious, no bounce
   const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
-  // Pill shadow — subtle at rest, gentle glow on focus
+  // Pill shadow — 20% reduced from previous; gentle focus glow
   const inputGlowStyle = useAnimatedStyle(() => ({
     shadowColor:   T.isDark ? "#FFFFFF" : "#000000",
     shadowOpacity: interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [0.08, 0.18] : [0.05, 0.10]),
+      T.isDark ? [0.06, 0.14] : [0.04, 0.08]),
     shadowRadius:  interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [14,   26]   : [10,   18]),
-    shadowOffset:  { width: 0, height: T.isDark ? 0 : 3 },
-    elevation:     6,
+      T.isDark ? [11,   21]   : [8,    14]),
+    shadowOffset:  { width: 0, height: T.isDark ? 0 : 2 },
+    elevation:     5,
   }));
   // Glass overlay darkens pill surface; brightens subtly on focus
   const inputOverlayStyle = useAnimatedStyle(() => ({
@@ -352,11 +352,24 @@ export default function ChatScreen() {
     transform: [{ scale: interpolate(plusScaleSV.value, [0, 1], [1.0, 0.97]) }],
   }));
 
-  // AI button — combines idle breathing + send spring + press scale into one transform.
-  // Multiplying three scale factors avoids stacked Animated.View wrappers.
+  // AI button idle breath — very subtle ±1.8 %, 4.8 s cycle, always on
+  const aiBreathe = useSharedValue(0);
+  useEffect(() => {
+    aiBreathe.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 2400, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  // AI button — idle breath × voice pulse × send spring × press scale, one transform
   const aiCombinedStyle = useAnimatedStyle(() => ({
     transform: [{
-      scale: (1 + voiceModeSV.value * arrowGlowPulse.value * 0.015)
+      scale: (1 + aiBreathe.value * 0.018)
+             * (1 + voiceModeSV.value * arrowGlowPulse.value * 0.015)
              * sendScale.value
              * interpolate(sendPressGlow.value, [0, 1], [1.0, 0.93]),
     }],
@@ -936,7 +949,7 @@ export default function ChatScreen() {
                       { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                     ]}
                     placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.26)"}
+                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)"}
                     value={inputText}
                     onChangeText={setInputText}
                     multiline
@@ -961,6 +974,7 @@ export default function ChatScreen() {
                     />
                     <AkilMic
                       listening={sttListening}
+                      size={22}
                       color={sttListening
                         ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
                         : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
@@ -1386,19 +1400,19 @@ const ss = StyleSheet.create({
   // Pill outer — shadow carrier, no overflow:hidden (shadow renders on iOS)
   inputRowShadow: {
     flex:         1,
-    borderRadius: 31,
-    minHeight:    50,
+    borderRadius: 26,
+    minHeight:    52,
   },
   // Pill inner — solid fill, clips content to pill shape
   inputRowGlass: {
     flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
-    borderRadius:      31,
+    borderRadius:      26,
     overflow:          "hidden",
-    minHeight:         50,
-    paddingLeft:       14,
-    paddingRight:      6,
+    minHeight:         52,
+    paddingLeft:       16,
+    paddingRight:      8,
     borderWidth:       StyleSheet.hairlineWidth,
   },
 
@@ -1406,25 +1420,25 @@ const ss = StyleSheet.create({
   textInputWrap: {
     flex:            1,
     justifyContent:  "center",
-    paddingVertical: 11,
+    paddingVertical: 7,
   },
   textInput: {
     flex:              1,
-    fontSize:          15,
-    fontFamily:        "Inter_400Regular",
-    lineHeight:        21,
+    fontSize:          18,
+    fontFamily:        "Inter_500Medium",
+    lineHeight:        26,
     paddingVertical:   0,
     paddingHorizontal: 0,
-    maxHeight:         96,
+    maxHeight:         100,
   },
 
   // Right controls row
   rightRow: {
     flexDirection:   "row",
     alignItems:      "center",
-    gap:             2,
-    paddingVertical: 5,
-    paddingRight:    5,
+    gap:             4,
+    paddingVertical: 4,
+    paddingRight:    6,
   },
 
   // Mic hit area
@@ -1445,9 +1459,9 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   aiCirclePressable: {
-    width:           44,
-    height:          44,
-    borderRadius:    22,
+    width:           48,
+    height:          48,
+    borderRadius:    24,
     backgroundColor: "#0A0A0A",
     alignItems:      "center",
     justifyContent:  "center",
