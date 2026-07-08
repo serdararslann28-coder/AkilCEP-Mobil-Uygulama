@@ -69,8 +69,8 @@ const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 // ── Voice phase ────────────────────────────────────────────────────────────────
 type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
-const MIN_INPUT_H = 62;   // large floating pill
-const MAX_INPUT_H = 140;  // ~4 lines before scroll kicks in
+const MIN_INPUT_H = 42;   // single-line floating pill
+const MAX_INPUT_H = 120;  // ~5 lines before scroll kicks in
 
 // ── Waveform bars — animated 4-bar equaliser inside the AI button ─────────────
 // Runs entirely on UI thread via Reanimated — zero JS-thread involvement at 60 FPS.
@@ -193,7 +193,7 @@ export default function ChatScreen() {
     });
     sendMessage(inputText.trim());
     setInputText("");
-    inputHeightSV.value = withSpring(MIN_INPUT_H, { damping: 20, stiffness: 180, mass: 0.8 });
+    inputHeightSV.value = withTiming(MIN_INPUT_H, { duration: 160 });
     setScrollEnabled(false);
   };
 
@@ -511,10 +511,11 @@ export default function ChatScreen() {
   };
 
   // ── Adaptive height ──────────────────────────────────────────────────────────
+  const HEIGHT_ANIM = { duration: 160 } as const;
   const onContentSizeChange = (e: { nativeEvent: { contentSize: { height: number } } }) => {
     const h = e.nativeEvent.contentSize.height;
     const clamped = Math.min(Math.max(h, MIN_INPUT_H), MAX_INPUT_H);
-    inputHeightSV.value = withSpring(clamped, { damping: 20, stiffness: 180, mass: 0.8 });
+    inputHeightSV.value = withTiming(clamped, HEIGHT_ANIM);
     setScrollEnabled(h > MAX_INPUT_H);
   };
 
@@ -899,7 +900,7 @@ export default function ChatScreen() {
 
             {/* B — white pill, flex:1, height 54, radius 27 */}
             {/* dockPillShell: shadow carrier — no overflow:hidden so shadow renders on iOS */}
-            <Animated.View style={[ss.dockPillShell, inputGlowStyle]}>
+            <Animated.View style={[ss.dockPillShell, inputGlowStyle, inputFieldAnim]}>
               {/* dockPillBody: row, clips content, sets background colour */}
               <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
 
@@ -931,8 +932,10 @@ export default function ChatScreen() {
                     { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                   ]}
                   placeholder=""
-                  numberOfLines={1}
+                  multiline
+                  scrollEnabled={scrollEnabled}
                   value={inputText}
+                  onContentSizeChange={onContentSizeChange}
                   onChangeText={(t) => {
                     setInputText(t);
                     // Hide placeholder immediately when typing, restore when cleared and unfocused
@@ -1384,12 +1387,12 @@ const ss = StyleSheet.create({
     flex:           1,
     flexDirection:  "row",
     alignItems:     "center",
-    height:         42,
+    minHeight:      42,
     borderRadius:   21,
     overflow:       "hidden",
     paddingLeft:    18,
     paddingRight:   2,
-    paddingVertical: 0,
+    paddingVertical: 8,
   },
   dockShimmer: {
     position: "absolute",
@@ -1398,10 +1401,11 @@ const ss = StyleSheet.create({
     width:    72,
     left:     0,
   },
-  // TextInput — flex:1, height matches pill
+  // TextInput — flex:1, grows with content up to MAX_INPUT_H
   dockField: {
     flex:              1,
-    height:            42,
+    minHeight:         26,
+    maxHeight:         104,
     fontSize:          15,
     fontFamily:        "Inter_500Medium",
     letterSpacing:     -0.2,
