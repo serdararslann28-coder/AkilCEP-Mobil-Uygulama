@@ -251,6 +251,7 @@ export default function ChatScreen() {
   const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
   const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
   const inputFocused   = useSharedValue(0);             // 0 = rest, 1 = focused
+  const placeholderSV  = useSharedValue(1);             // 1 = visible, 0 = hidden (fades on focus/typing)
 
   // Soft white glow on focus — luxurious, no bounce
   const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
@@ -264,6 +265,11 @@ export default function ChatScreen() {
     shadowOffset:  { width: 0, height: T.isDark ? 0 : 2 },
     elevation:     5,
   }));
+  // Custom placeholder — fades out on focus or when text is present
+  const placeholderFadeStyle = useAnimatedStyle(() => ({
+    opacity: placeholderSV.value,
+  }));
+
   // Glass overlay darkens pill surface; brightens subtly on focus
   const inputOverlayStyle = useAnimatedStyle(() => ({
     opacity: interpolate(inputFocused.value, [0, 1],
@@ -907,23 +913,49 @@ export default function ChatScreen() {
                   />
                 </Animated.View>
 
+                {/* Custom animated placeholder — fades on focus; native placeholder cleared */}
+                {!voiceActive && (
+                  <Animated.Text
+                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.40)" : "#9A9A9A" }, placeholderFadeStyle]}
+                    pointerEvents="none"
+                    numberOfLines={1}
+                  >
+                    AkılCEP'e yaz
+                  </Animated.Text>
+                )}
+
                 {/* Text field — flex:1, single line, vertically centred */}
                 <TextInput
                   style={[
                     ss.dockField,
                     { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                   ]}
-                  placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.40)" : "#9A9A9A"}
+                  placeholder=""
                   numberOfLines={1}
                   value={inputText}
-                  onChangeText={setInputText}
+                  onChangeText={(t) => {
+                    setInputText(t);
+                    // Hide placeholder immediately when typing, restore when cleared and unfocused
+                    if (t.length > 0) {
+                      placeholderSV.value = withTiming(0, { duration: 100 });
+                    } else if (inputFocused.value < 0.5) {
+                      placeholderSV.value = withTiming(1, { duration: 150 });
+                    }
+                  }}
                   maxLength={2000}
                   returnKeyType="send"
                   onSubmitEditing={() => { if (hasText) handleSend(); }}
                   editable={!voiceActive}
-                  onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
-                  onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
+                  onFocus={() => {
+                    inputFocused.value  = withTiming(1, FOCUS_DUR);
+                    placeholderSV.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
+                  }}
+                  onBlur={() => {
+                    inputFocused.value = withTiming(0, FOCUS_DUR);
+                    if (inputText.length === 0) {
+                      placeholderSV.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
+                    }
+                  }}
                 />
 
                 {/* Thin vertical divider between text and mic */}
@@ -1355,7 +1387,7 @@ const ss = StyleSheet.create({
     height:         42,
     borderRadius:   21,
     overflow:       "hidden",
-    paddingLeft:    12,
+    paddingLeft:    18,
     paddingRight:   2,
     paddingVertical: 0,
   },
@@ -1372,9 +1404,24 @@ const ss = StyleSheet.create({
     height:            42,
     fontSize:          15,
     fontFamily:        "Inter_500Medium",
+    letterSpacing:     -0.2,
     paddingVertical:   0,
     paddingHorizontal: 0,
     textAlignVertical: "center",
+  },
+  // Animated placeholder overlay — absolutely positioned, pointer-events none
+  dockPlaceholder: {
+    position:      "absolute",
+    left:          0,
+    top:           0,
+    bottom:        0,
+    right:         0,
+    paddingLeft:   0,
+    fontSize:      15,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.2,
+    textAlignVertical: "center",
+    lineHeight:    42,
   },
   // Divider — 1×16 px, 8 px margin before mic
   dockDivider: {
