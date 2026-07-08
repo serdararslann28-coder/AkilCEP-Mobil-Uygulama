@@ -941,25 +941,23 @@ export default function ChatScreen() {
                   />
                 </Animated.View>
 
-                {/* Text field — takes all remaining pill width */}
-                <View style={ss.textInputWrap}>
-                  <TextInput
-                    style={[
-                      ss.textInput,
-                      { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
-                    ]}
-                    placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.48)" : "#9A9A9A"}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    maxLength={2000}
-                    returnKeyType="send"
-                    onSubmitEditing={() => { if (hasText) handleSend(); }}
-                    editable={!voiceActive}
-                    onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
-                    onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
-                  />
-                </View>
+                {/* Text field — flex:1 fills remaining pill width; height:58 + textAlignVertical centers text */}
+                <TextInput
+                  style={[
+                    ss.textInput,
+                    { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
+                  ]}
+                  placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
+                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.48)" : "#9A9A9A"}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  maxLength={2000}
+                  returnKeyType="send"
+                  onSubmitEditing={() => { if (hasText) handleSend(); }}
+                  editable={!voiceActive}
+                  onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
+                  onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
+                />
 
                 {/* Mic — sits at right edge of pill; paddingRight + dock gap = 16px to AI */}
                 <View style={ss.micArea}>
@@ -1412,17 +1410,14 @@ const ss = StyleSheet.create({
     borderWidth:       0,
   },
 
-  // Text field wrapper — flex:1 fills available space; padding centers single line
-  textInputWrap: {
-    flex:            1,
-    justifyContent:  "center",
-  },
+  // TextInput — flex:1 fills remaining pill width; row's alignItems:center handles vertical
   textInput: {
-    fontSize:            17,
-    fontFamily:          "Inter_500Medium",
-    paddingVertical:     0,
-    paddingHorizontal:   0,
-    textAlignVertical:   "center",
+    flex:              1,
+    fontSize:          17,
+    fontFamily:        "Inter_500Medium",
+    paddingVertical:   0,
+    paddingHorizontal: 0,
+    textAlignVertical: "center",
   },
 
   // Right controls row
