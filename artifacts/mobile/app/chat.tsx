@@ -1418,12 +1418,11 @@ const ss = StyleSheet.create({
     justifyContent:  "center",
   },
   textInput: {
-    flex:              1,
-    fontSize:          17,
-    fontFamily:        "Inter_500Medium",
-    lineHeight:        22,
-    paddingVertical:   0,
-    paddingHorizontal: 0,
+    fontSize:            17,
+    fontFamily:          "Inter_500Medium",
+    paddingVertical:     0,
+    paddingHorizontal:   0,
+    textAlignVertical:   "center",
   },
 
   // Right controls row
