@@ -1,28 +1,36 @@
 /**
- * MultimodalPanel — premium keyboard-aware action sheet.
+ * MultimodalPanel — keyboard-aware floating glass action sheet.
  *
- * Keyboard tracking: react-native-keyboard-controller reanimated.height
- * (SharedValue<number>, 0 when hidden, negative when visible).
+ * Panel entry:
+ *   - Container: overdamped spring (damping 32, stiffness 240) — fluid, zero bounce
+ *   - Fade: 220ms cubic-out
  *
- * Entry choreography:
- *   1. Panel container slides up + fades in (240ms, cubic-out)
- *   2. Cards cascade left-to-right: opacity 0→1, translateY 12→0,
- *      scale 0.96→1.0 — each delayed by 50ms (total 350ms)
+ * Card choreography (all on UI thread via Reanimated — 60 FPS guaranteed):
+ *   1. Cards cascade left-to-right: 50ms stagger between each
+ *   2. Per card: opacity 0→1, translateY 12→0, scale 0.96→1.0 — 200/240ms cubic-out
+ *   3. Exit: all cards collapse together in 110ms — no stagger
  *
- * Press micro-interaction:
- *   - Scale 1→0.97 in 90ms (immediate, intentional)
- *   - Shadow grows while pressed
- *   - Returns 0.97→1.0 in 200ms cubic-out (smooth, never bouncy)
+ * Press micro-interaction (per card):
+ *   - Scale 1→0.97 in 90ms (immediate, deliberate)
+ *   - Shadow grows while pressed — "lifted" feel
+ *   - Returns 0.97→1.0 in 200ms cubic-out
  *   - Haptic on pressIn
  *
- * Exit: panel + cards fade + drop together in 150ms.
- * Keyboard and input focus are never disturbed.
+ * Glass surface:
+ *   - Outer Animated.View: carries soft shadow, no overflow clip
+ *   - Inner View: overflow:hidden clips BlurView to borderRadius
+ *   - BlurView + color overlay + hairline border
+ *   - VOID: dark-tinted blur | PURE: light-tinted blur
+ *
+ * Keyboard: never dismissed. Input focus: never disturbed.
+ * Tap-outside backdrop closes panel only.
  */
-import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
-import { useKeyboardContext } from "react-native-keyboard-controller";
+import { BlurView }             from "expo-blur";
+import * as Haptics             from "expo-haptics";
+import * as ImagePicker         from "expo-image-picker";
+import { router }               from "expo-router";
+import { Feather }              from "@expo/vector-icons";
+import { useKeyboardContext }   from "react-native-keyboard-controller";
 import React, { useCallback, useEffect } from "react";
 import {
   Dimensions,
@@ -38,8 +46,11 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
+
+import { useTheme } from "@/context/ThemeContext";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
@@ -48,11 +59,15 @@ const INNER_PAD = 14;
 const CARD_GAP  = 10;
 const CARD_W    = (SW - PANEL_MX * 2 - INNER_PAD * 2 - CARD_GAP) / 2;
 const CARD_H    = 106;
+const PANEL_GAP = 8;   // breathing gap between input bar top and panel bottom
 
-// Easing curves — deliberately calm, no spring bounce
+// ─── Easing curves — calm, deliberate, no bounce ──────────────────────────────
 const EASE_OUT  = Easing.out(Easing.cubic);
 const EASE_IN   = Easing.in(Easing.ease);
 const EASE_SNAP = Easing.out(Easing.ease);
+
+// ─── Spring config — overdamped (damping ratio > 1 → zero overshoot) ──────────
+const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 const ACTIONS = [
@@ -64,13 +79,14 @@ const ACTIONS = [
 
 type ActionId = typeof ACTIONS[number]["id"];
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+// ─── ActionCard ───────────────────────────────────────────────────────────────
 function ActionCard({
   icon,
   label,
   sub,
   index,
   open,
+  isDark,
   onPress,
 }: {
   icon:    React.ComponentProps<typeof Feather>["name"];
@@ -78,43 +94,44 @@ function ActionCard({
   sub:     string;
   index:   number;
   open:    boolean;
+  isDark:  boolean;
   onPress: () => void;
 }) {
-  const stagger = index * 50;          // 0 / 50 / 100 / 150 ms
+  const stagger = index * 50;   // 0 / 50 / 100 / 150 ms
 
-  // Entry: opacity, translateY, scale
+  // Entry state — opacity, vertical offset, scale
   const entOp    = useSharedValue(0);
   const entY     = useSharedValue(12);
   const entScale = useSharedValue(0.96);
 
-  // Press: scale + shadow emphasis
+  // Press state — scale + shadow emphasis
   const pressScale  = useSharedValue(1);
   const pressShadow = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
-      // Staggered entrance — cubic-out, no bounce, 200ms body
-      entOp.value    = withDelay(stagger, withTiming(1,    { duration: 200, easing: EASE_OUT }));
-      entY.value     = withDelay(stagger, withTiming(0,    { duration: 240, easing: EASE_OUT }));
-      entScale.value = withDelay(stagger, withTiming(1.0,  { duration: 240, easing: EASE_OUT }));
+      // Staggered entrance — cubic-out, no bounce, 200ms opacity / 240ms transform
+      entOp.value    = withDelay(stagger, withTiming(1,   { duration: 200, easing: EASE_OUT }));
+      entY.value     = withDelay(stagger, withTiming(0,   { duration: 240, easing: EASE_OUT }));
+      entScale.value = withDelay(stagger, withTiming(1.0, { duration: 240, easing: EASE_OUT }));
     } else {
-      // All cards exit together — quick, no stagger
+      // All cards exit together — quick, uniform
       entOp.value    = withTiming(0,    { duration: 110 });
       entY.value     = withTiming(8,    { duration: 110 });
       entScale.value = withTiming(0.97, { duration: 110 });
-      // Reset press state so it's clean on next open
+      // Reset press state so next open is clean
       pressScale.value  = 1;
       pressShadow.value = 0;
     }
   }, [open]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: entOp.value,
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity:   entOp.value,
     transform: [
       { translateY: entY.value },
       { scale: entScale.value * pressScale.value },
     ],
-    // Shadow grows subtly on press — creates a "lifted" feel
+    // Shadow lifts subtly on press — reinforces physical depth
     shadowOpacity: interpolate(pressShadow.value, [0, 1], [0, 0.10]),
     shadowColor:   "#000000",
     shadowOffset:  { width: 0, height: 3 },
@@ -135,16 +152,23 @@ function ActionCard({
     pressShadow.value = withTiming(0,   { duration: 200 });
   }, []);
 
+  // Theme-reactive colors — avoid re-renders by passing isDark as prop
+  const cardBg   = isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.045)";
+  const iconBg   = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.058)";
+  const iconColor = isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.72)";
+  const labelColor = isDark ? "rgba(255,255,255,0.90)" : "#111111";
+  const subColor   = isDark ? "rgba(255,255,255,0.42)" : "#888888";
+
   return (
     <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onPress}>
-      <Animated.View style={[ss.card, animStyle]}>
+      <Animated.View style={[ss.card, cardStyle, { backgroundColor: cardBg }]}>
         {/* Icon badge — top-left */}
-        <View style={ss.iconWrap}>
-          <Feather name={icon} size={20} color="#111111" />
+        <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
+          <Feather name={icon} size={20} color={iconColor} />
         </View>
         {/* Labels — bottom-left */}
-        <Text style={ss.cardLabel} numberOfLines={1}>{label}</Text>
-        <Text style={ss.cardSub}>{sub}</Text>
+        <Text style={[ss.cardLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
+        <Text style={[ss.cardSub,   { color: subColor   }]}>{sub}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -155,7 +179,7 @@ interface Props {
   open:           boolean;
   onClose:        () => void;
   onImagePicked?: (uri: string) => void;
-  bottomOffset:   number;   // px from screen bottom to top of input bar
+  bottomOffset:   number;  // px from screen bottom to top of input bar
 }
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
@@ -165,32 +189,32 @@ export default function MultimodalPanel({
   onImagePicked,
   bottomOffset,
 }: Props) {
-  // Keyboard height from keyboard-controller — ≤0, negative when keyboard visible
+  const { theme: T } = useTheme();
+
+  // Keyboard height from keyboard-controller — ≤0, negative when visible
   const { reanimated } = useKeyboardContext();
   const kbH = reanimated.height;
 
-  // Panel container animation
+  // Panel container shared values
   const panelOp = useSharedValue(0);
   const panelY  = useSharedValue(20);
   const bdOp    = useSharedValue(0);
-
-  // Drag pill has its own opacity — fades in with the panel
   const pillOp  = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
-      // Backdrop: fade in quickly
-      bdOp.value    = withTiming(1, { duration: 180 });
-      // Pill: appears as soon as panel is visible
-      pillOp.value  = withTiming(1, { duration: 140, easing: EASE_OUT });
-      // Panel: slides up + fades in — slightly slower than pill
-      panelOp.value = withTiming(1, { duration: 220, easing: EASE_OUT });
-      panelY.value  = withTiming(0, { duration: 260, easing: EASE_OUT });
+      // Backdrop + pill: simple fades
+      bdOp.value   = withTiming(1, { duration: 180 });
+      pillOp.value = withTiming(1, { duration: 140, easing: EASE_OUT });
+      // Panel opacity: timing fade (spring on opacity looks wrong)
+      panelOp.value = withTiming(1, { duration: 200, easing: EASE_OUT });
+      // Panel position: overdamped spring — fluid, zero overshoot
+      panelY.value  = withSpring(0, PANEL_SPRING);
     } else {
-      // Exit: backdrop fades, panel slides down — all in sync
-      bdOp.value    = withTiming(0, { duration: 160 });
-      pillOp.value  = withTiming(0, { duration: 120 });
-      panelOp.value = withTiming(0, { duration: 150 });
+      // Exit: short timing — a snap-down feels more intentional than a spring reverse
+      bdOp.value    = withTiming(0,  { duration: 160 });
+      pillOp.value  = withTiming(0,  { duration: 120 });
+      panelOp.value = withTiming(0,  { duration: 150 });
       panelY.value  = withTiming(16, { duration: 160, easing: EASE_IN });
     }
   }, [open]);
@@ -199,15 +223,23 @@ export default function MultimodalPanel({
 
   const pillStyle = useAnimatedStyle(() => ({ opacity: pillOp.value }));
 
-  // Panel position: bottomOffset above input bar, raised by keyboard height.
-  // kbH ≤ 0 → subtracting negative value = adding keyboard height.
+  // Panel bottom = input bar top + breathing gap, raised by keyboard height.
+  // kbH ≤ 0: subtracting a negative value adds keyboard height — panel tracks keyboard.
   const panelStyle = useAnimatedStyle(() => ({
     opacity:   panelOp.value,
-    bottom:    bottomOffset - kbH.value,
+    bottom:    bottomOffset + PANEL_GAP - kbH.value,
     transform: [{ translateY: panelY.value }],
   }));
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Glass token selection ────────────────────────────────────────────────────
+  const blurTint     = T.isDark ? "dark"                   : "light";
+  const overlayColor = T.isDark ? "rgba(12,12,12,0.56)"    : "rgba(255,255,255,0.64)";
+  const borderColor  = T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)";
+  const shadowColor  = T.isDark ? "rgba(0,0,0,1)"          : "rgba(0,0,0,1)";
+  const shadowOpacity = T.isDark ? 0.45                    : 0.10;
+  const pillColor    = T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.13)";
+
+  // ── Action handlers ──────────────────────────────────────────────────────────
   const handleCamera = useCallback(() => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
@@ -246,7 +278,7 @@ export default function MultimodalPanel({
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Tap-outside backdrop — closes panel without disturbing keyboard */}
+      {/* Tap-outside backdrop — closes panel, never disturbs keyboard */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
         pointerEvents={open ? "auto" : "none"}
@@ -254,43 +286,67 @@ export default function MultimodalPanel({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Floating action sheet */}
+      {/* Outer shadow carrier — no overflow clip so shadow renders on iOS */}
       <Animated.View
-        style={[ss.panel, panelStyle]}
+        style={[
+          ss.panelShadow,
+          panelStyle,
+          { shadowColor, shadowOpacity },
+        ]}
         pointerEvents={open ? "box-none" : "none"}
       >
-        {/* Drag indicator — fades in first (pillOp independent of card timing) */}
-        <Animated.View style={[ss.dragPill, pillStyle]} />
+        {/* Inner glass surface — clips BlurView to rounded corners */}
+        <View style={ss.panelGlass}>
 
-        {/* 2 × 2 staggered card grid */}
-        <View style={ss.grid}>
-          <View style={ss.gridRow}>
-            {ACTIONS.slice(0, 2).map((a, i) => (
-              <ActionCard
-                key={a.id}
-                icon={a.icon}
-                label={a.label}
-                sub={a.sub}
-                index={i}
-                open={open}
-                onPress={handlers[a.id]}
-              />
-            ))}
+          {/* Frosted glass base */}
+          <BlurView
+            style={StyleSheet.absoluteFill}
+            tint={blurTint}
+            intensity={65}
+          />
+
+          {/* Color overlay — thickens / tints the blur for legibility */}
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
+
+          {/* Hairline border — defines the panel edge on both themes */}
+          <View style={[StyleSheet.absoluteFill, ss.panelBorder, { borderColor }]} />
+
+          {/* Drag pill — fades in first, independent of card timing */}
+          <Animated.View style={[ss.dragPill, pillStyle, { backgroundColor: pillColor }]} />
+
+          {/* 2 × 2 staggered card grid */}
+          <View style={ss.grid}>
+            <View style={ss.gridRow}>
+              {ACTIONS.slice(0, 2).map((a, i) => (
+                <ActionCard
+                  key={a.id}
+                  icon={a.icon}
+                  label={a.label}
+                  sub={a.sub}
+                  index={i}
+                  open={open}
+                  isDark={T.isDark}
+                  onPress={handlers[a.id]}
+                />
+              ))}
+            </View>
+            <View style={ss.gridRow}>
+              {ACTIONS.slice(2, 4).map((a, i) => (
+                <ActionCard
+                  key={a.id}
+                  icon={a.icon}
+                  label={a.label}
+                  sub={a.sub}
+                  index={i + 2}
+                  open={open}
+                  isDark={T.isDark}
+                  onPress={handlers[a.id]}
+                />
+              ))}
+            </View>
           </View>
-          <View style={ss.gridRow}>
-            {ACTIONS.slice(2, 4).map((a, i) => (
-              <ActionCard
-                key={a.id}
-                icon={a.icon}
-                label={a.label}
-                sub={a.sub}
-                index={i + 2}
-                open={open}
-                onPress={handlers[a.id]}
-              />
-            ))}
-          </View>
-        </View>
+
+        </View>{/* panelGlass */}
       </Animated.View>
     </>
   );
@@ -301,33 +357,42 @@ const ss = StyleSheet.create({
 
   backdrop: {
     zIndex:          150,
-    backgroundColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "rgba(0,0,0,0.12)",
   },
 
-  panel: {
-    position:          "absolute",
-    zIndex:            160,
-    left:              PANEL_MX,
-    right:             PANEL_MX,
-    backgroundColor:   "#FFFFFF",
+  // Outer wrapper — carries drop shadow (must NOT have overflow:hidden)
+  panelShadow: {
+    position:      "absolute",
+    zIndex:        160,
+    left:          PANEL_MX,
+    right:         PANEL_MX,
+    borderRadius:  28,
+    shadowOffset:  { width: 0, height: -4 },
+    shadowRadius:  24,
+    elevation:     24,
+  },
+
+  // Inner surface — clips BlurView + overlays to borderRadius
+  panelGlass: {
     borderRadius:      28,
+    overflow:          "hidden",
     paddingHorizontal: INNER_PAD,
     paddingBottom:     INNER_PAD + 6,
-    paddingTop:        12,
-    shadowColor:       "#000000",
-    shadowOffset:      { width: 0, height: -3 },
-    shadowOpacity:     0.08,
-    shadowRadius:      20,
-    elevation:         20,
+    paddingTop:        14,
+  },
+
+  // Hairline border rendered as an absoluteFill view with just borders
+  panelBorder: {
+    borderRadius: 28,
+    borderWidth:  0.5,
   },
 
   dragPill: {
-    width:           36,
-    height:          4,
-    borderRadius:    2,
-    backgroundColor: "rgba(0,0,0,0.13)",
-    alignSelf:       "center",
-    marginBottom:    14,
+    width:        36,
+    height:       4,
+    borderRadius: 2,
+    alignSelf:    "center",
+    marginBottom: 14,
   },
 
   grid: {
@@ -340,31 +405,28 @@ const ss = StyleSheet.create({
   },
 
   card: {
-    width:           CARD_W,
-    height:          CARD_H,
-    backgroundColor: "#F6F6F6",
-    borderRadius:    18,
-    padding:         13,
-    justifyContent:  "flex-end",
-    overflow:        "hidden",
+    width:        CARD_W,
+    height:       CARD_H,
+    borderRadius: 18,
+    padding:      13,
+    justifyContent: "flex-end",
+    overflow:       "hidden",
   },
 
   iconWrap: {
-    position:        "absolute",
-    top:             13,
-    left:            13,
-    width:           40,
-    height:          40,
-    borderRadius:    13,
-    backgroundColor: "rgba(0,0,0,0.058)",
-    alignItems:      "center",
-    justifyContent:  "center",
+    position:       "absolute",
+    top:            13,
+    left:           13,
+    width:          40,
+    height:         40,
+    borderRadius:   13,
+    alignItems:     "center",
+    justifyContent: "center",
   },
 
   cardLabel: {
     fontSize:      13,
     fontFamily:    "Inter_600SemiBold",
-    color:         "#111111",
     letterSpacing: -0.2,
     marginBottom:  2,
   },
@@ -372,7 +434,6 @@ const ss = StyleSheet.create({
   cardSub: {
     fontSize:      11,
     fontFamily:    "Inter_400Regular",
-    color:         "#888888",
     letterSpacing: -0.05,
     lineHeight:    15,
   },
