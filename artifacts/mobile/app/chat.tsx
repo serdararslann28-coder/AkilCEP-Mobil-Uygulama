@@ -206,6 +206,24 @@ export default function ChatScreen() {
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
   const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
   const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
+  const inputFocused   = useSharedValue(0);             // 0 = rest, 1 = focused
+
+  // Soft white glow on focus — luxurious, no bounce
+  const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
+  const inputGlowStyle = useAnimatedStyle(() => ({
+    // In VOID: white glow radiates outward. In PURE: subtle dark shadow deepens.
+    shadowColor:   T.isDark ? "#FFFFFF" : "#000000",
+    shadowOpacity: interpolate(inputFocused.value, [0, 1],
+      T.isDark ? [0.0,  0.22] : [0.04, 0.10]),
+    shadowRadius:  interpolate(inputFocused.value, [0, 1],
+      T.isDark ? [8,    28]   : [10,   18]),
+    shadowOffset:  { width: 0, height: T.isDark ? 0 : 1 },
+  }));
+  // Inner glass tint brightens very slightly on focus
+  const inputOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(inputFocused.value, [0, 1],
+      T.isDark ? [0.08, 0.15] : [0.60, 0.74]),
+  }));
 
   // Adaptive multiline: scrolls once past MAX_INPUT_H
   const [scrollEnabled, setScrollEnabled] = useState(false);
@@ -788,7 +806,7 @@ export default function ChatScreen() {
 
           {/* Input row — ghost glass pill; height animated via inputFieldAnim */}
           {/* Outer carries shadow (no overflow clip so shadow renders on iOS) */}
-          <Animated.View style={[ss.inputRowShadow, inputFieldAnim]}>
+          <Animated.View style={[ss.inputRowShadow, inputFieldAnim, inputGlowStyle]}>
             {/* Inner clips BlurView to pill radius */}
             <View style={[ss.inputRowGlass, {
               borderColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.07)",
@@ -799,9 +817,9 @@ export default function ChatScreen() {
                 tint={T.isDark ? "dark" : "light"}
                 style={StyleSheet.absoluteFill}
               />
-              {/* Translucent colour tint — 8% white (VOID) / 60% white (PURE) */}
-              <View style={[StyleSheet.absoluteFill, {
-                backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.60)",
+              {/* Translucent colour tint — brightens on focus via inputOverlayStyle */}
+              <Animated.View style={[StyleSheet.absoluteFill, inputOverlayStyle, {
+                backgroundColor: "#FFFFFF",
               }]} />
 
             {/* Text field — dims slightly during voice */}
@@ -821,6 +839,8 @@ export default function ChatScreen() {
                 onContentSizeChange={onContentSizeChange}
                 blurOnSubmit={false}
                 editable={!voiceActive}
+                onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
+                onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
               />
             </View>
 
@@ -1253,16 +1273,12 @@ const ss = StyleSheet.create({
     elevation:      3,
   },
 
-  // Input row — outer shadow carrier (no overflow clip so iOS shadow renders)
+  // Input row — outer shadow carrier (no overflow clip so iOS shadow renders).
+  // Shadow props intentionally absent here — fully driven by inputGlowStyle.
   inputRowShadow: {
-    flex:          1,
-    borderRadius:  24,
-    minHeight:     48,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius:  12,
-    elevation:     4,
+    flex:         1,
+    borderRadius: 24,
+    minHeight:    48,
   },
   // Input row — glass surface (clips BlurView to pill radius)
   inputRowGlass: {
