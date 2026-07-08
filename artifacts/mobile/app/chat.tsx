@@ -956,7 +956,10 @@ export default function ChatScreen() {
                   onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
                 />
 
-                {/* Mic — right side of pill, 16px before AI button */}
+                {/* Vertical separator — thin grey rule between text and mic, matches reference */}
+                <View style={[ss.pillSeparator, { backgroundColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)" }]} pointerEvents="none" />
+
+                {/* Mic — right side of pill, after separator */}
                 <View style={ss.micBtn}>
                   <Animated.View
                     style={[StyleSheet.absoluteFill, { borderRadius: 19, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
@@ -1423,10 +1426,17 @@ const ss = StyleSheet.create({
     textAlignVertical: "center",
   },
 
-  // Mic touch target — 38×38 centred; paddingRight(6) + gap(10) = 16px to AI button
+  // Vertical separator rule between text and mic — matches reference image
+  pillSeparator: {
+    width:        1,
+    height:       22,
+    marginRight:  4,
+  },
+
+  // Mic touch target — 40×40; sits directly after separator
   micBtn: {
-    width:          38,
-    height:         38,
+    width:          40,
+    height:         40,
     alignItems:     "center",
     justifyContent: "center",
   },
