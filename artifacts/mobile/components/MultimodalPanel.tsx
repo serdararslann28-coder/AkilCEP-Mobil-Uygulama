@@ -1,12 +1,22 @@
 /**
  * MultimodalPanel — premium keyboard-aware action sheet.
  *
- * Appears directly above the keyboard (tracks it in real-time via
- * react-native-keyboard-controller reanimated shared value).
- * Never dismisses the keyboard or un-focuses the text input.
+ * Keyboard tracking: react-native-keyboard-controller reanimated.height
+ * (SharedValue<number>, 0 when hidden, negative when visible).
  *
- * Layout: drag indicator + 2×2 card grid.
- * Aesthetic: monochrome white glass, black icons, soft shadows, 28px radius.
+ * Entry choreography:
+ *   1. Panel container slides up + fades in (240ms, cubic-out)
+ *   2. Cards cascade left-to-right: opacity 0→1, translateY 12→0,
+ *      scale 0.96→1.0 — each delayed by 50ms (total 350ms)
+ *
+ * Press micro-interaction:
+ *   - Scale 1→0.97 in 90ms (immediate, intentional)
+ *   - Shadow grows while pressed
+ *   - Returns 0.97→1.0 in 200ms cubic-out (smooth, never bouncy)
+ *   - Haptic on pressIn
+ *
+ * Exit: panel + cards fade + drop together in 150ms.
+ * Keyboard and input focus are never disturbed.
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -24,21 +34,27 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withDelay,
   withTiming,
 } from "react-native-reanimated";
 
-// ─── Layout constants ─────────────────────────────────────────────────────────
+// ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
-const PANEL_MX  = 16;   // screen-edge margin
-const INNER_PAD = 14;   // panel inner padding (horizontal + bottom)
-const CARD_GAP  = 10;   // gap between cards
+const PANEL_MX  = 16;
+const INNER_PAD = 14;
+const CARD_GAP  = 10;
 const CARD_W    = (SW - PANEL_MX * 2 - INNER_PAD * 2 - CARD_GAP) / 2;
-const CARD_H    = 106;  // card height
+const CARD_H    = 106;
 
-// ─── Action definitions ───────────────────────────────────────────────────────
+// Easing curves — deliberately calm, no spring bounce
+const EASE_OUT  = Easing.out(Easing.cubic);
+const EASE_IN   = Easing.in(Easing.ease);
+const EASE_SNAP = Easing.out(Easing.ease);
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
 const ACTIONS = [
   { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                     },
   { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"              },
@@ -48,43 +64,85 @@ const ACTIONS = [
 
 type ActionId = typeof ACTIONS[number]["id"];
 
-// ─── Single card ──────────────────────────────────────────────────────────────
+// ─── Card ─────────────────────────────────────────────────────────────────────
 function ActionCard({
   icon,
   label,
   sub,
+  index,
+  open,
   onPress,
 }: {
   icon:    React.ComponentProps<typeof Feather>["name"];
   label:   string;
   sub:     string;
+  index:   number;
+  open:    boolean;
   onPress: () => void;
 }) {
-  const lift = useSharedValue(1);
+  const stagger = index * 50;          // 0 / 50 / 100 / 150 ms
 
-  const cardAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: lift.value }],
+  // Entry: opacity, translateY, scale
+  const entOp    = useSharedValue(0);
+  const entY     = useSharedValue(12);
+  const entScale = useSharedValue(0.96);
+
+  // Press: scale + shadow emphasis
+  const pressScale  = useSharedValue(1);
+  const pressShadow = useSharedValue(0);
+
+  useEffect(() => {
+    if (open) {
+      // Staggered entrance — cubic-out, no bounce, 200ms body
+      entOp.value    = withDelay(stagger, withTiming(1,    { duration: 200, easing: EASE_OUT }));
+      entY.value     = withDelay(stagger, withTiming(0,    { duration: 240, easing: EASE_OUT }));
+      entScale.value = withDelay(stagger, withTiming(1.0,  { duration: 240, easing: EASE_OUT }));
+    } else {
+      // All cards exit together — quick, no stagger
+      entOp.value    = withTiming(0,    { duration: 110 });
+      entY.value     = withTiming(8,    { duration: 110 });
+      entScale.value = withTiming(0.97, { duration: 110 });
+      // Reset press state so it's clean on next open
+      pressScale.value  = 1;
+      pressShadow.value = 0;
+    }
+  }, [open]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: entOp.value,
+    transform: [
+      { translateY: entY.value },
+      { scale: entScale.value * pressScale.value },
+    ],
+    // Shadow grows subtly on press — creates a "lifted" feel
+    shadowOpacity: interpolate(pressShadow.value, [0, 1], [0, 0.10]),
+    shadowColor:   "#000000",
+    shadowOffset:  { width: 0, height: 3 },
+    shadowRadius:  8,
+    elevation:     interpolate(pressShadow.value, [0, 1], [0, 4]),
   }));
 
+  const handlePressIn = useCallback(() => {
+    pressScale.value  = withTiming(0.97, { duration: 90,  easing: EASE_SNAP });
+    pressShadow.value = withTiming(1,    { duration: 90 });
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    pressScale.value  = withTiming(1.0, { duration: 200, easing: EASE_OUT });
+    pressShadow.value = withTiming(0,   { duration: 200 });
+  }, []);
+
   return (
-    <Pressable
-      onPressIn={() => {
-        lift.value = withSpring(0.955, { damping: 22, stiffness: 460 });
-        if (Platform.OS !== "web") {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-      }}
-      onPressOut={() => {
-        lift.value = withSpring(1.0, { damping: 18, stiffness: 360 });
-      }}
-      onPress={onPress}
-    >
-      <Animated.View style={[ss.card, cardAnim]}>
-        {/* Icon badge — top-left corner */}
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onPress}>
+      <Animated.View style={[ss.card, animStyle]}>
+        {/* Icon badge — top-left */}
         <View style={ss.iconWrap}>
           <Feather name={icon} size={20} color="#111111" />
         </View>
-        {/* Labels — pinned to bottom-left */}
+        {/* Labels — bottom-left */}
         <Text style={ss.cardLabel} numberOfLines={1}>{label}</Text>
         <Text style={ss.cardSub}>{sub}</Text>
       </Animated.View>
@@ -97,7 +155,7 @@ interface Props {
   open:           boolean;
   onClose:        () => void;
   onImagePicked?: (uri: string) => void;
-  bottomOffset:   number;   // px from screen bottom to the top of the input bar
+  bottomOffset:   number;   // px from screen bottom to top of input bar
 }
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
@@ -107,51 +165,57 @@ export default function MultimodalPanel({
   onImagePicked,
   bottomOffset,
 }: Props) {
-  // Real-time keyboard height from react-native-keyboard-controller.
-  // height is 0 when keyboard is hidden, negative (= -keyboardHeight) when visible.
+  // Keyboard height from keyboard-controller — ≤0, negative when keyboard visible
   const { reanimated } = useKeyboardContext();
-  const kbH = reanimated.height;   // SharedValue<number>, ≤ 0
+  const kbH = reanimated.height;
 
-  // Panel entrance / exit
+  // Panel container animation
   const panelOp = useSharedValue(0);
-  const panelY  = useSharedValue(28);
+  const panelY  = useSharedValue(20);
   const bdOp    = useSharedValue(0);
+
+  // Drag pill has its own opacity — fades in with the panel
+  const pillOp  = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
+      // Backdrop: fade in quickly
       bdOp.value    = withTiming(1, { duration: 180 });
-      panelOp.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
-      panelY.value  = withSpring(0, { damping: 28, stiffness: 380, mass: 0.85 });
+      // Pill: appears as soon as panel is visible
+      pillOp.value  = withTiming(1, { duration: 140, easing: EASE_OUT });
+      // Panel: slides up + fades in — slightly slower than pill
+      panelOp.value = withTiming(1, { duration: 220, easing: EASE_OUT });
+      panelY.value  = withTiming(0, { duration: 260, easing: EASE_OUT });
     } else {
-      bdOp.value    = withTiming(0, { duration: 150 });
-      panelOp.value = withTiming(0, { duration: 170 });
-      panelY.value  = withTiming(22, { duration: 160, easing: Easing.in(Easing.ease) });
+      // Exit: backdrop fades, panel slides down — all in sync
+      bdOp.value    = withTiming(0, { duration: 160 });
+      pillOp.value  = withTiming(0, { duration: 120 });
+      panelOp.value = withTiming(0, { duration: 150 });
+      panelY.value  = withTiming(16, { duration: 160, easing: EASE_IN });
     }
   }, [open]);
 
   const bdStyle = useAnimatedStyle(() => ({ opacity: bdOp.value }));
 
-  // Panel tracks keyboard: kbH is 0 or negative, so subtracting it adds the
-  // keyboard height to the bottom offset, keeping the panel above the keyboard.
+  const pillStyle = useAnimatedStyle(() => ({ opacity: pillOp.value }));
+
+  // Panel position: bottomOffset above input bar, raised by keyboard height.
+  // kbH ≤ 0 → subtracting negative value = adding keyboard height.
   const panelStyle = useAnimatedStyle(() => ({
     opacity:   panelOp.value,
     bottom:    bottomOffset - kbH.value,
     transform: [{ translateY: panelY.value }],
   }));
 
-  // ── Action handlers ─────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const handleCamera = useCallback(() => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
     setTimeout(() => router.push("/vision"), 180);
   }, [onClose]);
 
   const handlePhotos = useCallback(async () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality:    0.88,
@@ -179,10 +243,10 @@ export default function MultimodalPanel({
     audio:  handleAudio,
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Tap-outside backdrop — does NOT dismiss keyboard */}
+      {/* Tap-outside backdrop — closes panel without disturbing keyboard */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
         pointerEvents={open ? "auto" : "none"}
@@ -195,32 +259,33 @@ export default function MultimodalPanel({
         style={[ss.panel, panelStyle]}
         pointerEvents={open ? "box-none" : "none"}
       >
-        {/* Drag indicator */}
-        <View style={ss.dragPill} />
+        {/* Drag indicator — fades in first (pillOp independent of card timing) */}
+        <Animated.View style={[ss.dragPill, pillStyle]} />
 
-        {/* 2 × 2 card grid */}
+        {/* 2 × 2 staggered card grid */}
         <View style={ss.grid}>
-          {/* Row 1 */}
           <View style={ss.gridRow}>
-            {ACTIONS.slice(0, 2).map(a => (
+            {ACTIONS.slice(0, 2).map((a, i) => (
               <ActionCard
                 key={a.id}
                 icon={a.icon}
                 label={a.label}
                 sub={a.sub}
+                index={i}
+                open={open}
                 onPress={handlers[a.id]}
               />
             ))}
           </View>
-
-          {/* Row 2 */}
           <View style={ss.gridRow}>
-            {ACTIONS.slice(2, 4).map(a => (
+            {ACTIONS.slice(2, 4).map((a, i) => (
               <ActionCard
                 key={a.id}
                 icon={a.icon}
                 label={a.label}
                 sub={a.sub}
+                index={i + 2}
+                open={open}
                 onPress={handlers[a.id]}
               />
             ))}
@@ -249,11 +314,10 @@ const ss = StyleSheet.create({
     paddingHorizontal: INNER_PAD,
     paddingBottom:     INNER_PAD + 6,
     paddingTop:        12,
-    // Soft upward shadow — floats off the keyboard surface
     shadowColor:       "#000000",
     shadowOffset:      { width: 0, height: -3 },
-    shadowOpacity:     0.09,
-    shadowRadius:      22,
+    shadowOpacity:     0.08,
+    shadowRadius:      20,
     elevation:         20,
   },
 
