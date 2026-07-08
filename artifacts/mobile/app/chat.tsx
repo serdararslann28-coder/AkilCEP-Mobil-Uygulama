@@ -58,6 +58,7 @@ import MessageBubble    from "@/components/MessageBubble";
 import ImageGenCard     from "@/components/ImageGenCard";
 import ThinkingCard     from "@/components/ThinkingCard";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
+import { AkilMic }      from "@/components/AkilMic";
 import { useChat }      from "@/context/ChatContext";
 import { useTheme }     from "@/context/ThemeContext";
 
@@ -959,18 +960,17 @@ export default function ChatScreen() {
               {/* Right: mic icon + AI circle */}
               <View style={ss.pillRight}>
 
-                {/* Mic — 22px monochrome, STT pulse ring, press bloom */}
+                {/* Mic — custom AkilMic icon; external bloom driven by micPressGlow */}
                 <View style={ss.micArea}>
-                  <Animated.View
-                    style={[ss.micHaloLg, { backgroundColor: T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)" }, sttPulseStyle]}
-                    pointerEvents="none"
-                  />
                   <Animated.View
                     style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                     pointerEvents="none"
                   />
-                  <Pressable
-                    style={ss.micPressable}
+                  <AkilMic
+                    listening={sttListening}
+                    color={sttListening
+                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
+                      : (T.isDark ? "rgba(255,255,255,0.60)" : "rgba(0,0,0,0.44)")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -978,15 +978,7 @@ export default function ChatScreen() {
                     onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
                     onPress={handleSttPress}
                     hitSlop={8}
-                  >
-                    <Feather
-                      name={sttListening ? "square" : "mic"}
-                      size={22}
-                      color={sttListening
-                        ? (T.isDark ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.80)")
-                        : (T.isDark ? "rgba(255,255,255,0.62)" : "rgba(0,0,0,0.46)")}
-                    />
-                  </Pressable>
+                  />
                 </View>
 
                 {/* AI circle — 52px solid, waveform / send arrow inside */}
