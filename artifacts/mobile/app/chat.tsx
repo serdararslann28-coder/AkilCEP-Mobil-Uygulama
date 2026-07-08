@@ -944,7 +944,8 @@ export default function ChatScreen() {
                     { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                   ]}
                   placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "#9A9A9A"}
+                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "#A8A8A8"}
+                  numberOfLines={1}
                   value={inputText}
                   onChangeText={setInputText}
                   maxLength={2000}
@@ -1352,7 +1353,7 @@ const ss = StyleSheet.create({
   inputDock: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           10,
+    gap:           12,
     width:         "92%",
   },
 
