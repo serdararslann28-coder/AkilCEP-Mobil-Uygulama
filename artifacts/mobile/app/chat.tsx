@@ -634,7 +634,6 @@ export default function ChatScreen() {
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         bottomOffset={bottomPad + 68}
-        T={T}
       />
       <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
 
