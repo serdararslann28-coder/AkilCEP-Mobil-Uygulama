@@ -902,13 +902,17 @@ export default function ChatScreen() {
             </Animated.View>
           )}
 
-          {/* ── Input dock ── */}
-          <View style={ss.inputDock}>
+          {/* ─────────────────────────────────────────────────────────────────────
+               FLOATING INPUT DOCK  (fresh build — matches attached reference)
+               Layout: [dockPlus 52×52] [dockPillShell flex:1 h54] [dockAiShell 56×56]
+               All three are row siblings inside `dock`; nothing is nested inside another.
+          ───────────────────────────────────────────────────────────────────── */}
+          <View style={ss.dock}>
 
-            {/* [1] Circular + button — 52×52 white, separate from pill */}
-            <Animated.View style={[ss.plusBtn, plusCircleScaleStyle]}>
+            {/* ── A. Plus button ── 52×52 white circle, soft shadow ── */}
+            <Animated.View style={[ss.dockPlus, plusCircleScaleStyle]}>
               <Pressable
-                style={ss.plusBtnInner}
+                style={ss.dockPlusInner}
                 onPressIn={() => {
                   plusScaleSV.value = withTiming(1, PRESS_IN);
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -923,12 +927,14 @@ export default function ChatScreen() {
               </Pressable>
             </Animated.View>
 
-            {/* [2] White rounded input pill — flex:1, height 54 */}
-            <Animated.View style={[ss.inputPillShadow, inputGlowStyle]}>
-              <View style={[ss.inputPill, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
+            {/* ── B. Input pill ── flex:1, height 54, border-radius 27 ── */}
+            {/* dockPillShell: shadow carrier, no overflow:hidden (clips iOS shadow) */}
+            <Animated.View style={[ss.dockPillShell, inputGlowStyle]}>
+              {/* dockPillBody: clips content, sets background */}
+              <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
 
-                {/* Shimmer sweep while typing — absolute, no layout impact */}
-                <Animated.View style={[ss.shimmerBeam, shimmerStyle]} pointerEvents="none">
+                {/* Shimmer beam — absolute, sweeps left→right while typing */}
+                <Animated.View style={[ss.dockShimmer, shimmerStyle]} pointerEvents="none">
                   <LinearGradient
                     colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
                     start={{ x: 0, y: 0.5 }}
@@ -937,10 +943,10 @@ export default function ChatScreen() {
                   />
                 </Animated.View>
 
-                {/* TextInput — flex:1, vertically centered by row alignItems:center */}
+                {/* Text field — flex:1 fills all space left of the divider */}
                 <TextInput
                   style={[
-                    ss.pillInput,
+                    ss.dockField,
                     { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                   ]}
                   placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
@@ -956,13 +962,16 @@ export default function ChatScreen() {
                   onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
                 />
 
-                {/* Vertical separator — thin grey rule between text and mic, matches reference */}
-                <View style={[ss.pillSeparator, { backgroundColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)" }]} pointerEvents="none" />
+                {/* Divider — 1×22 px vertical rule separating text from mic */}
+                <View
+                  style={[ss.dockDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.11)" }]}
+                  pointerEvents="none"
+                />
 
-                {/* Mic — right side of pill, after separator */}
-                <View style={ss.micBtn}>
+                {/* Mic — fixed to right of divider; touch area 40×40 */}
+                <View style={ss.dockMicWrap}>
                   <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 19, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 20, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                     pointerEvents="none"
                   />
                   <AkilMic
@@ -970,7 +979,7 @@ export default function ChatScreen() {
                     size={24}
                     color={sttListening
                       ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
-                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.62)")}
+                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -984,10 +993,11 @@ export default function ChatScreen() {
               </View>
             </Animated.View>
 
-            {/* [3] Black AI voice button — 56×56, separate from pill */}
-            <Animated.View style={[ss.aiBtn, aiCombinedStyle]}>
+            {/* ── C. AI voice button ── 56×56 black circle, strong shadow ── */}
+            {/* dockAiShell: shadow carrier; dockAiBody: clips ripple, black fill */}
+            <Animated.View style={[ss.dockAiShell, aiCombinedStyle]}>
               <Pressable
-                style={ss.aiBtnInner}
+                style={ss.dockAiBody}
                 onPressIn={() => {
                   sendPressGlow.value = withTiming(1, PRESS_IN);
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1016,7 +1026,7 @@ export default function ChatScreen() {
               </Pressable>
             </Animated.View>
 
-          </View>{/* inputDock */}
+          </View>{/* dock */}
         </View>
       </KeyboardAvoidingView>
 
@@ -1352,26 +1362,21 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // ── Input dock — 92% of screen width, centred by inputOuter alignItems:center ──
-  inputDock: {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FLOATING INPUT DOCK — fresh build (all dock* names)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Row container — 92% wide, centred by inputOuter alignItems:center
+  dock: {
     flexDirection: "row",
     alignItems:    "center",
     gap:           12,
     width:         "92%",
   },
 
-  // Shimmer beam — absolute overlay, no layout footprint
-  shimmerBeam: {
-    position: "absolute",
-    top:      0,
-    bottom:   0,
-    width:    88,
-    left:     0,
-  },
-
-  // ── [1] + button ─────────────────────────────────────────────────────────────
-  // Outer: shadow carrier — no overflow:hidden so iOS shadow renders
-  plusBtn: {
+  // ── A. Plus button (52×52) ──────────────────────────────────────────────────
+  // dockPlus: shadow carrier — NO overflow:hidden so iOS renders the drop shadow
+  dockPlus: {
     width:         52,
     height:        52,
     borderRadius:  26,
@@ -1381,8 +1386,8 @@ const ss = StyleSheet.create({
     shadowRadius:  6,
     elevation:     3,
   },
-  // Inner: white fill, clips Pressable ripple
-  plusBtnInner: {
+  // dockPlusInner: white fill, overflow:hidden clips the ripple on Android
+  dockPlusInner: {
     width:           52,
     height:          52,
     borderRadius:    26,
@@ -1392,9 +1397,9 @@ const ss = StyleSheet.create({
     overflow:        "hidden",
   },
 
-  // ── [2] Input pill ───────────────────────────────────────────────────────────
-  // Shadow carrier — flex:1, no overflow:hidden
-  inputPillShadow: {
+  // ── B. Input pill (flex:1, h54) ─────────────────────────────────────────────
+  // dockPillShell: shadow carrier — flex:1, NO overflow:hidden
+  dockPillShell: {
     flex:          1,
     borderRadius:  27,
     shadowColor:   "#000",
@@ -1403,8 +1408,8 @@ const ss = StyleSheet.create({
     shadowRadius:  14,
     elevation:     4,
   },
-  // Inner — row layout, clips content to pill radius, exact height 54
-  inputPill: {
+  // dockPillBody: row layout, clips content, exact height 54, background set inline
+  dockPillBody: {
     flex:           1,
     flexDirection:  "row",
     alignItems:     "center",
@@ -1415,8 +1420,17 @@ const ss = StyleSheet.create({
     paddingRight:   6,
   },
 
-  // TextInput — flex:1 fills remaining pill width; height matches pill for vertical centre
-  pillInput: {
+  // dockShimmer: faint light sweep — absolute, width 88, no layout footprint
+  dockShimmer: {
+    position: "absolute",
+    top:      0,
+    bottom:   0,
+    width:    88,
+    left:     0,
+  },
+
+  // dockField: TextInput — flex:1 fills space left of divider, h54 centres text
+  dockField: {
     flex:              1,
     height:            54,
     fontSize:          17,
@@ -1426,24 +1440,24 @@ const ss = StyleSheet.create({
     textAlignVertical: "center",
   },
 
-  // Vertical separator rule between text and mic — matches reference image
-  pillSeparator: {
-    width:        1,
-    height:       22,
-    marginRight:  4,
+  // dockDivider: 1×22 vertical rule separating text from mic (colour set inline)
+  dockDivider: {
+    width:       1,
+    height:      22,
+    marginRight: 4,
   },
 
-  // Mic touch target — 40×40; sits directly after separator
-  micBtn: {
+  // dockMicWrap: 40×40 touch target, centred; sits right of divider
+  dockMicWrap: {
     width:          40,
     height:         40,
     alignItems:     "center",
     justifyContent: "center",
   },
 
-  // ── [3] AI voice button ──────────────────────────────────────────────────────
-  // Outer: shadow carrier
-  aiBtn: {
+  // ── C. AI voice button (56×56) ──────────────────────────────────────────────
+  // dockAiShell: shadow carrier — sized and positioned, NO overflow:hidden
+  dockAiShell: {
     width:          56,
     height:         56,
     borderRadius:   28,
@@ -1455,8 +1469,8 @@ const ss = StyleSheet.create({
     shadowRadius:   8,
     elevation:      5,
   },
-  // Inner: black fill, clips ripple
-  aiBtnInner: {
+  // dockAiBody: black fill, clips ripple overlay
+  dockAiBody: {
     width:           56,
     height:          56,
     borderRadius:    28,
