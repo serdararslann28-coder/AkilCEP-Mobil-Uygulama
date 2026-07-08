@@ -969,8 +969,8 @@ export default function ChatScreen() {
                     listening={sttListening}
                     size={24}
                     color={sttListening
-                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
-                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
+                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.80)")
+                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1391,11 +1391,16 @@ const ss = StyleSheet.create({
     overflow:        "hidden",
   },
 
-  // Pill outer — shadow carrier, no overflow:hidden (shadow renders on iOS)
+  // Pill outer — shadow carrier; overflow:hidden is on inputRowGlass, not here
   inputRowShadow: {
-    flex:         1,
-    borderRadius: 30,
-    minHeight:    58,
+    flex:          1,
+    borderRadius:  30,
+    minHeight:     58,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius:  12,
+    elevation:     4,
   },
   // Pill inner — solid white fill, no border, clips content to pill radius
   inputRowGlass: {
@@ -1442,9 +1447,18 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
+  // AI button outer — shadow carrier; dimensions match aiCirclePressable
   aiCircleWrap: {
+    width:          50,
+    height:         50,
+    borderRadius:   25,
     alignItems:     "center",
     justifyContent: "center",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.18,
+    shadowRadius:   6,
+    elevation:      4,
   },
   aiCirclePressable: {
     width:           50,
