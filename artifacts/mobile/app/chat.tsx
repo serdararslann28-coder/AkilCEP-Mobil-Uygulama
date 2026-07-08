@@ -865,43 +865,7 @@ export default function ChatScreen() {
         <VoiceOrbPanel phase={voicePhase} isDark={T.isDark} />
 
         {/* ════ INPUT AREA ════ */}
-        <View style={[ss.inputOuter, { paddingBottom: bottomPad + 10 }]}>
-
-          {/* Quick actions — visible only on empty (new) chat */}
-          {!hasMessages && (
-            <Animated.View
-              entering={FadeIn.duration(320)}
-              exiting={FadeOut.duration(180)}
-              style={ss.quickActions}
-            >
-              {[
-                { emoji: "🖼️", label: "Görüntü Oluştur", onPress: () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setInputText("Bir görsel oluştur: ");
-                }},
-                { emoji: "✏️", label: "Yaz veya Düzenle", onPress: () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setExpandedOpen(true);
-                }},
-                { emoji: "🌐", label: "Web Ara", onPress: () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setInputText("Web'de ara: ");
-                }},
-              ].map(({ emoji, label, onPress }) => (
-                <TouchableOpacity
-                  key={label}
-                  onPress={onPress}
-                  activeOpacity={0.55}
-                  hitSlop={8}
-                  style={ss.quickActionItem}
-                >
-                  <Text style={ss.quickActionEmoji}>{emoji}</Text>
-                  <Text style={[ss.quickActionLabel, { color: T.muted }]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </Animated.View>
-          )}
-
+        <View style={[ss.inputOuter, { paddingBottom: bottomPad + 12 }]}>
         </View>
       </KeyboardAvoidingView>
 
@@ -1215,27 +1179,6 @@ const ss = StyleSheet.create({
     alignItems:        "center",
   },
 
-  // Quick action row — above input, new chat only
-  quickActions: {
-    paddingHorizontal: 4,
-    paddingBottom:     18,
-    gap:               14,
-  },
-  quickActionItem: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           8,
-    paddingVertical: 3,
-  },
-  quickActionEmoji: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  quickActionLabel: {
-    fontSize:      14,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-  },
 
 
   // Icon layers stacked absolutely inside the AI circle
