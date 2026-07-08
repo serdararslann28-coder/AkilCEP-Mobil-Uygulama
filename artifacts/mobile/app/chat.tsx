@@ -902,13 +902,13 @@ export default function ChatScreen() {
             </Animated.View>
           )}
 
-          {/* ── Input dock — white + button left, pill right ── */}
+          {/* ── Input dock ── */}
           <View style={ss.inputDock}>
 
-            {/* Standalone + button — white circle, black icon, soft drop shadow */}
-            <Animated.View style={[ss.plusCircleWrap, plusCircleScaleStyle]}>
+            {/* [1] Circular + button — 52×52 white, separate from pill */}
+            <Animated.View style={[ss.plusBtn, plusCircleScaleStyle]}>
               <Pressable
-                style={ss.plusCircleInner}
+                style={ss.plusBtnInner}
                 onPressIn={() => {
                   plusScaleSV.value = withTiming(1, PRESS_IN);
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -918,20 +918,16 @@ export default function ChatScreen() {
                 hitSlop={4}
               >
                 <Animated.View style={plusRotAnim}>
-                  <Feather name="plus" size={18} color="#000000" />
+                  <Feather name="plus" size={20} color="#000000" />
                 </Animated.View>
               </Pressable>
             </Animated.View>
 
-            {/* Input pill — text + mic only; AI button is a dock sibling */}
-            <Animated.View style={[ss.inputRowShadow, inputGlowStyle]}>
-              {/* Inner — clips content to pill radius */}
-              <View style={[ss.inputRowGlass, {
-                backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF",
-                borderColor:     T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-              }]}>
+            {/* [2] White rounded input pill — flex:1, height 54 */}
+            <Animated.View style={[ss.inputPillShadow, inputGlowStyle]}>
+              <View style={[ss.inputPill, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
 
-                {/* Shimmer beam — sweeps while typing */}
+                {/* Shimmer sweep while typing — absolute, no layout impact */}
                 <Animated.View style={[ss.shimmerBeam, shimmerStyle]} pointerEvents="none">
                   <LinearGradient
                     colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
@@ -941,14 +937,14 @@ export default function ChatScreen() {
                   />
                 </Animated.View>
 
-                {/* Text field — flex:1 fills remaining pill width; height:58 + textAlignVertical centers text */}
+                {/* TextInput — flex:1, vertically centered by row alignItems:center */}
                 <TextInput
                   style={[
-                    ss.textInput,
+                    ss.pillInput,
                     { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                   ]}
                   placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.48)" : "#9A9A9A"}
+                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "#9A9A9A"}
                   value={inputText}
                   onChangeText={setInputText}
                   maxLength={2000}
@@ -959,18 +955,18 @@ export default function ChatScreen() {
                   onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
                 />
 
-                {/* Mic — sits at right edge of pill; paddingRight + dock gap = 16px to AI */}
-                <View style={ss.micArea}>
+                {/* Mic — right side of pill, 16px before AI button */}
+                <View style={ss.micBtn}>
                   <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 19, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                     pointerEvents="none"
                   />
                   <AkilMic
                     listening={sttListening}
                     size={24}
                     color={sttListening
-                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.80)")
-                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
+                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
+                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.62)")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -981,13 +977,13 @@ export default function ChatScreen() {
                   />
                 </View>
 
-              </View>{/* inputRowGlass */}
-            </Animated.View>{/* inputRowShadow */}
+              </View>
+            </Animated.View>
 
-            {/* AI voice button — standalone dock sibling; dock gap:8 separates it from pill */}
-            <Animated.View style={[ss.aiCircleWrap, aiCombinedStyle]}>
+            {/* [3] Black AI voice button — 56×56, separate from pill */}
+            <Animated.View style={[ss.aiBtn, aiCombinedStyle]}>
               <Pressable
-                style={ss.aiCirclePressable}
+                style={ss.aiBtnInner}
                 onPressIn={() => {
                   sendPressGlow.value = withTiming(1, PRESS_IN);
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1004,11 +1000,11 @@ export default function ChatScreen() {
                 hitSlop={4}
               >
                 <Animated.View
-                  style={[StyleSheet.absoluteFill, { borderRadius: 25, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
                   pointerEvents="none"
                 />
                 <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                  <Feather name="arrow-up" size={18} color="#FFFFFF" />
+                  <Feather name="arrow-up" size={20} color="#FFFFFF" />
                 </Animated.View>
                 <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
                   <WaveformBars active={voiceActive || sttListening} />
@@ -1352,15 +1348,15 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // ── Input dock — 92 % width, centred inside inputOuter ─────────────────────
+  // ── Input dock — 92% of screen width, centred by inputOuter alignItems:center ──
   inputDock: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           8,
+    gap:           10,
     width:         "92%",
   },
 
-  // Shimmer beam — faint light sweep while typing
+  // Shimmer beam — absolute overlay, no layout footprint
   shimmerBeam: {
     position: "absolute",
     top:      0,
@@ -1369,55 +1365,56 @@ const ss = StyleSheet.create({
     left:     0,
   },
 
-  // Circular + button — shadow carrier (no overflow:hidden so shadow renders on iOS)
-  plusCircleWrap: {
-    width:         46,
-    height:        46,
-    borderRadius:  23,
+  // ── [1] + button ─────────────────────────────────────────────────────────────
+  // Outer: shadow carrier — no overflow:hidden so iOS shadow renders
+  plusBtn: {
+    width:         52,
+    height:        52,
+    borderRadius:  26,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius:  4,
-    elevation:     2,
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius:  6,
+    elevation:     3,
   },
-  // White fill circle — overflow:hidden clips the Pressable ripple
-  plusCircleInner: {
-    width:           46,
-    height:          46,
-    borderRadius:    23,
+  // Inner: white fill, clips Pressable ripple
+  plusBtnInner: {
+    width:           52,
+    height:          52,
+    borderRadius:    26,
     backgroundColor: "#FFFFFF",
     alignItems:      "center",
     justifyContent:  "center",
     overflow:        "hidden",
   },
 
-  // Pill outer — shadow carrier; overflow:hidden is on inputRowGlass, not here
-  inputRowShadow: {
+  // ── [2] Input pill ───────────────────────────────────────────────────────────
+  // Shadow carrier — flex:1, no overflow:hidden
+  inputPillShadow: {
     flex:          1,
-    borderRadius:  30,
-    minHeight:     58,
+    borderRadius:  27,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius:  12,
+    shadowRadius:  14,
     elevation:     4,
   },
-  // Pill inner — solid white fill, no border, clips content to pill radius
-  inputRowGlass: {
-    flex:              1,
-    flexDirection:     "row",
-    alignItems:        "center",
-    borderRadius:      30,
-    overflow:          "hidden",
-    minHeight:         58,
-    paddingLeft:       18,
-    paddingRight:      8,
-    borderWidth:       0,
+  // Inner — row layout, clips content to pill radius, exact height 54
+  inputPill: {
+    flex:           1,
+    flexDirection:  "row",
+    alignItems:     "center",
+    height:         54,
+    borderRadius:   27,
+    overflow:       "hidden",
+    paddingLeft:    20,
+    paddingRight:   6,
   },
 
-  // TextInput — flex:1 fills remaining pill width; row's alignItems:center handles vertical
-  textInput: {
+  // TextInput — flex:1 fills remaining pill width; height matches pill for vertical centre
+  pillInput: {
     flex:              1,
+    height:            54,
     fontSize:          17,
     fontFamily:        "Inter_500Medium",
     paddingVertical:   0,
@@ -1425,45 +1422,33 @@ const ss = StyleSheet.create({
     textAlignVertical: "center",
   },
 
-  // Right controls row
-  rightRow: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    gap:             0,
-    paddingVertical: 0,
-    paddingRight:    6,
-  },
-
-  // Mic hit area — no marginRight; spacing to AI button comes from pill paddingRight + dock gap
-  micArea: {
-    width:          36,
-    height:         36,
+  // Mic touch target — 38×38 centred; paddingRight(6) + gap(10) = 16px to AI button
+  micBtn: {
+    width:          38,
+    height:         38,
     alignItems:     "center",
     justifyContent: "center",
   },
 
-  // AI voice button — solid black circle
-  sendWrap: {
-    alignItems:     "center",
-    justifyContent: "center",
-  },
-  // AI button outer — shadow carrier; dimensions match aiCirclePressable
-  aiCircleWrap: {
-    width:          50,
-    height:         50,
-    borderRadius:   25,
+  // ── [3] AI voice button ──────────────────────────────────────────────────────
+  // Outer: shadow carrier
+  aiBtn: {
+    width:          56,
+    height:         56,
+    borderRadius:   28,
     alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 2 },
-    shadowOpacity:  0.18,
-    shadowRadius:   6,
-    elevation:      4,
+    shadowOffset:   { width: 0, height: 3 },
+    shadowOpacity:  0.22,
+    shadowRadius:   8,
+    elevation:      5,
   },
-  aiCirclePressable: {
-    width:           50,
-    height:          50,
-    borderRadius:    25,
+  // Inner: black fill, clips ripple
+  aiBtnInner: {
+    width:           56,
+    height:          56,
+    borderRadius:    28,
     backgroundColor: "#0A0A0A",
     alignItems:      "center",
     justifyContent:  "center",
