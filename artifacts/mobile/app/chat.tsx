@@ -28,6 +28,7 @@ import {
   Image,
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -287,6 +288,21 @@ export default function ChatScreen() {
   const sttPulseStyle = useAnimatedStyle(() => ({
     opacity:   sttPulse.value * 0.42,
     transform: [{ scale: 1 + sttPulse.value * 0.55 }],
+  }));
+
+  // Monochrome press glow — scale-down + inner highlight bloom (works inside overflow:hidden)
+  const sendPressGlow = useSharedValue(0);
+  const micPressGlow  = useSharedValue(0);
+  const PRESS_IN  = { duration: 80 } as const;
+  const PRESS_OUT = { duration: 220, easing: Easing.out(Easing.ease) } as const;
+  const sendBtnScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(sendPressGlow.value, [0, 1], [1.0, 0.91]) }],
+  }));
+  const sendPressHighlightStyle = useAnimatedStyle(() => ({
+    opacity: sendPressGlow.value,
+  }));
+  const micPressHighlightStyle = useAnimatedStyle(() => ({
+    opacity: micPressGlow.value,
   }));
 
   // Adaptive input wrapper — springs up/down as content grows
@@ -893,22 +909,32 @@ export default function ChatScreen() {
               {/* Mic — visible when no text; replaced by expand icon when typing */}
               {(!hasText || sttListening) ? (
                 <View style={ss.micWrap}>
+                  {/* STT pulse ring — monochrome, subtle */}
                   <Animated.View
-                    style={[ss.micHalo, { backgroundColor: T.fg }, sttPulseStyle]}
+                    style={[ss.micHalo, { backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)" }, sttPulseStyle]}
                     pointerEvents="none"
                   />
-                  <TouchableOpacity
-                    style={{ opacity: sttListening ? 1 : 0.52 }}
+                  {/* Press bloom — fades in on tap */}
+                  <Animated.View
+                    style={[StyleSheet.absoluteFill, { borderRadius: 16, backgroundColor: T.isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.07)" }, micPressHighlightStyle]}
+                    pointerEvents="none"
+                  />
+                  <Pressable
+                    style={{ alignItems: "center", justifyContent: "center", width: 32, height: 32, opacity: sttListening ? 1.0 : 0.55 }}
+                    onPressIn={() => {
+                      micPressGlow.value = withTiming(1, PRESS_IN);
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
                     onPress={handleSttPress}
-                    activeOpacity={0.65}
                     hitSlop={10}
                   >
                     <Feather
                       name={sttListening ? "square" : "mic"}
                       size={16}
-                      color={sttListening ? T.fg : attachClr}
+                      color={T.isDark ? "rgba(255,255,255,0.78)" : "rgba(0,0,0,0.58)"}
                     />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ) : (
                 /* Expand icon — visible when typing */
@@ -922,15 +948,22 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               )}
 
-              {/* Smart arrow — send when typing, dark AkılCEP-branded voice orb when empty */}
+              {/* Smart button — send arrow when typing, leaf logo when idle */}
               <Animated.View style={[ss.sendWrap, sendStyle, voicePulseAnim]}>
-                {/* Deep black bg — voice mode */}
-                <Animated.View style={[ss.sendBtnBg, { backgroundColor: "#0A0A0A" }, arrowVoiceBgAnim]} />
-                {/* Primary-color bg — send mode */}
-                <Animated.View style={[ss.sendBtnBg, { backgroundColor: T.primary }, arrowSendBgAnim]} />
+                {/* Monochrome glass circle — press-reactive scale + bloom */}
+                <Animated.View
+                  style={[ss.sendBtnCircle, sendBtnScaleStyle, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.08)" }]}
+                >
+                  {/* Inner highlight bloom — brightens on press */}
+                  <Animated.View
+                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)" }, sendPressHighlightStyle]}
+                  />
+                </Animated.View>
 
-                <TouchableOpacity
+                <Pressable
                   style={ss.sendBtnTouch}
+                  onPressIn={() => { sendPressGlow.value = withTiming(1, PRESS_IN); }}
+                  onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
                   onPress={hasText ? handleSend : () => {
                     if (Platform.OS === "web") {
                       Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
@@ -939,22 +972,22 @@ export default function ChatScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     router.push("/voice");
                   }}
-                  hitSlop={12} activeOpacity={0.75}
+                  hitSlop={12}
                 >
                   {/* Send arrow — visible when text exists */}
                   <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                    <Feather name="arrow-up" size={16} color={T.primaryForeground} />
+                    <Feather name="arrow-up" size={16} color={T.isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.70)"} />
                   </Animated.View>
-                  {/* AkılCEP leaf logo — visible when input is empty (voice mode) */}
+                  {/* AkılCEP leaf logo — visible when input is empty */}
                   <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
                     <Image
                       source={leafOnly}
                       style={ss.orbLeaf}
-                      tintColor="rgba(255,255,255,0.90)"
+                      tintColor={T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.65)"}
                       resizeMode="contain"
                     />
                   </Animated.View>
-                </TouchableOpacity>
+                </Pressable>
               </Animated.View>
             </View>
 
@@ -1398,14 +1431,13 @@ const ss = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-  sendBtnBg: {
-    position:      "absolute",
-    width:         36, height: 36, borderRadius: 18,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius:  7,
-    elevation:     4,
+  // Monochrome glass circle behind send/voice icon
+  sendBtnCircle: {
+    position:     "absolute",
+    width:        36,
+    height:       36,
+    borderRadius: 18,
+    overflow:     "hidden",
   },
   sendBtnTouch: {
     width: 36, height: 36, borderRadius: 18,
