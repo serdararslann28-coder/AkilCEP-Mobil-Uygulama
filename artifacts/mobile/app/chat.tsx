@@ -935,12 +935,12 @@ export default function ChatScreen() {
                 {/* Mic — 40×40 touch target, right of divider */}
                 <View style={ss.dockMicWrap}>
                   <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 20, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                     pointerEvents="none"
                   />
                   <AkilMic
                     listening={sttListening}
-                    size={24}
+                    size={20}
                     color={sttListening
                       ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
                       : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
@@ -1313,105 +1313,105 @@ const ss = StyleSheet.create({
   dock: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           12,
+    gap:           10,
     width:         "92%",
   },
 
-  // A — Plus button (52×52)
+  // A — Plus button (48×48, radius 24)
   // dockPlus: shadow carrier, no overflow:hidden so iOS shadow renders
   dockPlus: {
-    width:         52,
-    height:        52,
-    borderRadius:  26,
+    width:         48,
+    height:        48,
+    borderRadius:  24,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius:  6,
-    elevation:     3,
+    shadowOffset:  { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius:  4,
+    elevation:     2,
   },
   dockPlusInner: {
-    width:           52,
-    height:          52,
-    borderRadius:    26,
+    width:           48,
+    height:          48,
+    borderRadius:    24,
     backgroundColor: "#FFFFFF",
     alignItems:      "center",
     justifyContent:  "center",
     overflow:        "hidden",
   },
 
-  // B — Input pill (flex:1, height 54, radius 27)
+  // B — Input pill (flex:1, height 48, radius 24)
   // dockPillShell: shadow carrier, no overflow:hidden
   dockPillShell: {
     flex:          1,
-    borderRadius:  27,
+    borderRadius:  24,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius:  14,
-    elevation:     4,
+    shadowOffset:  { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius:  10,
+    elevation:     3,
   },
   // dockPillBody: clips content, row layout, exact height
   dockPillBody: {
     flex:           1,
     flexDirection:  "row",
     alignItems:     "center",
-    height:         54,
-    borderRadius:   27,
+    height:         48,
+    borderRadius:   24,
     overflow:       "hidden",
-    paddingLeft:    20,
-    paddingRight:   6,
+    paddingLeft:    16,
+    paddingRight:   4,
   },
   // Shimmer sweep — absolute, no layout footprint
   dockShimmer: {
     position: "absolute",
     top:      0,
     bottom:   0,
-    width:    88,
+    width:    80,
     left:     0,
   },
-  // TextInput — flex:1, h54 vertically centres text
+  // TextInput — flex:1, h48 vertically centres text
   dockField: {
     flex:              1,
-    height:            54,
-    fontSize:          17,
+    height:            48,
+    fontSize:          16,
     fontFamily:        "Inter_500Medium",
     paddingVertical:   0,
     paddingHorizontal: 0,
     textAlignVertical: "center",
   },
-  // 1 px vertical divider between text and mic
+  // Thin vertical divider between text and mic (shorter, lighter)
   dockDivider: {
     width:       1,
-    height:      22,
-    marginRight: 4,
+    height:      18,
+    marginRight: 2,
   },
-  // Mic touch target — 40×40
+  // Mic touch target — 36×36
   dockMicWrap: {
-    width:          40,
-    height:         40,
+    width:          36,
+    height:         36,
     alignItems:     "center",
     justifyContent: "center",
   },
 
-  // C — AI voice button (56×56)
+  // C — AI voice button (52×52, radius 26)
   // dockAiShell: shadow carrier
   dockAiShell: {
-    width:          56,
-    height:         56,
-    borderRadius:   28,
+    width:          52,
+    height:         52,
+    borderRadius:   26,
     alignItems:     "center",
     justifyContent: "center",
     shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 3 },
-    shadowOpacity:  0.22,
-    shadowRadius:   8,
-    elevation:      5,
+    shadowOffset:   { width: 0, height: 2 },
+    shadowOpacity:  0.18,
+    shadowRadius:   6,
+    elevation:      4,
   },
   // dockAiBody: black fill, clips ripple
   dockAiBody: {
-    width:           56,
-    height:          56,
-    borderRadius:    28,
+    width:           52,
+    height:          52,
+    borderRadius:    26,
     backgroundColor: "#0A0A0A",
     alignItems:      "center",
     justifyContent:  "center",
