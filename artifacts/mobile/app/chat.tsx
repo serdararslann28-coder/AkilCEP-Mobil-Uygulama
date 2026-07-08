@@ -917,7 +917,7 @@ export default function ChatScreen() {
                 {/* Custom animated placeholder — fades on focus; native placeholder cleared */}
                 {!voiceActive && (
                   <Animated.Text
-                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.42)" : "#A8A8A8" }, placeholderFadeStyle]}
+                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.36)" : "#B8B8B8" }, placeholderFadeStyle]}
                     pointerEvents="none"
                     numberOfLines={1}
                   >
@@ -1390,7 +1390,7 @@ const ss = StyleSheet.create({
     minHeight:      42,
     borderRadius:   21,
     overflow:       "hidden",
-    paddingLeft:    18,
+    paddingLeft:    20,
     paddingRight:   2,
     paddingVertical: 8,
   },
@@ -1420,9 +1420,8 @@ const ss = StyleSheet.create({
     top:           0,
     bottom:        0,
     right:         0,
-    paddingLeft:   0,
-    fontSize:      15,
-    fontFamily:    "Inter_500Medium",
+    fontSize:      16,
+    fontFamily:    "Inter_400Regular",
     letterSpacing: -0.2,
     textAlignVertical: "center",
     lineHeight:    42,
