@@ -949,7 +949,7 @@ export default function ChatScreen() {
                       { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                     ]}
                     placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)"}
+                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.55)"}
                     value={inputText}
                     onChangeText={setInputText}
                     multiline
@@ -1381,10 +1381,10 @@ const ss = StyleSheet.create({
     height:        44,
     borderRadius:  22,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius:  6,
-    elevation:     3,
+    shadowOffset:  { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius:  4,
+    elevation:     2,
   },
   // White fill circle — overflow:hidden clips the Pressable ripple
   plusCircleInner: {
@@ -1441,12 +1441,13 @@ const ss = StyleSheet.create({
     paddingRight:    6,
   },
 
-  // Mic hit area
+  // Mic hit area — marginRight shifts mic 3px left for optical balance
   micArea: {
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
+    marginRight:    3,
   },
 
   // AI voice button — solid black circle
