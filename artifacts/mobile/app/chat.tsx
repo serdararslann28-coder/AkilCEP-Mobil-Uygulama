@@ -916,11 +916,11 @@ export default function ChatScreen() {
                 {/* Custom animated placeholder — fades on focus; native placeholder cleared */}
                 {!voiceActive && (
                   <Animated.Text
-                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.40)" : "#9A9A9A" }, placeholderFadeStyle]}
+                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.42)" : "#A8A8A8" }, placeholderFadeStyle]}
                     pointerEvents="none"
                     numberOfLines={1}
                   >
-                    AkılCEP'e yaz
+                    Yaz…
                   </Animated.Text>
                 )}
 
