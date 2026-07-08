@@ -1,29 +1,22 @@
 /**
- * MultimodalPanel — keyboard-aware floating glass action sheet.
- *
- * Panel entry:
- *   - Container: overdamped spring (damping 32, stiffness 240) — fluid, zero bounce
- *   - Fade: 220ms cubic-out
- *
- * Card choreography (all on UI thread via Reanimated — 60 FPS guaranteed):
- *   1. Cards cascade left-to-right: 50ms stagger between each
- *   2. Per card: opacity 0→1, translateY 12→0, scale 0.96→1.0 — 200/240ms cubic-out
- *   3. Exit: all cards collapse together in 110ms — no stagger
- *
- * Press micro-interaction (per card):
- *   - Scale 1→0.97 in 90ms (immediate, deliberate)
- *   - Shadow grows while pressed — "lifted" feel
- *   - Returns 0.97→1.0 in 200ms cubic-out
- *   - Haptic on pressIn
+ * MultimodalPanel — premium iOS-style floating attachment sheet.
  *
  * Glass surface:
- *   - Outer Animated.View: carries soft shadow, no overflow clip
- *   - Inner View: overflow:hidden clips BlurView to borderRadius
- *   - BlurView + color overlay + hairline border
- *   - VOID: dark-tinted blur | PURE: light-tinted blur
+ *   Outer Animated.View: shadow carrier, no overflow clip
+ *   Inner View: overflow:hidden clips BlurView to borderRadius 32
+ *   BlurView intensity 80 + color overlay + hairline border
  *
- * Keyboard: never dismissed. Input focus: never disturbed.
- * Tap-outside backdrop closes panel only.
+ * Entry animation:
+ *   Panel: overdamped spring (zero overshoot) + 200ms opacity fade
+ *   Backdrop: 180ms fade
+ *   Cards: staggered 0/50/100/150ms — opacity + translateY 10→0 + scale 0.96→1.0
+ *
+ * Card press:
+ *   Scale 1→0.97 in 90ms, back in 200ms cubic-out
+ *   Haptic on pressIn
+ *
+ * Close:
+ *   150ms snap-down, cards collapse together in 110ms
  */
 import { BlurView }             from "expo-blur";
 import * as Haptics             from "expo-haptics";
@@ -54,27 +47,27 @@ import { useTheme } from "@/context/ThemeContext";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
-const PANEL_MX  = 16;
-const INNER_PAD = 14;
-const CARD_GAP  = 10;
+const PANEL_MX  = SW * 0.04;                                             // 4% each side → 92% width
+const INNER_PAD = 24;
+const CARD_GAP  = 16;
 const CARD_W    = (SW - PANEL_MX * 2 - INNER_PAD * 2 - CARD_GAP) / 2;
-const CARD_H    = 106;
-const PANEL_GAP = 8;   // breathing gap between input bar top and panel bottom
+const CARD_H    = 120;
+const PANEL_GAP = 8;
 
-// ─── Easing curves — calm, deliberate, no bounce ──────────────────────────────
+// ─── Easing curves ────────────────────────────────────────────────────────────
 const EASE_OUT  = Easing.out(Easing.cubic);
 const EASE_IN   = Easing.in(Easing.ease);
 const EASE_SNAP = Easing.out(Easing.ease);
 
-// ─── Spring config — overdamped (damping ratio > 1 → zero overshoot) ──────────
+// ─── Spring — overdamped, zero overshoot ──────────────────────────────────────
 const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 const ACTIONS = [
-  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                     },
-  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"              },
-  { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel\nve daha fazlası" },
-  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"                 },
+  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"         },
+  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Görsel yükle"         },
+  { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel…"    },
+  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"     },
 ] as const;
 
 type ActionId = typeof ACTIONS[number]["id"];
@@ -97,31 +90,23 @@ function ActionCard({
   isDark:  boolean;
   onPress: () => void;
 }) {
-  const stagger = index * 50;   // 0 / 50 / 100 / 150 ms
+  const stagger = index * 50;
 
-  // Entry state — opacity, vertical offset, scale
   const entOp    = useSharedValue(0);
-  const entY     = useSharedValue(12);
+  const entY     = useSharedValue(10);
   const entScale = useSharedValue(0.96);
-
-  // Press state — scale + shadow emphasis
-  const pressScale  = useSharedValue(1);
-  const pressShadow = useSharedValue(0);
+  const pressScale = useSharedValue(1);
 
   useEffect(() => {
     if (open) {
-      // Staggered entrance — cubic-out, no bounce, 200ms opacity / 240ms transform
       entOp.value    = withDelay(stagger, withTiming(1,   { duration: 200, easing: EASE_OUT }));
       entY.value     = withDelay(stagger, withTiming(0,   { duration: 240, easing: EASE_OUT }));
       entScale.value = withDelay(stagger, withTiming(1.0, { duration: 240, easing: EASE_OUT }));
     } else {
-      // All cards exit together — quick, uniform
       entOp.value    = withTiming(0,    { duration: 110 });
       entY.value     = withTiming(8,    { duration: 110 });
       entScale.value = withTiming(0.97, { duration: 110 });
-      // Reset press state so next open is clean
-      pressScale.value  = 1;
-      pressShadow.value = 0;
+      pressScale.value = 1;
     }
   }, [open]);
 
@@ -131,44 +116,38 @@ function ActionCard({
       { translateY: entY.value },
       { scale: entScale.value * pressScale.value },
     ],
-    // Shadow lifts subtly on press — reinforces physical depth
-    shadowOpacity: interpolate(pressShadow.value, [0, 1], [0, 0.10]),
-    shadowColor:   "#000000",
-    shadowOffset:  { width: 0, height: 3 },
-    shadowRadius:  8,
-    elevation:     interpolate(pressShadow.value, [0, 1], [0, 4]),
   }));
 
   const handlePressIn = useCallback(() => {
-    pressScale.value  = withTiming(0.97, { duration: 90,  easing: EASE_SNAP });
-    pressShadow.value = withTiming(1,    { duration: 90 });
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    pressScale.value = withTiming(0.97, { duration: 90, easing: EASE_SNAP });
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
   const handlePressOut = useCallback(() => {
-    pressScale.value  = withTiming(1.0, { duration: 200, easing: EASE_OUT });
-    pressShadow.value = withTiming(0,   { duration: 200 });
+    pressScale.value = withTiming(1.0, { duration: 200, easing: EASE_OUT });
   }, []);
 
-  // Theme-reactive colors — avoid re-renders by passing isDark as prop
-  const cardBg   = isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.045)";
-  const iconBg   = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.058)";
-  const iconColor = isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.72)";
-  const labelColor = isDark ? "rgba(255,255,255,0.90)" : "#111111";
-  const subColor   = isDark ? "rgba(255,255,255,0.42)" : "#888888";
+  const cardBg    = isDark ? "rgba(255,255,255,0.08)" : "#F7F7F7";
+  const cardBorder = isDark ? "rgba(255,255,255,0.10)" : "#ECECEC";
+  const iconBg    = isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.055)";
+  const iconColor = isDark ? "rgba(255,255,255,0.88)" : "#222222";
+  const labelColor = isDark ? "rgba(255,255,255,0.92)" : "#222222";
+  const subColor   = isDark ? "rgba(255,255,255,0.44)" : "#9B9B9B";
 
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onPress}>
-      <Animated.View style={[ss.card, cardStyle, { backgroundColor: cardBg }]}>
-        {/* Icon badge — top-left */}
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={onPress}
+    >
+      <Animated.View style={[ss.card, cardStyle, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        {/* Icon badge — top-left, 52×52 rounded circle */}
         <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
-          <Feather name={icon} size={20} color={iconColor} />
+          <Feather name={icon} size={28} color={iconColor} />
         </View>
         {/* Labels — bottom-left */}
         <Text style={[ss.cardLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
-        <Text style={[ss.cardSub,   { color: subColor   }]}>{sub}</Text>
+        <Text style={[ss.cardSub,   { color: subColor   }]} numberOfLines={2}>{sub}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -179,7 +158,7 @@ interface Props {
   open:           boolean;
   onClose:        () => void;
   onImagePicked?: (uri: string) => void;
-  bottomOffset:   number;  // px from screen bottom to top of input bar
+  bottomOffset:   number;
 }
 
 // ─── Panel ────────────────────────────────────────────────────────────────────
@@ -190,12 +169,9 @@ export default function MultimodalPanel({
   bottomOffset,
 }: Props) {
   const { theme: T } = useTheme();
-
-  // Keyboard height from keyboard-controller — ≤0, negative when visible
   const { reanimated } = useKeyboardContext();
   const kbH = reanimated.height;
 
-  // Panel container shared values
   const panelOp = useSharedValue(0);
   const panelY  = useSharedValue(20);
   const bdOp    = useSharedValue(0);
@@ -203,15 +179,11 @@ export default function MultimodalPanel({
 
   useEffect(() => {
     if (open) {
-      // Backdrop + pill: simple fades
-      bdOp.value   = withTiming(1, { duration: 180 });
-      pillOp.value = withTiming(1, { duration: 140, easing: EASE_OUT });
-      // Panel opacity: timing fade (spring on opacity looks wrong)
-      panelOp.value = withTiming(1, { duration: 200, easing: EASE_OUT });
-      // Panel position: overdamped spring — fluid, zero overshoot
-      panelY.value  = withSpring(0, PANEL_SPRING);
+      bdOp.value    = withTiming(1,  { duration: 180 });
+      pillOp.value  = withTiming(1,  { duration: 140, easing: EASE_OUT });
+      panelOp.value = withTiming(1,  { duration: 200, easing: EASE_OUT });
+      panelY.value  = withSpring(0,  PANEL_SPRING);
     } else {
-      // Exit: short timing — a snap-down feels more intentional than a spring reverse
       bdOp.value    = withTiming(0,  { duration: 160 });
       pillOp.value  = withTiming(0,  { duration: 120 });
       panelOp.value = withTiming(0,  { duration: 150 });
@@ -219,27 +191,24 @@ export default function MultimodalPanel({
     }
   }, [open]);
 
-  const bdStyle = useAnimatedStyle(() => ({ opacity: bdOp.value }));
-
+  const bdStyle   = useAnimatedStyle(() => ({ opacity: bdOp.value }));
   const pillStyle = useAnimatedStyle(() => ({ opacity: pillOp.value }));
 
-  // Panel bottom = input bar top + breathing gap, raised by keyboard height.
-  // kbH ≤ 0: subtracting a negative value adds keyboard height — panel tracks keyboard.
   const panelStyle = useAnimatedStyle(() => ({
     opacity:   panelOp.value,
     bottom:    bottomOffset + PANEL_GAP - kbH.value,
     transform: [{ translateY: panelY.value }],
   }));
 
-  // ── Glass token selection ────────────────────────────────────────────────────
-  const blurTint     = T.isDark ? "dark"                   : "light";
-  const overlayColor = T.isDark ? "rgba(12,12,12,0.56)"    : "rgba(255,255,255,0.64)";
-  const borderColor  = T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)";
-  const shadowColor  = T.isDark ? "rgba(0,0,0,1)"          : "rgba(0,0,0,1)";
-  const shadowOpacity = T.isDark ? 0.45                    : 0.10;
-  const pillColor    = T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.13)";
+  // Glass tokens
+  const blurTint      = T.isDark ? "dark"                   : "light";
+  const overlayColor  = T.isDark ? "rgba(18,18,18,0.62)"    : "rgba(255,255,255,0.76)";
+  const borderColor   = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const shadowColor   = "#000000";
+  const shadowOpacity = T.isDark ? 0.38 : 0.06;
+  const pillColor     = T.isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)";
 
-  // ── Action handlers ──────────────────────────────────────────────────────────
+  // Action handlers
   const handleCamera = useCallback(() => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
@@ -275,10 +244,9 @@ export default function MultimodalPanel({
     audio:  handleAudio,
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Tap-outside backdrop — closes panel, never disturbs keyboard */}
+      {/* Light translucent backdrop — dims chat without going dark */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
         pointerEvents={open ? "auto" : "none"}
@@ -286,35 +254,31 @@ export default function MultimodalPanel({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Outer shadow carrier — no overflow clip so shadow renders on iOS */}
+      {/* Outer shadow carrier — no overflow:hidden so shadow renders on iOS */}
       <Animated.View
-        style={[
-          ss.panelShadow,
-          panelStyle,
-          { shadowColor, shadowOpacity },
-        ]}
+        style={[ss.panelShadow, panelStyle, { shadowColor, shadowOpacity }]}
         pointerEvents={open ? "box-none" : "none"}
       >
         {/* Inner glass surface — clips BlurView to rounded corners */}
         <View style={ss.panelGlass}>
 
-          {/* Frosted glass base */}
+          {/* Frosted glass base — intensity 80 for premium Apple blur */}
           <BlurView
             style={StyleSheet.absoluteFill}
             tint={blurTint}
-            intensity={65}
+            intensity={80}
           />
 
-          {/* Color overlay — thickens / tints the blur for legibility */}
+          {/* Color overlay */}
           <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
 
-          {/* Hairline border — defines the panel edge on both themes */}
+          {/* Hairline border */}
           <View style={[StyleSheet.absoluteFill, ss.panelBorder, { borderColor }]} />
 
-          {/* Drag pill — fades in first, independent of card timing */}
+          {/* Drag pill */}
           <Animated.View style={[ss.dragPill, pillStyle, { backgroundColor: pillColor }]} />
 
-          {/* 2 × 2 staggered card grid */}
+          {/* 2 × 2 card grid */}
           <View style={ss.grid}>
             <View style={ss.gridRow}>
               {ACTIONS.slice(0, 2).map((a, i) => (
@@ -346,7 +310,7 @@ export default function MultimodalPanel({
             </View>
           </View>
 
-        </View>{/* panelGlass */}
+        </View>
       </Animated.View>
     </>
   );
@@ -355,44 +319,44 @@ export default function MultimodalPanel({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
 
+  // Light translucent overlay — not dark, Apple-style
   backdrop: {
     zIndex:          150,
-    backgroundColor: "rgba(0,0,0,0.12)",
+    backgroundColor: "rgba(0,0,0,0.07)",
   },
 
-  // Outer wrapper — carries drop shadow (must NOT have overflow:hidden)
+  // Shadow carrier — must NOT have overflow:hidden
   panelShadow: {
     position:      "absolute",
     zIndex:        160,
     left:          PANEL_MX,
     right:         PANEL_MX,
-    borderRadius:  28,
-    shadowOffset:  { width: 0, height: -4 },
-    shadowRadius:  24,
-    elevation:     24,
+    borderRadius:  32,
+    shadowOffset:  { width: 0, height: -2 },
+    shadowRadius:  28,
+    elevation:     20,
   },
 
-  // Inner surface — clips BlurView + overlays to borderRadius
+  // Glass surface — clips blur + overlays
   panelGlass: {
-    borderRadius:      28,
+    borderRadius:      32,
     overflow:          "hidden",
     paddingHorizontal: INNER_PAD,
-    paddingBottom:     INNER_PAD + 6,
-    paddingTop:        14,
+    paddingBottom:     INNER_PAD,
+    paddingTop:        12,
   },
 
-  // Hairline border rendered as an absoluteFill view with just borders
   panelBorder: {
-    borderRadius: 28,
+    borderRadius: 32,
     borderWidth:  0.5,
   },
 
   dragPill: {
-    width:        36,
+    width:        32,
     height:       4,
     borderRadius: 2,
     alignSelf:    "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
   grid: {
@@ -404,38 +368,42 @@ const ss = StyleSheet.create({
     gap:           CARD_GAP,
   },
 
+  // Card — equal size, rounded, subtle border
   card: {
     width:        CARD_W,
     height:       CARD_H,
-    borderRadius: 18,
-    padding:      13,
+    borderRadius: 24,
+    borderWidth:  0.5,
+    padding:      14,
     justifyContent: "flex-end",
     overflow:       "hidden",
   },
 
+  // Icon circle — 52×52 perfectly centered
   iconWrap: {
     position:       "absolute",
-    top:            13,
-    left:           13,
-    width:          40,
-    height:         40,
-    borderRadius:   13,
+    top:            14,
+    left:           14,
+    width:          52,
+    height:         52,
+    borderRadius:   26,
     alignItems:     "center",
     justifyContent: "center",
   },
 
+  // Title — SF Pro Display Semibold equivalent
   cardLabel: {
-    fontSize:      13,
+    fontSize:      18,
     fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.2,
-    marginBottom:  2,
+    letterSpacing: -0.3,
+    marginBottom:  4,
   },
 
+  // Subtitle — SF Pro Text Regular equivalent
   cardSub: {
-    fontSize:      11,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.05,
-    lineHeight:    15,
+    fontSize:   14,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 18,
   },
 
 });

@@ -239,7 +239,7 @@ export default function ChatScreen() {
   // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
   const plusRotSV = useSharedValue(0);
   useEffect(() => {
-    plusRotSV.value = withSpring(panelOpen ? 1 : 0, { damping: 18, stiffness: 280, mass: 0.8 });
+    plusRotSV.value = withTiming(panelOpen ? 1 : 0, { duration: 200, easing: Easing.out(Easing.ease) });
   }, [panelOpen]);
   const plusRotAnim = useAnimatedStyle(() => ({
     transform: [{ rotate: `${interpolate(plusRotSV.value, [0, 1], [0, 45])}deg` }],
