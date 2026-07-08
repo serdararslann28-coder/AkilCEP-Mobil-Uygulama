@@ -254,15 +254,15 @@ export default function ChatScreen() {
 
   // Soft white glow on focus — luxurious, no bounce
   const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
-  // Pill shadow — soft at rest, glows outward on focus; always visible
+  // Pill shadow — subtle at rest, gentle glow on focus
   const inputGlowStyle = useAnimatedStyle(() => ({
     shadowColor:   T.isDark ? "#FFFFFF" : "#000000",
     shadowOpacity: interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [0.16, 0.32] : [0.09, 0.16]),
+      T.isDark ? [0.08, 0.18] : [0.05, 0.10]),
     shadowRadius:  interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [20,   36]   : [14,   22]),
-    shadowOffset:  { width: 0, height: T.isDark ? 0 : 4 },
-    elevation:     12,
+      T.isDark ? [14,   26]   : [10,   18]),
+    shadowOffset:  { width: 0, height: T.isDark ? 0 : 3 },
+    elevation:     6,
   }));
   // Glass overlay darkens pill surface; brightens subtly on focus
   const inputOverlayStyle = useAnimatedStyle(() => ({
@@ -889,136 +889,128 @@ export default function ChatScreen() {
             </Animated.View>
           )}
 
-          {/* ── Premium floating pill — + integrated left, AI circle right ── */}
-          {/* Outer: carries shadow — must NOT have overflow:hidden */}
-          <Animated.View style={[ss.pillShadow, inputGlowStyle]}>
+          {/* ── Input dock — white + button left, pill right ── */}
+          <View style={ss.inputDock}>
 
-            {/* Glass background — absoluteFill, overflow:hidden clips blur */}
-            <View style={ss.pillGlassBg} pointerEvents="none">
-              <BlurView
-                intensity={20}
-                tint={T.isDark ? "dark" : "light"}
-                style={StyleSheet.absoluteFill}
-              />
-              <Animated.View style={[StyleSheet.absoluteFill, inputOverlayStyle, {
-                backgroundColor: T.isDark ? "#0C0C0C" : "#FFFFFF",
-              }]} />
-              <View style={[StyleSheet.absoluteFill, ss.pillBorder, {
-                borderColor: T.isDark ? "rgba(255,255,255,0.11)" : "rgba(0,0,0,0.08)",
-              }]} />
-              <Animated.View style={[ss.shimmerBeam, shimmerStyle]}>
-                <LinearGradient
-                  colors={["transparent", "rgba(255,255,255,0.07)", "transparent"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
-            </View>
+            {/* Standalone + button — white circle, black icon, soft drop shadow */}
+            <Animated.View style={[ss.plusCircleWrap, plusCircleScaleStyle]}>
+              <Pressable
+                style={ss.plusCircleInner}
+                onPressIn={() => {
+                  plusScaleSV.value = withTiming(1, PRESS_IN);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
+                onPress={() => { setPanelOpen(p => !p); }}
+                hitSlop={4}
+              >
+                <Animated.View style={plusRotAnim}>
+                  <Feather name="plus" size={18} color="#000000" />
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
 
-            {/* Content row — no overflow:hidden so + shadow renders */}
-            <View style={ss.pillContent}>
+            {/* Input pill — solid fill, shadow carrier (no overflow:hidden) */}
+            <Animated.View style={[ss.inputRowShadow, inputGlowStyle]}>
+              {/* Inner — clips content to pill radius */}
+              <View style={[ss.inputRowGlass, {
+                backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF",
+                borderColor:     T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
+              }]}>
 
-              {/* Left: circular + button — white, black icon, soft shadow */}
-              <Animated.View style={[ss.plusCircleWrap, plusCircleScaleStyle]}>
-                <Pressable
-                  style={ss.plusCircleInner}
-                  onPressIn={() => {
-                    plusScaleSV.value = withTiming(1, PRESS_IN);
-                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
-                  onPress={() => { setPanelOpen(p => !p); }}
-                  hitSlop={4}
-                >
-                  <Animated.View style={plusRotAnim}>
-                    <Feather name="plus" size={20} color="#000000" />
-                  </Animated.View>
-                </Pressable>
-              </Animated.View>
-
-              {/* Center: text input — large, readable, dims during voice */}
-              <TextInput
-                style={[
-                  ss.bigInput,
-                  { color: T.isDark ? "#FFFFFF" : T.fg, opacity: voiceActive ? 0.45 : 1 },
-                ]}
-                placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                placeholderTextColor={T.isDark ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.30)"}
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-                maxLength={2000}
-                scrollEnabled={scrollEnabled}
-                onContentSizeChange={onContentSizeChange}
-                blurOnSubmit={false}
-                editable={!voiceActive}
-                onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
-                onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
-              />
-
-              {/* Right: mic icon + AI circle */}
-              <View style={ss.pillRight}>
-
-                {/* Mic — custom AkilMic icon; external bloom driven by micPressGlow */}
-                <View style={ss.micArea}>
-                  <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
-                    pointerEvents="none"
+                {/* Shimmer beam — sweeps while typing */}
+                <Animated.View style={[ss.shimmerBeam, shimmerStyle]} pointerEvents="none">
+                  <LinearGradient
+                    colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFill}
                   />
-                  <AkilMic
-                    listening={sttListening}
-                    color={sttListening
-                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
-                      : (T.isDark ? "rgba(255,255,255,0.60)" : "rgba(0,0,0,0.44)")}
-                    onPressIn={() => {
-                      micPressGlow.value = withTiming(1, PRESS_IN);
-                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
-                    onPress={handleSttPress}
-                    hitSlop={8}
+                </Animated.View>
+
+                {/* Text field */}
+                <View style={ss.textInputWrap}>
+                  <TextInput
+                    style={[
+                      ss.textInput,
+                      { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
+                    ]}
+                    placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
+                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.26)"}
+                    value={inputText}
+                    onChangeText={setInputText}
+                    multiline
+                    maxLength={2000}
+                    scrollEnabled={scrollEnabled}
+                    onContentSizeChange={onContentSizeChange}
+                    blurOnSubmit={false}
+                    editable={!voiceActive}
+                    onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
+                    onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
                   />
                 </View>
 
-                {/* AI circle — 52px solid, waveform / send arrow inside */}
-                <Animated.View style={[ss.aiCircleWrap, aiCombinedStyle]}>
-                  <Pressable
-                    style={ss.aiCirclePressable}
-                    onPressIn={() => {
-                      sendPressGlow.value = withTiming(1, PRESS_IN);
-                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    }}
-                    onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
-                    onPress={hasText ? handleSend : () => {
-                      if (Platform.OS === "web") {
-                        Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
-                        return;
-                      }
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      router.push("/voice");
-                    }}
-                    hitSlop={4}
-                  >
-                    {/* Bloom — clipped by aiCirclePressable overflow:hidden */}
+                {/* Right controls */}
+                <View style={ss.rightRow}>
+
+                  {/* AkilMic — premium custom icon */}
+                  <View style={ss.micArea}>
                     <Animated.View
-                      style={[StyleSheet.absoluteFill, { borderRadius: 26, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                      style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                       pointerEvents="none"
                     />
-                    {/* Send arrow — fades in when text exists */}
-                    <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                      <Feather name="arrow-up" size={20} color="#FFFFFF" />
-                    </Animated.View>
-                    {/* Waveform — breathing idle / active during voice or STT */}
-                    <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                      <WaveformBars active={voiceActive || sttListening} />
-                    </Animated.View>
-                  </Pressable>
-                </Animated.View>
+                    <AkilMic
+                      listening={sttListening}
+                      color={sttListening
+                        ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
+                        : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
+                      onPressIn={() => {
+                        micPressGlow.value = withTiming(1, PRESS_IN);
+                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
+                      onPress={handleSttPress}
+                      hitSlop={8}
+                    />
+                  </View>
 
-              </View>{/* pillRight */}
-            </View>{/* pillContent */}
-          </Animated.View>{/* pillShadow */}
+                  {/* AI voice button — solid black circle */}
+                  <Animated.View style={[ss.sendWrap, aiCombinedStyle]}>
+                    <Pressable
+                      style={ss.aiCirclePressable}
+                      onPressIn={() => {
+                        sendPressGlow.value = withTiming(1, PRESS_IN);
+                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      }}
+                      onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
+                      onPress={hasText ? handleSend : () => {
+                        if (Platform.OS === "web") {
+                          Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                          return;
+                        }
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push("/voice");
+                      }}
+                      hitSlop={4}
+                    >
+                      <Animated.View
+                        style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                        pointerEvents="none"
+                      />
+                      <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                        <Feather name="arrow-up" size={18} color="#FFFFFF" />
+                      </Animated.View>
+                      <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                        <WaveformBars active={voiceActive || sttListening} />
+                      </Animated.View>
+                    </Pressable>
+                  </Animated.View>
+
+                </View>{/* rightRow */}
+              </View>{/* inputRowGlass */}
+            </Animated.View>{/* inputRowShadow */}
+
+          </View>{/* inputDock */}
         </View>
       </KeyboardAvoidingView>
 
@@ -1353,7 +1345,14 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // Shimmer beam — position/size unchanged; content layer is not overflow:hidden
+  // ── Input dock ──────────────────────────────────────────────────────────────
+  inputDock: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           8,
+  },
+
+  // Shimmer beam — faint light sweep while typing
   shimmerBeam: {
     position: "absolute",
     top:      0,
@@ -1362,113 +1361,100 @@ const ss = StyleSheet.create({
     left:     0,
   },
 
-  // ── Pill outer shadow carrier — must NOT have overflow:hidden ────────────────
-  // Shadow is fully driven by inputGlowStyle (animated); elevation for Android.
-  pillShadow: {
-    height:       62,
-    borderRadius: 32,
-  },
-
-  // Glass background — absoluteFill, overflow:hidden clips BlurView to pill shape
-  pillGlassBg: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 32,
-    overflow:     "hidden",
-  },
-
-  // Hairline border — rendered as an absoluteFill view (no overflow clip needed)
-  pillBorder: {
-    borderRadius: 32,
-    borderWidth:  1,
-  },
-
-  // Content row — not overflow:hidden so + button shadow is visible
-  pillContent: {
-    flex:           1,
-    flexDirection:  "row",
-    alignItems:     "center",
-    height:         62,
-    paddingLeft:    7,
-    paddingRight:   7,
-    gap:            8,
-  },
-
-  // Circular + button — white circle, black icon, drop shadow (renders because parent is not clipped)
+  // Circular + button — shadow carrier (no overflow:hidden so shadow renders on iOS)
   plusCircleWrap: {
-    width:         48,
-    height:        48,
-    borderRadius:  24,
+    width:         44,
+    height:        44,
+    borderRadius:  22,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.20,
-    shadowRadius:  8,
-    elevation:     4,
+    shadowOpacity: 0.12,
+    shadowRadius:  6,
+    elevation:     3,
   },
+  // White fill circle — overflow:hidden clips the Pressable ripple
   plusCircleInner: {
-    width:          48,
-    height:         48,
-    borderRadius:   24,
-    backgroundColor:"#FFFFFF",
-    alignItems:     "center",
-    justifyContent: "center",
-    overflow:       "hidden",
+    width:           44,
+    height:          44,
+    borderRadius:    22,
+    backgroundColor: "#FFFFFF",
+    alignItems:      "center",
+    justifyContent:  "center",
+    overflow:        "hidden",
   },
 
-  // Main text field — large, readable, no internal padding fighting
-  bigInput: {
-    flex:       1,
-    fontSize:   16,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 22,
+  // Pill outer — shadow carrier, no overflow:hidden (shadow renders on iOS)
+  inputRowShadow: {
+    flex:         1,
+    borderRadius: 31,
+    minHeight:    50,
+  },
+  // Pill inner — solid fill, clips content to pill shape
+  inputRowGlass: {
+    flex:              1,
+    flexDirection:     "row",
+    alignItems:        "center",
+    borderRadius:      31,
+    overflow:          "hidden",
+    minHeight:         50,
+    paddingLeft:       14,
+    paddingRight:      6,
+    borderWidth:       StyleSheet.hairlineWidth,
+  },
+
+  // Text field wrapper — vertical padding governs pill height
+  textInputWrap: {
+    flex:            1,
+    justifyContent:  "center",
+    paddingVertical: 11,
+  },
+  textInput: {
+    flex:              1,
+    fontSize:          15,
+    fontFamily:        "Inter_400Regular",
+    lineHeight:        21,
     paddingVertical:   0,
     paddingHorizontal: 0,
-    maxHeight:         100,
+    maxHeight:         96,
   },
 
-  // Right side container
-  pillRight: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           6,
+  // Right controls row
+  rightRow: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             2,
+    paddingVertical: 5,
+    paddingRight:    5,
   },
 
-  // Mic hit-area — 36×36 centred around the icon
+  // Mic hit area
   micArea: {
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
   },
-  micHaloLg: {
-    position:     "absolute",
-    width:        36,
-    height:       36,
-    borderRadius: 18,
-  },
-  micPressable: {
-    width:          36,
-    height:         36,
+
+  // AI voice button — solid black circle
+  sendWrap: {
     alignItems:     "center",
     justifyContent: "center",
-    borderRadius:   18,
   },
-
-  // AI circle — 52px solid, waveform + send arrow inside
   aiCircleWrap: {
     alignItems:     "center",
     justifyContent: "center",
   },
   aiCirclePressable: {
-    width:           52,
-    height:          52,
-    borderRadius:    26,
+    width:           44,
+    height:          44,
+    borderRadius:    22,
     backgroundColor: "#0A0A0A",
     alignItems:      "center",
     justifyContent:  "center",
     overflow:        "hidden",
   },
 
-  // Shared: icon layers stacked absolutely inside the AI circle
+  // Icon layers stacked absolutely inside the AI circle
   iconCenter: {
     position:       "absolute",
     alignItems:     "center",
