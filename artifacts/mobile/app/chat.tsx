@@ -949,14 +949,12 @@ export default function ChatScreen() {
                       { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
                     ]}
                     placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
-                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.55)"}
+                    placeholderTextColor={T.isDark ? "rgba(255,255,255,0.48)" : "#9A9A9A"}
                     value={inputText}
                     onChangeText={setInputText}
-                    multiline
                     maxLength={2000}
-                    scrollEnabled={scrollEnabled}
-                    onContentSizeChange={onContentSizeChange}
-                    blurOnSubmit={false}
+                    returnKeyType="send"
+                    onSubmitEditing={() => { if (hasText) handleSend(); }}
                     editable={!voiceActive}
                     onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
                     onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
@@ -974,7 +972,7 @@ export default function ChatScreen() {
                     />
                     <AkilMic
                       listening={sttListening}
-                      size={22}
+                      size={24}
                       color={sttListening
                         ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.78)")
                         : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.38)")}
@@ -1333,8 +1331,9 @@ const ss = StyleSheet.create({
 
   // Input area
   inputOuter: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 0,
     paddingTop:        4,
+    alignItems:        "center",
   },
 
   // Quick action row — above input, new chat only
@@ -1359,11 +1358,12 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // ── Input dock ──────────────────────────────────────────────────────────────
+  // ── Input dock — 92 % width, centred inside inputOuter ─────────────────────
   inputDock: {
     flexDirection: "row",
     alignItems:    "center",
     gap:           8,
+    width:         "92%",
   },
 
   // Shimmer beam — faint light sweep while typing
@@ -1377,9 +1377,9 @@ const ss = StyleSheet.create({
 
   // Circular + button — shadow carrier (no overflow:hidden so shadow renders on iOS)
   plusCircleWrap: {
-    width:         44,
-    height:        44,
-    borderRadius:  22,
+    width:         46,
+    height:        46,
+    borderRadius:  23,
     shadowColor:   "#000",
     shadowOffset:  { width: 0, height: 1 },
     shadowOpacity: 0.07,
@@ -1388,9 +1388,9 @@ const ss = StyleSheet.create({
   },
   // White fill circle — overflow:hidden clips the Pressable ripple
   plusCircleInner: {
-    width:           44,
-    height:          44,
-    borderRadius:    22,
+    width:           46,
+    height:          46,
+    borderRadius:    23,
     backgroundColor: "#FFFFFF",
     alignItems:      "center",
     justifyContent:  "center",
@@ -1400,54 +1400,52 @@ const ss = StyleSheet.create({
   // Pill outer — shadow carrier, no overflow:hidden (shadow renders on iOS)
   inputRowShadow: {
     flex:         1,
-    borderRadius: 26,
-    minHeight:    52,
+    borderRadius: 30,
+    minHeight:    58,
   },
-  // Pill inner — solid fill, clips content to pill shape
+  // Pill inner — solid white fill, no border, clips content to pill radius
   inputRowGlass: {
     flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
-    borderRadius:      26,
+    borderRadius:      30,
     overflow:          "hidden",
-    minHeight:         52,
-    paddingLeft:       16,
-    paddingRight:      8,
-    borderWidth:       StyleSheet.hairlineWidth,
+    minHeight:         58,
+    paddingLeft:       18,
+    paddingRight:      6,
+    borderWidth:       0,
   },
 
-  // Text field wrapper — vertical padding governs pill height
+  // Text field wrapper — flex:1 fills available space; padding centers single line
   textInputWrap: {
     flex:            1,
     justifyContent:  "center",
-    paddingVertical: 7,
   },
   textInput: {
     flex:              1,
-    fontSize:          18,
+    fontSize:          17,
     fontFamily:        "Inter_500Medium",
-    lineHeight:        26,
+    lineHeight:        22,
     paddingVertical:   0,
     paddingHorizontal: 0,
-    maxHeight:         100,
   },
 
   // Right controls row
   rightRow: {
     flexDirection:   "row",
     alignItems:      "center",
-    gap:             4,
-    paddingVertical: 4,
+    gap:             0,
+    paddingVertical: 0,
     paddingRight:    6,
   },
 
-  // Mic hit area — marginRight shifts mic 3px left for optical balance
+  // Mic hit area — marginRight creates 16px optical gap to AI button
   micArea: {
     width:          36,
     height:         36,
     alignItems:     "center",
     justifyContent: "center",
-    marginRight:    3,
+    marginRight:    16,
   },
 
   // AI voice button — solid black circle
@@ -1460,9 +1458,9 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   aiCirclePressable: {
-    width:           48,
-    height:          48,
-    borderRadius:    24,
+    width:           50,
+    height:          50,
+    borderRadius:    25,
     backgroundColor: "#0A0A0A",
     alignItems:      "center",
     justifyContent:  "center",
