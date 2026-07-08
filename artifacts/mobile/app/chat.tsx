@@ -9,6 +9,7 @@
  */
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
@@ -22,6 +23,7 @@ import React, {
 } from "react";
 import {
   Alert,
+  Dimensions,
   FlatList,
   Image,
   Modal,
@@ -34,6 +36,7 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated, {
+  cancelAnimation,
   Easing,
   FadeIn,
   FadeOut,
@@ -224,6 +227,33 @@ export default function ChatScreen() {
     opacity: interpolate(inputFocused.value, [0, 1],
       T.isDark ? [0.08, 0.15] : [0.60, 0.74]),
   }));
+
+  // Flowing knowledge shimmer — thin light beam sweeps left→right while typing.
+  // Almost invisible by design: 8% peak opacity, 2.4s per pass, linear.
+  const BEAM_W    = 88;   // beam width in px
+  const SCREEN_W  = Dimensions.get("window").width;
+  const shimmerX  = useSharedValue(-BEAM_W);
+  const shimmerOp = useSharedValue(0);
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerX.value }],
+    opacity:   shimmerOp.value,
+  }));
+  useEffect(() => {
+    if (hasText) {
+      // Fade beam in, then loop sweep continuously
+      shimmerOp.value = withTiming(1, { duration: 600 });
+      shimmerX.value  = -BEAM_W;
+      shimmerX.value  = withRepeat(
+        withTiming(SCREEN_W + BEAM_W, { duration: 2400, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      // Stop sweep, fade out
+      shimmerOp.value = withTiming(0, { duration: 500 });
+      cancelAnimation(shimmerX);
+    }
+  }, [hasText]);
 
   // Adaptive multiline: scrolls once past MAX_INPUT_H
   const [scrollEnabled, setScrollEnabled] = useState(false);
@@ -822,6 +852,19 @@ export default function ChatScreen() {
                 backgroundColor: "#FFFFFF",
               }]} />
 
+              {/* Flowing knowledge beam — sweeps left→right while typing */}
+              <Animated.View
+                style={[ss.shimmerBeam, shimmerStyle]}
+                pointerEvents="none"
+              >
+                <LinearGradient
+                  colors={["transparent", "rgba(255,255,255,0.08)", "transparent"]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+
             {/* Text field — dims slightly during voice */}
             <View style={ss.textInputWrap}>
               <TextInput
@@ -1271,6 +1314,15 @@ const ss = StyleSheet.create({
     shadowOpacity:  0.05,
     shadowRadius:   10,
     elevation:      3,
+  },
+
+  // Flowing knowledge shimmer beam — thin gradient stripe, translated by shimmerStyle
+  shimmerBeam: {
+    position: "absolute",
+    top:      0,
+    bottom:   0,
+    width:    88,
+    left:     0,
   },
 
   // Input row — outer shadow carrier (no overflow clip so iOS shadow renders).
