@@ -1390,7 +1390,7 @@ const ss = StyleSheet.create({
     minHeight:      42,
     borderRadius:   21,
     overflow:       "hidden",
-    paddingLeft:    20,
+    paddingLeft:    32,
     paddingRight:   2,
     paddingVertical: 8,
   },
