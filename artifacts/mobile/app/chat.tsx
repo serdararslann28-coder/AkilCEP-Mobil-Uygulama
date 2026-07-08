@@ -8,6 +8,7 @@
  * No separate voice screen. Voice lives entirely inside the chat.
  */
 import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
@@ -785,8 +786,23 @@ export default function ChatScreen() {
               </Animated.View>
             </TouchableOpacity>
 
-          {/* Input row — text + mic + send; height animated via inputFieldAnim */}
-          <Animated.View style={[ss.inputRow, inputFieldAnim, { backgroundColor: inputBg }]}>
+          {/* Input row — ghost glass pill; height animated via inputFieldAnim */}
+          {/* Outer carries shadow (no overflow clip so shadow renders on iOS) */}
+          <Animated.View style={[ss.inputRowShadow, inputFieldAnim]}>
+            {/* Inner clips BlurView to pill radius */}
+            <View style={[ss.inputRowGlass, {
+              borderColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.07)",
+            }]}>
+              {/* Blur layer — fills pill */}
+              <BlurView
+                intensity={70}
+                tint={T.isDark ? "dark" : "light"}
+                style={StyleSheet.absoluteFill}
+              />
+              {/* Translucent colour tint — 8% white (VOID) / 60% white (PURE) */}
+              <View style={[StyleSheet.absoluteFill, {
+                backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.60)",
+              }]} />
 
             {/* Text field — dims slightly during voice */}
             <View style={ss.textInputWrap}>
@@ -879,7 +895,8 @@ export default function ChatScreen() {
               </Animated.View>
             </View>
 
-          </Animated.View>{/* inputRow */}
+            </View>{/* inputRowGlass */}
+          </Animated.View>{/* inputRowShadow */}
           </View>{/* inputDock */}
         </View>
       </KeyboardAvoidingView>
@@ -1236,20 +1253,27 @@ const ss = StyleSheet.create({
     elevation:      3,
   },
 
-  // Input row — auto-grow pill (48–120px), flex:1 fills remaining width
-  inputRow: {
+  // Input row — outer shadow carrier (no overflow clip so iOS shadow renders)
+  inputRowShadow: {
+    flex:          1,
+    borderRadius:  24,
+    minHeight:     48,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius:  12,
+    elevation:     4,
+  },
+  // Input row — glass surface (clips BlurView to pill radius)
+  inputRowGlass: {
     flex:              1,
     flexDirection:     "row",
     alignItems:        "center",
     borderRadius:      24,
-    minHeight:         48,
+    overflow:          "hidden",
     paddingHorizontal: 8,
     gap:               2,
-    shadowColor:       "#000",
-    shadowOffset:      { width: 0, height: 2 },
-    shadowOpacity:     0.05,
-    shadowRadius:      10,
-    elevation:         3,
+    borderWidth:       0.6,
   },
   // Plain flex wrapper for TextInput
   textInputWrap: {
