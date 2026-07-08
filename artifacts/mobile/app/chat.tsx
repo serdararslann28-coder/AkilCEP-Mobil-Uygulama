@@ -866,6 +866,132 @@ export default function ChatScreen() {
 
         {/* ════ INPUT AREA ════ */}
         <View style={[ss.inputOuter, { paddingBottom: bottomPad + 12 }]}>
+
+          {/* ── Floating input dock ─────────────────────────────────────────────
+               Three siblings in a row: [dockPlus 52×52] [dockPill flex:1 h54] [dockAi 56×56]
+               Matches attached reference image exactly.
+          ─────────────────────────────────────────────────────────────────── */}
+          <View style={ss.dock}>
+
+            {/* A — circular + button, 52×52, white, soft shadow */}
+            <Animated.View style={[ss.dockPlus, plusCircleScaleStyle]}>
+              <Pressable
+                style={ss.dockPlusInner}
+                onPressIn={() => {
+                  plusScaleSV.value = withTiming(1, PRESS_IN);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
+                onPress={() => { setPanelOpen(p => !p); }}
+                hitSlop={4}
+              >
+                <Animated.View style={plusRotAnim}>
+                  <Feather name="plus" size={20} color="#000000" />
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+
+            {/* B — white pill, flex:1, height 54, radius 27 */}
+            {/* dockPillShell: shadow carrier — no overflow:hidden so shadow renders on iOS */}
+            <Animated.View style={[ss.dockPillShell, inputGlowStyle]}>
+              {/* dockPillBody: row, clips content, sets background colour */}
+              <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
+
+                {/* Shimmer sweep while typing */}
+                <Animated.View style={[ss.dockShimmer, shimmerStyle]} pointerEvents="none">
+                  <LinearGradient
+                    colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+
+                {/* Text field — flex:1, single line, vertically centred */}
+                <TextInput
+                  style={[
+                    ss.dockField,
+                    { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
+                  ]}
+                  placeholder={voiceActive ? "" : "AkılCEP'e bir şey sor..."}
+                  placeholderTextColor={T.isDark ? "rgba(255,255,255,0.45)" : "#A8A8A8"}
+                  numberOfLines={1}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  maxLength={2000}
+                  returnKeyType="send"
+                  onSubmitEditing={() => { if (hasText) handleSend(); }}
+                  editable={!voiceActive}
+                  onFocus={() => { inputFocused.value = withTiming(1, FOCUS_DUR); }}
+                  onBlur={() => {  inputFocused.value = withTiming(0, FOCUS_DUR); }}
+                />
+
+                {/* Thin vertical divider between text and mic */}
+                <View
+                  style={[ss.dockDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.11)" }]}
+                  pointerEvents="none"
+                />
+
+                {/* Mic — 40×40 touch target, right of divider */}
+                <View style={ss.dockMicWrap}>
+                  <Animated.View
+                    style={[StyleSheet.absoluteFill, { borderRadius: 20, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    pointerEvents="none"
+                  />
+                  <AkilMic
+                    listening={sttListening}
+                    size={24}
+                    color={sttListening
+                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
+                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
+                    onPressIn={() => {
+                      micPressGlow.value = withTiming(1, PRESS_IN);
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
+                    onPress={handleSttPress}
+                    hitSlop={8}
+                  />
+                </View>
+
+              </View>
+            </Animated.View>
+
+            {/* C — black AI voice button, 56×56 */}
+            {/* dockAiShell: shadow carrier; dockAiBody: black fill, clips ripple */}
+            <Animated.View style={[ss.dockAiShell, aiCombinedStyle]}>
+              <Pressable
+                style={ss.dockAiBody}
+                onPressIn={() => {
+                  sendPressGlow.value = withTiming(1, PRESS_IN);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+                onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
+                onPress={hasText ? handleSend : () => {
+                  if (Platform.OS === "web") {
+                    Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                    return;
+                  }
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push("/voice");
+                }}
+                hitSlop={4}
+              >
+                <Animated.View
+                  style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                  pointerEvents="none"
+                />
+                <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                  <Feather name="arrow-up" size={20} color="#FFFFFF" />
+                </Animated.View>
+                <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                  <WaveformBars active={voiceActive || sttListening} />
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+
+          </View>
+
         </View>
       </KeyboardAvoidingView>
 
@@ -1180,6 +1306,117 @@ const ss = StyleSheet.create({
   },
 
 
+
+  // ── Floating input dock styles ────────────────────────────────────────────
+
+  // Row container — 92% of screen width, centred by inputOuter
+  dock: {
+    flexDirection: "row",
+    alignItems:    "center",
+    gap:           12,
+    width:         "92%",
+  },
+
+  // A — Plus button (52×52)
+  // dockPlus: shadow carrier, no overflow:hidden so iOS shadow renders
+  dockPlus: {
+    width:         52,
+    height:        52,
+    borderRadius:  26,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius:  6,
+    elevation:     3,
+  },
+  dockPlusInner: {
+    width:           52,
+    height:          52,
+    borderRadius:    26,
+    backgroundColor: "#FFFFFF",
+    alignItems:      "center",
+    justifyContent:  "center",
+    overflow:        "hidden",
+  },
+
+  // B — Input pill (flex:1, height 54, radius 27)
+  // dockPillShell: shadow carrier, no overflow:hidden
+  dockPillShell: {
+    flex:          1,
+    borderRadius:  27,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius:  14,
+    elevation:     4,
+  },
+  // dockPillBody: clips content, row layout, exact height
+  dockPillBody: {
+    flex:           1,
+    flexDirection:  "row",
+    alignItems:     "center",
+    height:         54,
+    borderRadius:   27,
+    overflow:       "hidden",
+    paddingLeft:    20,
+    paddingRight:   6,
+  },
+  // Shimmer sweep — absolute, no layout footprint
+  dockShimmer: {
+    position: "absolute",
+    top:      0,
+    bottom:   0,
+    width:    88,
+    left:     0,
+  },
+  // TextInput — flex:1, h54 vertically centres text
+  dockField: {
+    flex:              1,
+    height:            54,
+    fontSize:          17,
+    fontFamily:        "Inter_500Medium",
+    paddingVertical:   0,
+    paddingHorizontal: 0,
+    textAlignVertical: "center",
+  },
+  // 1 px vertical divider between text and mic
+  dockDivider: {
+    width:       1,
+    height:      22,
+    marginRight: 4,
+  },
+  // Mic touch target — 40×40
+  dockMicWrap: {
+    width:          40,
+    height:         40,
+    alignItems:     "center",
+    justifyContent: "center",
+  },
+
+  // C — AI voice button (56×56)
+  // dockAiShell: shadow carrier
+  dockAiShell: {
+    width:          56,
+    height:         56,
+    borderRadius:   28,
+    alignItems:     "center",
+    justifyContent: "center",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 3 },
+    shadowOpacity:  0.22,
+    shadowRadius:   8,
+    elevation:      5,
+  },
+  // dockAiBody: black fill, clips ripple
+  dockAiBody: {
+    width:           56,
+    height:          56,
+    borderRadius:    28,
+    backgroundColor: "#0A0A0A",
+    alignItems:      "center",
+    justifyContent:  "center",
+    overflow:        "hidden",
+  },
 
   // Icon layers stacked absolutely inside the AI circle
   iconCenter: {
