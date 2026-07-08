@@ -943,7 +943,7 @@ export default function ChatScreen() {
                     size={17}
                     color={sttListening
                       ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
-                      : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.60)")}
+                      : (T.isDark ? "rgba(255,255,255,0.50)" : "#5A5A5A")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

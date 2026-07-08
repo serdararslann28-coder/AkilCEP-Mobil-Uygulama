@@ -167,39 +167,47 @@ export function AkilMic({
           pointerEvents="none"
         />
 
-        {/* Geometric microphone icon (24×24 viewBox)
-            Body:  filled capsule, rx=4 (width/2) — fully rounded capsule
-            Arch:  open U-arc from (6.5,12) sweeping clockwise to (17.5,12), bottom at y≈18
-            Stem:  1.6px vertical line from arch base to base bar
-            Base:  1.6px horizontal line — optical anchor                              */}
+        {/* Apple-style thin outline microphone (24×24 viewBox)
+            Body:  stroke-only rounded capsule — no fill
+            Arch:  open downward U-arc from body sides
+            Stem:  thin vertical line from arch base to base bar
+            Base:  thin horizontal bar — optical anchor
+            All strokes: 1.45 px, round linecaps, no fills                           */}
         <Svg width={size} height={size} viewBox="0 0 24 24">
+          {/* Capsule body — outline only */}
           <Rect
-            x="8"
-            y="1.5"
-            width="8"
+            x="8.25"
+            y="2"
+            width="7.5"
             height="13"
-            rx="4"
-            fill={color}
-          />
-          <Path
-            d="M 6.5 12 A 5.5 6 0 0 1 17.5 12"
+            rx="3.75"
+            fill="none"
             stroke={color}
-            strokeWidth="1.6"
+            strokeWidth="1.45"
+            strokeLinejoin="round"
+          />
+          {/* Downward-opening arch from body sides */}
+          <Path
+            d="M 6.5 12.5 A 5.5 5.5 0 0 0 17.5 12.5"
+            stroke={color}
+            strokeWidth="1.45"
             strokeLinecap="round"
             fill="none"
           />
+          {/* Vertical stem */}
           <Line
             x1="12" y1="18"
             x2="12" y2="21"
             stroke={color}
-            strokeWidth="1.6"
+            strokeWidth="1.45"
             strokeLinecap="round"
           />
+          {/* Horizontal base bar */}
           <Line
-            x1="7.5"  y1="21.5"
-            x2="16.5" y2="21.5"
+            x1="8.5"  y1="21"
+            x2="15.5" y2="21"
             stroke={color}
-            strokeWidth="1.6"
+            strokeWidth="1.45"
             strokeLinecap="round"
           />
         </Svg>
