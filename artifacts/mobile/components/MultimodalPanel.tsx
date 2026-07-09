@@ -1,29 +1,29 @@
 /**
- * MultimodalPanel — premium iOS-style floating attachment sheet.
+ * MultimodalPanel — premium Apple-inspired attachment sheet.
+ *
+ * Layout: single horizontal row of 4 equal-width cards (flex:1 each).
+ *         Cards stretch to equal height — tallest card sets the row height.
  *
  * Glass surface:
- *   Outer Animated.View: shadow carrier, no overflow clip
- *   Inner View: overflow:hidden clips BlurView to borderRadius 32
- *   BlurView intensity 80 + color overlay + hairline border
+ *   Outer Animated.View: shadow carrier (no overflow:hidden)
+ *   Inner View: overflow:hidden clips BlurView to borderRadius 34
+ *   BlurView intensity 85 + soft white overlay + hairline border
  *
- * Entry animation:
- *   Panel: overdamped spring (zero overshoot) + 200ms opacity fade
- *   Backdrop: 180ms fade
- *   Cards: staggered 0/50/100/150ms — opacity + translateY 10→0 + scale 0.96→1.0
+ * Entry:
+ *   Panel: overdamped spring up + 200ms opacity
+ *   Backdrop blur: 180ms fade
+ *   Cards: staggered 0/50/100/150ms — opacity + scale 0.96→1.00
  *
- * Card press:
- *   Scale 1→0.97 in 90ms, back in 200ms cubic-out
- *   Haptic on pressIn
+ * Press: scale 1→0.98 in 90ms, return in 200ms cubic-out + light haptic
  *
- * Close:
- *   150ms snap-down, cards collapse together in 110ms
+ * Close: 150ms snap-down, cards collapse in 110ms
  */
-import { BlurView }             from "expo-blur";
-import * as Haptics             from "expo-haptics";
-import * as ImagePicker         from "expo-image-picker";
-import { router }               from "expo-router";
-import { Feather }              from "@expo/vector-icons";
-import { useKeyboardContext }   from "react-native-keyboard-controller";
+import { BlurView }           from "expo-blur";
+import * as Haptics           from "expo-haptics";
+import * as ImagePicker       from "expo-image-picker";
+import { router }             from "expo-router";
+import { Feather }            from "@expo/vector-icons";
+import { useKeyboardContext } from "react-native-keyboard-controller";
 import React, { useCallback, useEffect } from "react";
 import {
   Dimensions,
@@ -35,7 +35,6 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -47,12 +46,10 @@ import { useTheme } from "@/context/ThemeContext";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
-const PANEL_MX  = SW * 0.04;                                             // 4% each side → 92% width
-const INNER_PAD = 24;
-const CARD_GAP  = 16;
-const CARD_W    = (SW - PANEL_MX * 2 - INNER_PAD * 2 - CARD_GAP) / 2;
-const CARD_H    = 120;
-const PANEL_GAP = 8;
+const PANEL_MX  = SW * 0.04;      // 4% each side → 92% panel width
+const INNER_PAD = 16;
+const CARD_GAP  = 10;
+const PANEL_GAP = 8;              // gap between panel bottom and input bar top
 
 // ─── Easing curves ────────────────────────────────────────────────────────────
 const EASE_OUT  = Easing.out(Easing.cubic);
@@ -64,10 +61,10 @@ const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 const ACTIONS = [
-  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"         },
-  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Görsel yükle"         },
-  { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel…"    },
-  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"     },
+  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                   },
+  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"            },
+  { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel\nve diğer dosyalar" },
+  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"               },
 ] as const;
 
 type ActionId = typeof ACTIONS[number]["id"];
@@ -93,18 +90,15 @@ function ActionCard({
   const stagger = index * 50;
 
   const entOp    = useSharedValue(0);
-  const entY     = useSharedValue(10);
   const entScale = useSharedValue(0.96);
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
     if (open) {
       entOp.value    = withDelay(stagger, withTiming(1,   { duration: 200, easing: EASE_OUT }));
-      entY.value     = withDelay(stagger, withTiming(0,   { duration: 240, easing: EASE_OUT }));
       entScale.value = withDelay(stagger, withTiming(1.0, { duration: 240, easing: EASE_OUT }));
     } else {
       entOp.value    = withTiming(0,    { duration: 110 });
-      entY.value     = withTiming(8,    { duration: 110 });
       entScale.value = withTiming(0.97, { duration: 110 });
       pressScale.value = 1;
     }
@@ -112,14 +106,11 @@ function ActionCard({
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity:   entOp.value,
-    transform: [
-      { translateY: entY.value },
-      { scale: entScale.value * pressScale.value },
-    ],
+    transform: [{ scale: entScale.value * pressScale.value }],
   }));
 
   const handlePressIn = useCallback(() => {
-    pressScale.value = withTiming(0.97, { duration: 90, easing: EASE_SNAP });
+    pressScale.value = withTiming(0.98, { duration: 90, easing: EASE_SNAP });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -127,27 +118,30 @@ function ActionCard({
     pressScale.value = withTiming(1.0, { duration: 200, easing: EASE_OUT });
   }, []);
 
-  const cardBg    = isDark ? "rgba(255,255,255,0.08)" : "#F7F7F7";
+  // Theme-reactive colors
+  const cardBg     = isDark ? "rgba(40,40,40,0.82)"   : "rgba(255,255,255,0.95)";
   const cardBorder = isDark ? "rgba(255,255,255,0.10)" : "#ECECEC";
-  const iconBg    = isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.055)";
-  const iconColor = isDark ? "rgba(255,255,255,0.88)" : "#222222";
+  const iconBg     = isDark ? "rgba(255,255,255,0.12)" : "#F5F5F7";
+  const iconColor  = isDark ? "rgba(255,255,255,0.88)" : "#222222";
   const labelColor = isDark ? "rgba(255,255,255,0.92)" : "#222222";
   const subColor   = isDark ? "rgba(255,255,255,0.44)" : "#9B9B9B";
 
   return (
     <Pressable
+      style={ss.cardPressable}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
     >
       <Animated.View style={[ss.card, cardStyle, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-        {/* Icon badge — top-left, 52×52 rounded circle */}
+        {/* Icon circle — 52×52 centered */}
         <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
-          <Feather name={icon} size={28} color={iconColor} />
+          <Feather name={icon} size={26} color={iconColor} />
         </View>
-        {/* Labels — bottom-left */}
-        <Text style={[ss.cardLabel, { color: labelColor }]} numberOfLines={1}>{label}</Text>
-        <Text style={[ss.cardSub,   { color: subColor   }]} numberOfLines={2}>{sub}</Text>
+        {/* Title */}
+        <Text style={[ss.cardLabel, { color: labelColor }]}>{label}</Text>
+        {/* Subtitle — wraps naturally, no truncation */}
+        <Text style={[ss.cardSub, { color: subColor }]}>{sub}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -202,11 +196,11 @@ export default function MultimodalPanel({
 
   // Glass tokens
   const blurTint      = T.isDark ? "dark"                   : "light";
-  const overlayColor  = T.isDark ? "rgba(18,18,18,0.62)"    : "rgba(255,255,255,0.76)";
-  const borderColor   = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+  const overlayColor  = T.isDark ? "rgba(18,18,18,0.65)"    : "rgba(255,255,255,0.82)";
+  const borderColor   = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
   const shadowColor   = "#000000";
-  const shadowOpacity = T.isDark ? 0.38 : 0.06;
-  const pillColor     = T.isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)";
+  const shadowOpacity = T.isDark ? 0.36 : 0.06;
+  const pillColor     = T.isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.14)";
 
   // Action handlers
   const handleCamera = useCallback(() => {
@@ -246,7 +240,7 @@ export default function MultimodalPanel({
 
   return (
     <>
-      {/* Light translucent backdrop — dims chat without going dark */}
+      {/* Very light backdrop — dims content gently, Apple-style */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
         pointerEvents={open ? "auto" : "none"}
@@ -254,60 +248,43 @@ export default function MultimodalPanel({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Outer shadow carrier — no overflow:hidden so shadow renders on iOS */}
+      {/* Outer shadow carrier — no overflow:hidden */}
       <Animated.View
         style={[ss.panelShadow, panelStyle, { shadowColor, shadowOpacity }]}
         pointerEvents={open ? "box-none" : "none"}
       >
-        {/* Inner glass surface — clips BlurView to rounded corners */}
+        {/* Glass surface — clips BlurView to borderRadius 34 */}
         <View style={ss.panelGlass}>
 
-          {/* Frosted glass base — intensity 80 for premium Apple blur */}
           <BlurView
             style={StyleSheet.absoluteFill}
             tint={blurTint}
-            intensity={80}
+            intensity={85}
           />
 
-          {/* Color overlay */}
+          {/* Soft white overlay */}
           <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
 
           {/* Hairline border */}
           <View style={[StyleSheet.absoluteFill, ss.panelBorder, { borderColor }]} />
 
-          {/* Drag pill */}
+          {/* Drag handle */}
           <Animated.View style={[ss.dragPill, pillStyle, { backgroundColor: pillColor }]} />
 
-          {/* 2 × 2 card grid */}
+          {/* Single-row 4-card grid */}
           <View style={ss.grid}>
-            <View style={ss.gridRow}>
-              {ACTIONS.slice(0, 2).map((a, i) => (
-                <ActionCard
-                  key={a.id}
-                  icon={a.icon}
-                  label={a.label}
-                  sub={a.sub}
-                  index={i}
-                  open={open}
-                  isDark={T.isDark}
-                  onPress={handlers[a.id]}
-                />
-              ))}
-            </View>
-            <View style={ss.gridRow}>
-              {ACTIONS.slice(2, 4).map((a, i) => (
-                <ActionCard
-                  key={a.id}
-                  icon={a.icon}
-                  label={a.label}
-                  sub={a.sub}
-                  index={i + 2}
-                  open={open}
-                  isDark={T.isDark}
-                  onPress={handlers[a.id]}
-                />
-              ))}
-            </View>
+            {ACTIONS.map((a, i) => (
+              <ActionCard
+                key={a.id}
+                icon={a.icon}
+                label={a.label}
+                sub={a.sub}
+                index={i}
+                open={open}
+                isDark={T.isDark}
+                onPress={handlers[a.id]}
+              />
+            ))}
           </View>
 
         </View>
@@ -319,10 +296,10 @@ export default function MultimodalPanel({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
 
-  // Light translucent overlay — not dark, Apple-style
+  // Very light overlay — not dark, Apple-style
   backdrop: {
     zIndex:          150,
-    backgroundColor: "rgba(0,0,0,0.07)",
+    backgroundColor: "rgba(0,0,0,0.05)",
   },
 
   // Shadow carrier — must NOT have overflow:hidden
@@ -331,79 +308,82 @@ const ss = StyleSheet.create({
     zIndex:        160,
     left:          PANEL_MX,
     right:         PANEL_MX,
-    borderRadius:  32,
-    shadowOffset:  { width: 0, height: -2 },
-    shadowRadius:  28,
-    elevation:     20,
+    borderRadius:  34,
+    shadowOffset:  { width: 0, height: 2 },
+    shadowRadius:  24,
+    elevation:     18,
   },
 
-  // Glass surface — clips blur + overlays
+  // Glass surface — clips blur + overlays to radius 34
   panelGlass: {
-    borderRadius:      32,
+    borderRadius:      34,
     overflow:          "hidden",
     paddingHorizontal: INNER_PAD,
     paddingBottom:     INNER_PAD,
-    paddingTop:        12,
+    paddingTop:        10,
   },
 
   panelBorder: {
-    borderRadius: 32,
+    borderRadius: 34,
     borderWidth:  0.5,
   },
 
   dragPill: {
-    width:        32,
+    width:        36,
     height:       4,
     borderRadius: 2,
     alignSelf:    "center",
-    marginBottom: 16,
+    marginBottom: 14,
   },
 
+  // Single horizontal row — alignItems stretch equalizes card heights
   grid: {
-    gap: CARD_GAP,
-  },
-
-  gridRow: {
     flexDirection: "row",
     gap:           CARD_GAP,
+    alignItems:    "stretch",
   },
 
-  // Card — equal size, rounded, subtle border
+  // Pressable fills flex:1 so grid gaps work correctly
+  cardPressable: {
+    flex: 1,
+  },
+
+  // Card — flex:1 height from tallest sibling via stretch
   card: {
-    width:        CARD_W,
-    height:       CARD_H,
-    borderRadius: 24,
-    borderWidth:  0.5,
-    padding:      14,
-    justifyContent: "flex-end",
-    overflow:       "hidden",
+    flex:           1,
+    borderRadius:   22,
+    borderWidth:    0.5,
+    alignItems:     "center",
+    paddingHorizontal: 6,
+    paddingTop:     16,
+    paddingBottom:  14,
   },
 
-  // Icon circle — 52×52 perfectly centered
+  // Icon circle — 52×52 centered
   iconWrap: {
-    position:       "absolute",
-    top:            14,
-    left:           14,
     width:          52,
     height:         52,
     borderRadius:   26,
     alignItems:     "center",
     justifyContent: "center",
+    marginBottom:   12,
   },
 
-  // Title — SF Pro Display Semibold equivalent
+  // Title — SF Pro Display Medium equivalent
   cardLabel: {
-    fontSize:      18,
-    fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.3,
+    fontSize:      17,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.2,
+    textAlign:     "center",
     marginBottom:  4,
   },
 
-  // Subtitle — SF Pro Text Regular equivalent
+  // Subtitle — wraps naturally, no truncation
   cardSub: {
-    fontSize:   14,
+    fontSize:   13,
     fontFamily: "Inter_400Regular",
-    lineHeight: 18,
+    lineHeight: 17,
+    textAlign:  "center",
   },
 
 });
