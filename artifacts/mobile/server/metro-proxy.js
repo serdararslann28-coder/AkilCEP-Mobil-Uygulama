@@ -181,6 +181,60 @@ async function serveQrPage(res) {
 // ─── HTTP proxy ───────────────────────────────────────────────────────────────
 
 const server = http.createServer((req, res) => {
+  // ── Diagnostic: log every incoming request path so we can trace what the
+  // device sends (bundle requests, asset fetches, log POSTs, etc.)
+  const shortUrl = (req.url || "").split("?")[0].slice(0, 80);
+  if (process.env.EXPO_DEBUG === "1") {
+    process.stdout.write(`[proxy] ${req.method} ${shortUrl}\n`);
+  }
+
+  // ── Capture POST /logs bodies — this is where Expo Go sends console.log /
+  // console.error messages and JS runtime crash reports back to Metro.
+  // Printing them here guarantees they appear in the workflow log even when
+  // Metro's own log reporter is slow to flush.
+  if (req.method === "POST" && /^\/logs(\/|$|\?)/.test(req.url || "")) {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      try {
+        const body = Buffer.concat(chunks).toString("utf8");
+        const parsed = JSON.parse(body);
+        const entries = Array.isArray(parsed) ? parsed : (parsed.logs || [parsed]);
+        for (const entry of entries) {
+          const level = (entry.level || "log").toUpperCase();
+          const msg   = Array.isArray(entry.body)
+            ? entry.body.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ")
+            : JSON.stringify(entry);
+          process.stdout.write(`[device:${level}] ${msg}\n`);
+        }
+      } catch (_) {
+        // non-JSON body — print raw
+        const raw = Buffer.concat(chunks).toString("utf8").slice(0, 2000);
+        process.stdout.write(`[device:POST/logs] ${raw}\n`);
+      }
+      // Still forward the request to Metro — reconstruct from buffered body
+      const bodyBuf = Buffer.concat(chunks);
+      const fwdHeaders = {
+        ...req.headers,
+        host: `localhost:${METRO_PORT}`,
+        "content-length": String(bodyBuf.length),
+      };
+      delete fwdHeaders["origin"];
+      delete fwdHeaders["x-forwarded-for"];
+      delete fwdHeaders["x-forwarded-host"];
+      delete fwdHeaders["x-forwarded-proto"];
+      delete fwdHeaders["x-replit-user-id"];
+      delete fwdHeaders["x-replit-user-name"];
+      const fwdReq = http.request(
+        { hostname: "localhost", port: METRO_PORT, path: req.url, method: "POST", headers: fwdHeaders },
+        (fwdRes) => { res.writeHead(fwdRes.statusCode, fwdRes.headers); fwdRes.pipe(res, { end: true }); }
+      );
+      fwdReq.on("error", () => { if (!res.headersSent) res.writeHead(502); res.end(); });
+      fwdReq.end(bodyBuf);
+    });
+    return;
+  }
+
   // Serve QR landing page for the /__expo route (browser opens this)
   if (req.url === "/__expo" || req.url === "/__expo/") {
     return serveQrPage(res);
