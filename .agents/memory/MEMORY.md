@@ -1,0 +1,2 @@
+- [Expo Go shim pattern](expo-go-shim-pattern.md) — use `executionEnvironment === "storeClient"` (not deprecated `appOwnership`) for SDK 47+ Expo Go detection
+- [Metro shim strategy](metro-shim-strategy.md) — how to redirect unresolvable native modules in metro.config.js for Expo Go compatibility

@@ -5,7 +5,7 @@
  *
  * react-native-keyboard-controller ships native Turbo Modules that are not
  * bundled inside Expo Go. This shim detects whether we are running inside
- * Expo Go (appOwnership === 'expo') and:
+ * Expo Go and:
  *
  *   - In Expo Go  → provides pure-JS passthrough implementations so the app
  *     loads and renders. Keyboard-height animations stay at 0 but the layout
@@ -13,19 +13,26 @@
  *
  *   - In a real dev/prod build → delegates entirely to the real package so
  *     native keyboard tracking works normally.
+ *
+ * Detection: Constants.executionEnvironment === "storeClient" (SDK 47+).
+ * The deprecated Constants.appOwnership === "expo" is kept as a legacy fallback.
  */
 
 let isExpoGo = false;
 try {
-  // expo-constants is always available; appOwnership is 'expo' only in Expo Go.
   const Constants = require("expo-constants").default;
-  isExpoGo = Constants.appOwnership === "expo";
+  // SDK 47+ canonical way to detect Expo Go (storeClient = running inside Expo Go app)
+  const execEnv = Constants.executionEnvironment;
+  const appOwnership = Constants.appOwnership;
+  isExpoGo =
+    execEnv === "storeClient" ||   // current API (SDK 47+)
+    appOwnership === "expo";        // legacy fallback (SDK <47)
 } catch (_) {}
 
 if (!isExpoGo) {
   // Real dev/production build — use the native module as normal.
-  // We reference the package by its on-disk path (not by bare name) so this
-  // require() is not intercepted by our own metro.config.js resolveRequest hook.
+  // We reference the package by its on-disk path so this require() is NOT
+  // intercepted by our own metro.config.js resolveRequest hook.
   const realPkg = "react-native-keyboard-controller/src/index";
   module.exports = require(realPkg);
 } else {
