@@ -351,6 +351,11 @@ export default function ChatScreen() {
   const micPressHighlightStyle = useAnimatedStyle(() => ({
     opacity: micPressGlow.value,
   }));
+  // Mic scale press — 0.95 in 120ms
+  const micScaleSV    = useSharedValue(1);
+  const micScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: micScaleSV.value }],
+  }));
 
   // + button press — scale 1.0 → 0.97
   const plusScaleSV = useSharedValue(0);
@@ -967,27 +972,31 @@ export default function ChatScreen() {
                   pointerEvents="none"
                 />
 
-                {/* Mic — 40×40 touch target, right of divider */}
-                <View style={ss.dockMicWrap}>
+                {/* Mic — 44×44 touch target, right of divider */}
+                <Animated.View style={[ss.dockMicWrap, micScaleStyle]}>
                   <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 18, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
+                    style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                     pointerEvents="none"
                   />
                   <AkilMic
                     listening={sttListening}
-                    size={17}
+                    size={20}
                     color={sttListening
                       ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
-                      : (T.isDark ? "rgba(255,255,255,0.50)" : "#5A5A5A")}
+                      : (T.isDark ? "rgba(255,255,255,0.60)" : "#2E2E2E")}
                     onPressIn={() => {
                       micPressGlow.value = withTiming(1, PRESS_IN);
+                      micScaleSV.value   = withTiming(0.95, { duration: 120 });
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
-                    onPressOut={() => { micPressGlow.value = withTiming(0, PRESS_OUT); }}
+                    onPressOut={() => {
+                      micPressGlow.value = withTiming(0, PRESS_OUT);
+                      micScaleSV.value   = withTiming(1.0, { duration: 120 });
+                    }}
                     onPress={handleSttPress}
                     hitSlop={8}
                   />
-                </View>
+                </Animated.View>
 
               </View>
             </Animated.View>
@@ -1426,16 +1435,16 @@ const ss = StyleSheet.create({
     textAlignVertical: "center",
     lineHeight:        42,
   },
-  // Divider — 1×16 px, 8 px margin before mic
+  // Divider — 1×16 px, 12 px margin before mic
   dockDivider: {
     width:       1,
     height:      16,
-    marginRight: 8,
+    marginRight: 12,
   },
-  // Mic touch target — 34×34
+  // Mic touch target — 44×44 (minimum Apple HIG)
   dockMicWrap: {
-    width:          34,
-    height:         34,
+    width:          44,
+    height:         44,
     alignItems:     "center",
     justifyContent: "center",
   },
