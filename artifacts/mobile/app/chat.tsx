@@ -1390,7 +1390,7 @@ const ss = StyleSheet.create({
     minHeight:       42,
     borderRadius:    21,
     overflow:        "hidden",
-    paddingLeft:     22,
+    paddingLeft:     20,
     paddingRight:    10,
     paddingVertical: 0,
   },
@@ -1416,7 +1416,7 @@ const ss = StyleSheet.create({
   // Animated placeholder — fills parent content area (respects parent padding)
   dockPlaceholder: {
     position:          "absolute",
-    left:              0,
+    left:              20,
     top:               0,
     bottom:            0,
     right:             0,
