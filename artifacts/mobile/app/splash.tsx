@@ -1,10 +1,16 @@
 /**
  * AkılCEP — Splash Screen
  *
- * #F8F8F8 background, centered logo.
- * Entry: fade in + scale 0.95 → 1.0 (600 ms)
- * Breathing: gentle 1.0 ↔ 1.02 oscillation after entry
- * Total visible: ~1.5 s → navigate to onboarding (new) or chat (returning)
+ * #F8F8F8 background, leaf logo only. Total duration ~3.3 s.
+ *
+ * Timeline:
+ *   0 ms      Fade in + scale entry  0.97 → 1.00   (500 ms)
+ *   500 ms    Exhale                 1.00 → 0.97   (600 ms)
+ *   1100 ms   Inhale                 0.97 → 1.00   (600 ms)
+ *   1700 ms   Settle                 1.00 → 0.99   (600 ms)
+ *   2300 ms   Hold still             0.99           (700 ms)
+ *   3000 ms   Fade out                              (300 ms)
+ *   3300 ms   Navigate → onboarding / chat
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -16,7 +22,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
@@ -28,30 +33,35 @@ export const STARTUP_SOUND_KEY = "@akilcep_startup_sound";
 
 export default function SplashScreen() {
   const opacity  = useSharedValue(0);
-  const scale    = useSharedValue(0.95);
+  const scale    = useSharedValue(0.97);
   const screenOp = useSharedValue(1);
 
   useEffect(() => {
-    // Fade in
-    opacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) });
+    // Fade in over 500 ms
+    opacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
 
-    // Scale in (0.97 → 1.0) then breathe (1.0 ↔ 0.97) indefinitely — very subtle
+    // Entry → breathe → settle → hold
     scale.value = withSequence(
-      withTiming(1.0, { duration: 700, easing: Easing.out(Easing.ease) }),
-      withRepeat(
-        withTiming(0.97, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true,
-      ),
+      // Entry: 0.97 → 1.00 (500 ms)
+      withTiming(0.99, { duration: 500,  easing: Easing.out(Easing.ease) }),
+      withTiming(1.00, { duration: 100,  easing: Easing.out(Easing.ease) }),
+      // Exhale: 1.00 → 0.97 (600 ms)
+      withTiming(0.97, { duration: 600,  easing: Easing.inOut(Easing.sin) }),
+      // Inhale: 0.97 → 1.00 (600 ms)
+      withTiming(1.00, { duration: 600,  easing: Easing.inOut(Easing.sin) }),
+      // Settle: 1.00 → 0.99 (600 ms)
+      withTiming(0.99, { duration: 600,  easing: Easing.inOut(Easing.sin) }),
+      // Hold: stay at 0.99 for 700 ms
+      withTiming(0.99, { duration: 700 }),
     );
 
-    // Fade screen out at 1200 ms (300 ms)
+    // Fade out at 3000 ms (300 ms)
     screenOp.value = withDelay(
-      1200,
+      3000,
       withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }),
     );
 
-    // Navigate at 1500 ms
+    // Navigate at 3300 ms
     const nav = setTimeout(async () => {
       // In development, always show onboarding regardless of saved state.
       // In production, respect the AsyncStorage completion flag.
@@ -61,7 +71,7 @@ export default function SplashScreen() {
       }
       const done = await AsyncStorage.getItem(ONBOARDING_KEY);
       router.replace(done === "true" ? "/chat" : "/onboarding");
-    }, 1500);
+    }, 3300);
 
     return () => clearTimeout(nav);
   }, []);
