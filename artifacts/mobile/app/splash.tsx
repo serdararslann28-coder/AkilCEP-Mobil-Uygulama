@@ -63,12 +63,22 @@ export default function SplashScreen() {
 
     // Navigate at 3300 ms
     const nav = setTimeout(async () => {
-      // In development, always show onboarding regardless of saved state.
-      // In production, respect the AsyncStorage completion flag.
+      // In development, always show onboarding so the flow can be tested.
       if (__DEV__) {
         router.replace("/onboarding");
         return;
       }
+
+      // In production: check for an active Supabase session first,
+      // then fall back to the onboarding-done flag (covers guest/local users).
+      try {
+        const { isSupabaseConfigured, supabase } = await import("@/lib/supabase");
+        if (isSupabaseConfigured) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) { router.replace("/chat"); return; }
+        }
+      } catch { /* ignore import errors */ }
+
       const done = await AsyncStorage.getItem(ONBOARDING_KEY);
       router.replace(done === "true" ? "/chat" : "/onboarding");
     }, 3300);

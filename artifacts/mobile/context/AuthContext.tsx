@@ -38,6 +38,11 @@ export interface SignUpParams {
   username: string;
 }
 
+export interface UpdateProfileParams {
+  fullName: string;
+  username: string;
+}
+
 interface AuthContextValue {
   user:            AuthUser | null;
   loading:         boolean;
@@ -46,6 +51,7 @@ interface AuthContextValue {
   continueAsGuest: () => Promise<void>;
   signOut:         () => Promise<void>;
   updateInterests: (interests: string[]) => Promise<void>;
+  updateProfile:   (params: UpdateProfileParams) => Promise<void>;
   resetPassword:   (email: string) => Promise<void>;
   updateAvatar:    (uri: string) => Promise<void>;
 }
@@ -82,6 +88,7 @@ const AuthContext = createContext<AuthContextValue>({
   continueAsGuest: async () => {},
   signOut:         async () => {},
   updateInterests: async () => {},
+  updateProfile:   async () => {},
   resetPassword:   async () => {},
   updateAvatar:    async () => {},
 });
@@ -236,6 +243,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // ── Update profile ────────────────────────────────────────────────────────
+  const updateProfile = useCallback(async ({ fullName, username }: UpdateProfileParams) => {
+    if (!user) return;
+    const fn = firstName(fullName);
+    const updated: AuthUser = { ...user, fullName, firstName: fn, username: username || null };
+    setUser(updated);
+    if (isSupabaseConfigured && !user.isGuest) {
+      await supabase.from("profiles")
+        .update({ full_name: fullName, username: username || null })
+        .eq("id", user.id);
+    } else {
+      await AsyncStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+    }
+  }, [user]);
+
   // ── Password reset ────────────────────────────────────────────────────────
   const resetPassword = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) {
@@ -272,7 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, loading,
       signUpWithEmail, signInWithEmail,
       continueAsGuest, signOut,
-      updateInterests, resetPassword, updateAvatar,
+      updateInterests, updateProfile, resetPassword, updateAvatar,
     }}>
       {children}
     </AuthContext.Provider>

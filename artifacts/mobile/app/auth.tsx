@@ -125,7 +125,7 @@ export default function AuthScreen() {
     setGuestLoading(true);
     try {
       await continueAsGuest();
-      router.replace("/interests");
+      router.replace("/ready");
     } finally {
       setGuestLoading(false);
     }
@@ -173,34 +173,29 @@ export default function AuthScreen() {
         {/* Divider */}
         <View style={ss.divider} />
 
-        {/* Email login — outline */}
+        {/* Email — outline */}
         <TouchableOpacity style={ss.btnOutline} onPress={handleEmailLogin} activeOpacity={0.85}>
           <View style={ss.iconWrap}>
             <Feather name="mail" size={20} color="#000000" />
           </View>
-          <Text style={ss.labelBlack}>E-posta ile Giriş Yap</Text>
+          <Text style={ss.labelBlack}>E-posta ile Devam Et</Text>
           <View style={ss.iconWrap} />
         </TouchableOpacity>
 
-        {/* Create account — outline */}
-        <TouchableOpacity style={ss.btnOutline} onPress={handleRegister} activeOpacity={0.85}>
-          <View style={ss.iconWrap}>
-            <Feather name="user-plus" size={20} color="#000000" />
-          </View>
-          <Text style={ss.labelBlack}>Hesap Oluştur</Text>
-          <View style={ss.iconWrap} />
-        </TouchableOpacity>
-
-        {/* Guest — text only */}
+        {/* Guest — outline */}
         <TouchableOpacity
+          style={[ss.btnOutline, guestLoading && { opacity: 0.5 }]}
           onPress={handleGuest}
           disabled={guestLoading}
-          activeOpacity={0.5}
-          style={ss.guestBtn}
+          activeOpacity={0.85}
         >
-          <Text style={ss.guestText}>
-            {guestLoading ? "Yükleniyor..." : "Misafir olarak devam et"}
+          <View style={ss.iconWrap}>
+            <Feather name="user" size={20} color="#000000" />
+          </View>
+          <Text style={ss.labelBlack}>
+            {guestLoading ? "Yükleniyor..." : "Misafir Olarak Devam Et"}
           </Text>
+          <View style={ss.iconWrap} />
         </TouchableOpacity>
       </Animated.View>
 

@@ -119,11 +119,11 @@ export default function RegisterScreen() {
   };
 
   const validate = (): string | null => {
-    if (!fullName.trim())                         return "Ad Soyad gerekli.";
-    if (username.trim().length < 3)               return "Kullanıcı adı en az 3 karakter olmalı.";
-    if (!/^\S+@\S+\.\S+$/.test(email.trim()))    return "Geçerli bir e-posta adresi girin.";
-    if (password.length < 6)                      return "Şifre en az 6 karakter olmalı.";
-    if (password !== confirmPassword)             return "Şifreler eşleşmiyor.";
+    if (!fullName.trim())                                                        return "Ad Soyad gerekli.";
+    if (username.trim().length > 0 && username.trim().length < 3)               return "Kullanıcı adı en az 3 karakter olmalı.";
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()))                                   return "Geçerli bir e-posta adresi girin.";
+    if (password.length < 6)                                                     return "Şifre en az 6 karakter olmalı.";
+    if (password !== confirmPassword)                                            return "Şifreler eşleşmiyor.";
     return null;
   };
 
@@ -143,7 +143,7 @@ export default function RegisterScreen() {
         username: username.trim().toLowerCase().replace(/\s+/g, "_"),
       });
       if (avatar) await updateAvatar(avatar);
-      router.replace("/interests");
+      router.replace("/ready");
     } catch (e: unknown) {
       Alert.alert("Kayıt Hatası", e instanceof Error ? e.message : "Bir hata oluştu.");
     } finally {
@@ -198,15 +198,20 @@ export default function RegisterScreen() {
             autoCapitalize="words"
             onSubmitEditing={() => refUsername.current?.focus()}
           />
-          <Field
-            label="Kullanıcı Adı"
-            value={username}
-            onChange={setUsername}
-            placeholder="kullanici_adi"
-            autoCapitalize="none"
-            inputRef={refUsername}
-            onSubmitEditing={() => refEmail.current?.focus()}
-          />
+          <View>
+            <Field
+              label="Kullanıcı Adı (İsteğe Bağlı)"
+              value={username}
+              onChange={setUsername}
+              placeholder="kullanici_adi"
+              autoCapitalize="none"
+              inputRef={refUsername}
+              onSubmitEditing={() => refEmail.current?.focus()}
+            />
+            <Text style={ss.helperText}>
+              Kullanıcı adı isteğe bağlıdır. Daha sonra profil ayarlarından ekleyebilir veya değiştirebilirsin.
+            </Text>
+          </View>
           <Field
             label="E-posta"
             value={email}
@@ -358,6 +363,16 @@ const ss = StyleSheet.create({
   link:     { alignItems: "center", paddingVertical: 8 },
   linkText: { fontFamily: "Inter_400Regular", fontSize: 14, color: "#000000", opacity: 0.42 },
   linkBold: { fontFamily: "Inter_600SemiBold", opacity: 1, color: "#000000" },
+
+  helperText: {
+    fontFamily:    "Inter_400Regular",
+    fontSize:      12,
+    color:         "#000000",
+    opacity:       0.38,
+    lineHeight:    17,
+    marginTop:     6,
+    paddingHorizontal: 4,
+  },
 });
 
 // ── Field styles (separate namespace) ─────────────────────────────────────────

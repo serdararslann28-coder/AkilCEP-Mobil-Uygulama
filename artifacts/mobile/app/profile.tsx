@@ -1,13 +1,13 @@
 /**
  * AkılCEP — Profile Screen
  *
- * Pure white, Apple HIG. Sections:
- *   - Avatar + name + username + email + member since
+ * Apple HIG, theme-aware (PURE / VOID). Sections:
+ *   - Avatar + editable Full Name + editable Username
+ *   - Email (read-only) + member since
  *   - Preferences: Language, Appearance, Notifications, Privacy
  *   - Account: Logout, Delete Account
  *
- * Reads real user data from AuthContext; gracefully shows
- * placeholders when user is guest or not signed in.
+ * Edits are saved on "Kaydet" tap via AuthContext.updateProfile.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
@@ -15,7 +15,12 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Image,
@@ -26,6 +31,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -37,11 +43,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PhotoCropModal    from "@/components/PhotoCropModal";
-import { useAuth }       from "@/context/AuthContext";
-import { useLanguage }   from "@/context/LanguageContext";
-import { useTheme }      from "@/context/ThemeContext";
-import { STARTUP_SOUND_KEY } from "@/app/splash";
+import PhotoCropModal         from "@/components/PhotoCropModal";
+import { useAuth }            from "@/context/AuthContext";
+import { useLanguage }        from "@/context/LanguageContext";
+import { useTheme }           from "@/context/ThemeContext";
+import { STARTUP_SOUND_KEY }  from "@/app/splash";
 
 const defaultAvatar = require("@/assets/images/avatar.png");
 
@@ -52,8 +58,8 @@ function formatDate(iso: string | null): string {
   return d.toLocaleDateString("tr-TR", { year: "numeric", month: "long" });
 }
 
-// ── Row component ─────────────────────────────────────────────────────────────
-function Row({
+// ── Settings row ──────────────────────────────────────────────────────────────
+function SettingsRow({
   icon, label, value, onPress, danger, rightEl,
 }: {
   icon:     string;
@@ -79,7 +85,7 @@ function Row({
       </View>
       <Text style={[rs.label, { color: clr }]}>{label}</Text>
       {value !== undefined && (
-        <Text style={[rs.value, { color: T.zinc }]}>{value}</Text>
+        <Text style={[rs.value, { color: T.zinc }]} numberOfLines={1}>{value}</Text>
       )}
       {rightEl ?? (onPress && !danger && (
         <Feather name="chevron-right" size={14} color={T.zinc} />
@@ -92,38 +98,104 @@ const rs = StyleSheet.create({
   row:   { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
   icon:  { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   label: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
-  value: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  value: { fontSize: 14, fontFamily: "Inter_400Regular", maxWidth: 140 },
+});
+
+// ── Profile field ─────────────────────────────────────────────────────────────
+function ProfileField({
+  label, value, onChange, placeholder, autoCapitalize, inputRef, onSubmitEditing, returnKeyType,
+}: {
+  label:            string;
+  value:            string;
+  onChange:         (v: string) => void;
+  placeholder?:     string;
+  autoCapitalize?:  "none" | "words" | "sentences";
+  inputRef?:        React.RefObject<TextInput | null>;
+  onSubmitEditing?: () => void;
+  returnKeyType?:   "next" | "done";
+}) {
+  const { theme: T } = useTheme();
+  const borderClr = T.isDark ? "rgba(255,255,255,0.1)" : "#EFEFEF";
+  const bgClr     = T.isDark ? "rgba(255,255,255,0.05)" : "#F8F8F8";
+
+  return (
+    <View style={pf.wrap}>
+      <Text style={[pf.label, { color: T.zinc }]}>{label}</Text>
+      <TextInput
+        ref={inputRef}
+        style={[pf.input, { color: T.fg, backgroundColor: bgClr, borderColor: borderClr }]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={T.isDark ? "rgba(255,255,255,0.2)" : "#C4C4C4"}
+        autoCapitalize={autoCapitalize ?? "sentences"}
+        autoCorrect={false}
+        returnKeyType={returnKeyType ?? "next"}
+        onSubmitEditing={onSubmitEditing}
+      />
+    </View>
+  );
+}
+
+const pf = StyleSheet.create({
+  wrap:  { gap: 6 },
+  label: {
+    fontFamily:    "Inter_500Medium",
+    fontSize:      12,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingLeft:   4,
+  },
+  input: {
+    fontFamily:        "Inter_400Regular",
+    fontSize:          16,
+    letterSpacing:     -0.1,
+    borderRadius:      14,
+    borderWidth:       1,
+    paddingHorizontal: 16,
+    height:            52,
+  },
 });
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const insets     = useSafeAreaInsets();
-  const { theme: T } = useTheme();
-  const { t }      = useLanguage();
-  const { user, signOut, updateAvatar } = useAuth();
+  const insets                                  = useSafeAreaInsets();
+  const { theme: T }                            = useTheme();
+  const { t }                                   = useLanguage();
+  const { user, signOut, updateAvatar, updateProfile } = useAuth();
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 32 : insets.bottom;
 
-  // Avatar state — prefer auth user's avatar
+  // ── Editable profile fields ───────────────────────────────────────────────
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [username, setUsername] = useState(user?.username ?? "");
+  const [saving,   setSaving]   = useState(false);
+  const refUsername = useRef<TextInput | null>(null);
+
+  // Keep fields in sync if auth user changes
+  useEffect(() => {
+    setFullName(user?.fullName ?? "");
+    setUsername(user?.username ?? "");
+  }, [user?.fullName, user?.username]);
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl ?? null);
   const [cropUri,   setCropUri]   = useState<string | null>(null);
   const [showCrop,  setShowCrop]  = useState(false);
   const [showSheet, setShowSheet] = useState(false);
 
-  // Startup sound preference
-  const [startupSound, setStartupSound] = useState(true);
+  useEffect(() => {
+    if (user?.avatarUrl) setAvatarUri(user.avatarUrl);
+  }, [user?.avatarUrl]);
 
+  // ── Startup sound ─────────────────────────────────────────────────────────
+  const [startupSound, setStartupSound] = useState(true);
   useEffect(() => {
     AsyncStorage.getItem(STARTUP_SOUND_KEY)
       .then(val => { if (val === "off") setStartupSound(false); })
       .catch(() => {});
   }, []);
-
-  // Sync avatar from auth user on mount
-  useEffect(() => {
-    if (user?.avatarUrl) setAvatarUri(user.avatarUrl);
-  }, [user?.avatarUrl]);
 
   const toggleStartupSound = async (value: boolean) => {
     setStartupSound(value);
@@ -131,7 +203,30 @@ export default function ProfileScreen() {
     Haptics.selectionAsync();
   };
 
-  // Photo bottom-sheet animation
+  // ── Save profile ──────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Hata", "Ad Soyad boş bırakılamaz.");
+      return;
+    }
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setSaving(true);
+    try {
+      await updateProfile({
+        fullName: fullName.trim(),
+        username: username.trim().toLowerCase().replace(/\s+/g, "_"),
+      });
+      router.back();
+    } catch (e: unknown) {
+      Alert.alert("Hata", e instanceof Error ? e.message : "Kaydedilemedi.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Photo sheet animation ─────────────────────────────────────────────────
   const sheetY     = useSharedValue(600);
   const sheetAlpha = useSharedValue(0);
 
@@ -154,8 +249,11 @@ export default function ProfileScreen() {
     closeSheet();
     await new Promise(r => setTimeout(r, 300));
 
-    if (key === "remove")   { setAvatarUri(null); updateAvatar("").catch(() => {}); return; }
-    if (key === "defaults") { setAvatarUri(null); return; }
+    if (key === "remove") {
+      setAvatarUri(null);
+      updateAvatar("").catch(() => {});
+      return;
+    }
 
     const isCamera = key === "camera";
     const perm     = isCamera
@@ -184,6 +282,7 @@ export default function ProfileScreen() {
     try { await updateAvatar(uri); } catch {}
   };
 
+  // ── Account actions ───────────────────────────────────────────────────────
   const handleLogout = () => {
     Alert.alert(
       "Çıkış Yap",
@@ -194,10 +293,7 @@ export default function ProfileScreen() {
           text: "Çıkış Yap",
           style: "destructive",
           onPress: async () => {
-            try {
-              await signOut();
-              router.replace("/onboarding");
-            } catch {}
+            try { await signOut(); router.replace("/onboarding"); } catch {}
           },
         },
       ],
@@ -214,27 +310,23 @@ export default function ProfileScreen() {
           text: "Hesabı Sil",
           style: "destructive",
           onPress: async () => {
-            try {
-              await signOut();
-              router.replace("/onboarding");
-            } catch {}
+            try { await signOut(); router.replace("/onboarding"); } catch {}
           },
         },
       ],
     );
   };
 
-  // Derived colours
+  // ── Derived colours ───────────────────────────────────────────────────────
   const cardBg    = T.card;
   const sheetBg   = T.isDark ? "#0E0E0E" : "#F5F5F7";
   const handleClr = T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
   const borderClr = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
 
   const PHOTO_OPTIONS = [
-    { label: t("profile.takePhoto"),        icon: "camera",  key: "camera"   },
-    { label: t("profile.chooseFromLibrary"), icon: "image",   key: "gallery"  },
-    { label: t("profile.defaultAvatars"),   icon: "grid",    key: "defaults" },
-    { label: t("profile.remove"),           icon: "trash-2", key: "remove", danger: true },
+    { label: t("profile.takePhoto"),         icon: "camera",  key: "camera"  },
+    { label: t("profile.chooseFromLibrary"), icon: "image",   key: "gallery" },
+    { label: t("profile.remove"),            icon: "trash-2", key: "remove", danger: true },
   ];
 
   const avatarSource = avatarUri ? { uri: avatarUri } : defaultAvatar;
@@ -255,12 +347,13 @@ export default function ProfileScreen() {
 
       {/* Floating save */}
       <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.back(); }}
-        style={[ss.floatSave, { top: topPad + 10, backgroundColor: T.fg }]}
+        onPress={handleSave}
+        disabled={saving}
+        style={[ss.floatSave, { top: topPad + 10, backgroundColor: T.fg, opacity: saving ? 0.5 : 1 }]}
         activeOpacity={0.75}
       >
         <Text style={[ss.floatSaveText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>
-          Kaydet
+          {saving ? "Kaydediliyor..." : "Kaydet"}
         </Text>
       </TouchableOpacity>
 
@@ -271,7 +364,7 @@ export default function ProfileScreen() {
         <ScrollView
           contentContainerStyle={[
             ss.scroll,
-            { paddingBottom: btmPad + 24, paddingTop: topPad + 56 },
+            { paddingBottom: btmPad + 24, paddingTop: topPad + 72 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -288,21 +381,15 @@ export default function ProfileScreen() {
                 source={avatarSource}
                 style={[
                   ss.avatarLarge,
-                  { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.90)" },
+                  { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.9)" },
                 ]}
               />
               <View style={[ss.cameraOverlay, { backgroundColor: T.fg, borderColor: T.bg }]}>
                 <Feather name="camera" size={14} color={T.isDark ? "#050505" : "#FFFFFF"} />
               </View>
             </TouchableOpacity>
+            <Text style={[ss.avatarHint, { color: T.zinc }]}>Fotoğraf Değiştir</Text>
 
-            {/* User name */}
-            {user?.fullName && (
-              <Text style={[ss.displayName, { color: T.fg }]}>{user.fullName}</Text>
-            )}
-            {user?.username && (
-              <Text style={[ss.displayUsername, { color: T.zinc }]}>@{user.username}</Text>
-            )}
             {user?.isGuest && (
               <View style={[ss.guestBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)" }]}>
                 <Text style={[ss.guestBadgeText, { color: T.zinc }]}>Misafir</Text>
@@ -310,51 +397,81 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* ── Kişisel bilgiler ────────────────────────────────────────────── */}
+          {/* ── Profil Bilgileri (editable) ─────────────────────────────────── */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Kişisel Bilgiler</Text>
-            <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              {user?.email && (
-                <>
-                  <Row icon="mail" label="E-posta" value={user.email} />
-                  <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
-                </>
-              )}
-              {user?.memberSince && (
-                <Row icon="calendar" label="Üyelik Tarihi" value={formatDate(user.memberSince)} />
-              )}
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Profil Bilgileri</Text>
+            <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, padding: 16, gap: 16 }]}>
+              <ProfileField
+                label="Ad Soyad"
+                value={fullName}
+                onChange={setFullName}
+                placeholder="Adınız Soyadınız"
+                autoCapitalize="words"
+                onSubmitEditing={() => refUsername.current?.focus()}
+                returnKeyType="next"
+              />
+              <ProfileField
+                label="Kullanıcı Adı (İsteğe Bağlı)"
+                value={username}
+                onChange={setUsername}
+                placeholder="kullanici_adi"
+                autoCapitalize="none"
+                inputRef={refUsername}
+                onSubmitEditing={handleSave}
+                returnKeyType="done"
+              />
             </View>
           </View>
+
+          {/* ── Hesap Bilgileri (read-only) ──────────────────────────────────── */}
+          {(user?.email || user?.memberSince) && (
+            <View style={ss.section}>
+              <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap</Text>
+              <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
+                {user?.email && (
+                  <>
+                    <SettingsRow icon="mail" label="E-posta" value={user.email} />
+                    {user?.memberSince && (
+                      <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+                    )}
+                  </>
+                )}
+                {user?.memberSince && (
+                  <SettingsRow icon="calendar" label="Üyelik Tarihi" value={formatDate(user.memberSince)} />
+                )}
+              </View>
+            </View>
+          )}
 
           {/* ── Tercihler ───────────────────────────────────────────────────── */}
           <View style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Tercihler</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <Row
+              <SettingsRow
                 icon="globe"
                 label="Dil"
                 value={t("language.current") ?? "Türkçe"}
                 onPress={() => router.push("/language")}
               />
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
-              <Row
+              <SettingsRow
                 icon="moon"
                 label="Görünüm"
                 value={T.isDark ? "Koyu" : "Açık"}
                 onPress={() => {}}
               />
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
-              <Row icon="bell" label="Bildirimler" onPress={() => {}} />
+              <SettingsRow icon="bell"   label="Bildirimler" onPress={() => {}} />
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
-              <Row icon="shield" label="Gizlilik" onPress={() => {}} />
+              <SettingsRow icon="shield" label="Gizlilik"    onPress={() => {}} />
             </View>
           </View>
 
-          {/* ── Ses ayarları ────────────────────────────────────────────────── */}
+          {/* ── Ses ─────────────────────────────────────────────────────────── */}
           <View style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Ses</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <Row
+              <SettingsRow
                 icon="volume-2"
                 label={t("profile.startupSound")}
                 rightEl={
@@ -370,17 +487,17 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* ── Hesap ───────────────────────────────────────────────────────── */}
+          {/* ── Hesap işlemleri ─────────────────────────────────────────────── */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap İşlemleri</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <Row
+              <SettingsRow
                 icon="log-out"
                 label="Çıkış Yap"
                 onPress={handleLogout}
               />
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
-              <Row
+              <SettingsRow
                 icon="trash-2"
                 label="Hesabı Sil"
                 onPress={handleDeleteAccount}
@@ -392,7 +509,7 @@ export default function ProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Photo action sheet ───────────────────────────────────────────────── */}
+      {/* ── Photo action sheet ─────────────────────────────────────────────── */}
       {showSheet && (
         <>
           <Animated.View style={[ss.sheetOverlay, overlayStyle]}>
@@ -416,7 +533,11 @@ export default function ProfileScreen() {
                   onPress={() => handlePhotoOption(opt.key)}
                   activeOpacity={0.6}
                 >
-                  <View style={[ss.sheetIcon, { backgroundColor: opt.danger ? "rgba(255,59,48,0.08)" : T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.045)" }]}>
+                  <View style={[ss.sheetIcon, {
+                    backgroundColor: opt.danger
+                      ? "rgba(255,59,48,0.08)"
+                      : T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.045)",
+                  }]}>
                     <Feather
                       name={opt.icon as any}
                       size={16}
@@ -477,7 +598,7 @@ const ss = StyleSheet.create({
     position:          "absolute",
     right:             16,
     zIndex:            10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical:   8,
     borderRadius:      20,
   },
@@ -486,43 +607,36 @@ const ss = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  scroll: { paddingHorizontal: 20, gap: 28 },
+  scroll: { paddingHorizontal: 20, gap: 24 },
 
-  // Avatar section
-  avatarSection:   { alignItems: "center", gap: 8, paddingTop: 12 },
-  avatarTouchable: { width: 100, height: 100, position: "relative" },
+  // Avatar
+  avatarSection:   { alignItems: "center", gap: 8, paddingTop: 4 },
+  avatarTouchable: { width: 96, height: 96, position: "relative" },
   avatarLarge: {
-    width:        100,
-    height:       100,
-    borderRadius: 50,
+    width:        96,
+    height:       96,
+    borderRadius: 48,
     borderWidth:  2,
   },
   cameraOverlay: {
-    position:        "absolute",
-    bottom:          2,
-    right:           2,
-    width:           28,
-    height:          28,
-    borderRadius:    14,
-    alignItems:      "center",
-    justifyContent:  "center",
-    borderWidth:     2,
+    position:       "absolute",
+    bottom:         2,
+    right:          2,
+    width:          28,
+    height:         28,
+    borderRadius:   14,
+    alignItems:     "center",
+    justifyContent: "center",
+    borderWidth:    2,
   },
-  displayName: {
-    fontFamily:    "Inter_600SemiBold",
-    fontSize:      18,
-    letterSpacing: -0.4,
-    marginTop:     4,
-  },
-  displayUsername: {
+  avatarHint: {
     fontFamily: "Inter_400Regular",
-    fontSize:   14,
+    fontSize:   13,
   },
   guestBadge: {
     paddingHorizontal: 12,
     paddingVertical:   4,
     borderRadius:      12,
-    marginTop:         2,
   },
   guestBadgeText: {
     fontFamily: "Inter_500Medium",
@@ -556,27 +670,27 @@ const ss = StyleSheet.create({
     zIndex:          300,
   },
   actionSheet: {
-    position:            "absolute",
-    bottom:              0,
-    left:                0,
-    right:               0,
-    zIndex:              301,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius:28,
-    paddingHorizontal:   20,
-    paddingTop:          8,
-    shadowColor:         "#000",
-    shadowOffset:        { width: 0, height: -4 },
-    shadowOpacity:       0.08,
-    shadowRadius:        24,
-    elevation:           20,
+    position:             "absolute",
+    bottom:               0,
+    left:                 0,
+    right:                0,
+    zIndex:               301,
+    borderTopLeftRadius:  28,
+    borderTopRightRadius: 28,
+    paddingHorizontal:    20,
+    paddingTop:           8,
+    shadowColor:          "#000",
+    shadowOffset:         { width: 0, height: -4 },
+    shadowOpacity:        0.08,
+    shadowRadius:         24,
+    elevation:            20,
   },
   sheetHandle: {
-    width:       38,
-    height:      4,
-    borderRadius:2,
-    alignSelf:   "center",
-    marginBottom:16,
+    width:        38,
+    height:       4,
+    borderRadius: 2,
+    alignSelf:    "center",
+    marginBottom: 16,
   },
   sheetTitle: {
     fontSize:      15,
@@ -585,9 +699,9 @@ const ss = StyleSheet.create({
     marginBottom:  16,
     letterSpacing: -0.2,
   },
-  sheetRow:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, gap: 14 },
-  sheetIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  sheetLabel:{ fontSize: 15, fontFamily: "Inter_400Regular" },
-  cancelBtn: { marginTop: 12, borderRadius: 16, paddingVertical: 16, alignItems: "center" },
-  cancelText:{ fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  sheetRow:   { flexDirection: "row", alignItems: "center", paddingVertical: 14, gap: 14 },
+  sheetIcon:  { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  sheetLabel: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  cancelBtn:  { marginTop: 12, borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  cancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
