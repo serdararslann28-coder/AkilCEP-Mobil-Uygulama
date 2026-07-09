@@ -15,6 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary }    from "@/components/ErrorBoundary";
+import { AuthProvider }     from "@/context/AuthContext";
 import { ChatProvider }     from "@/context/ChatContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider }    from "@/context/ThemeContext";
@@ -43,11 +44,15 @@ function RootLayoutNav() {
         name="auth"
         options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
       />
-      <Stack.Screen name="chat"    options={{ headerShown: false, animation: "none" }} />
-      <Stack.Screen name="voice"   options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
-      <Stack.Screen name="vision"  options={{ headerShown: false, animation: "fade",               presentation: "fullScreenModal" }} />
-      <Stack.Screen name="profile"  options={{ headerShown: false, animation: "slide_from_bottom" }} />
-      <Stack.Screen name="language" options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen name="register"  options={{ headerShown: false, animation: "slide_from_right", gestureEnabled: false }} />
+      <Stack.Screen name="login"     options={{ headerShown: false, animation: "slide_from_right", gestureEnabled: false }} />
+      <Stack.Screen name="interests" options={{ headerShown: false, animation: "fade",             gestureEnabled: false }} />
+      <Stack.Screen name="ready"     options={{ headerShown: false, animation: "fade",             gestureEnabled: false }} />
+      <Stack.Screen name="chat"      options={{ headerShown: false, animation: "none" }} />
+      <Stack.Screen name="voice"     options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
+      <Stack.Screen name="vision"    options={{ headerShown: false, animation: "fade",               presentation: "fullScreenModal" }} />
+      <Stack.Screen name="profile"   options={{ headerShown: false, animation: "slide_from_bottom" }} />
+      <Stack.Screen name="language"  options={{ headerShown: false, animation: "slide_from_right" }} />
     </Stack>
   );
 }
@@ -86,11 +91,13 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <LanguageProvider>
-                <ThemeProvider>
-                  <ChatProvider>
-                    <RootLayoutNav />
-                  </ChatProvider>
-                </ThemeProvider>
+                <AuthProvider>
+                  <ThemeProvider>
+                    <ChatProvider>
+                      <RootLayoutNav />
+                    </ChatProvider>
+                  </ThemeProvider>
+                </AuthProvider>
               </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

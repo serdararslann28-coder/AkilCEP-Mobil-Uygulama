@@ -1,23 +1,22 @@
 /**
- * Auth — premium sign-in screen.
+ * AkılCEP — Continue Screen (auth method selection)
  *
- * Visual language mirrors the onboarding: pure black (#050505), white
- * typography, soft glow rings, cinematic spacing. No heavy backgrounds —
- * the AkılCEP logo floats in darkness above the auth buttons.
+ * Pure white, Apple HIG. Four auth options in the order specified:
+ *   1. Apple ile Devam Et     — black pill (coming soon in Expo Go)
+ *   2. Google ile Devam Et    — white pill with border + Google G
+ *   3. E-posta ile Devam Et   — outline pill → /login
+ *   4. Hesap Oluştur          — outline pill → /register
+ *   5. Misafir link           — text-only
  *
- * All providers call enterApp() which marks onboarding done and routes
- * to /chat. Real OAuth flows can be wired into each handler independently.
+ * Legal footer at bottom.
  */
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Svg, Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Dimensions,
+  Alert,
   Image,
   Platform,
   StyleSheet,
@@ -27,79 +26,32 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { Path, Svg } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useLanguage }    from "@/context/LanguageContext";
-import { ONBOARDING_KEY } from "@/app/onboarding";
+import { useAuth } from "@/context/AuthContext";
 
-const LOGO = require("@/assets/images/akilcep-icon.png");
-
-const { width: SW, height: SH } = Dimensions.get("window");
-
-// ── Complete onboarding + auth flow ──────────────────────────────────────────
-async function enterApp() {
-  try { await AsyncStorage.setItem(ONBOARDING_KEY, "true"); } catch {}
-  router.replace("/chat");
-}
-
-// ── Glow ring — reusable pulsing ring ────────────────────────────────────────
-function GlowRing({ size, delay, minOp, maxOp }: {
-  size:  number;
-  delay: number;
-  minOp: number;
-  maxOp: number;
-}) {
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    pulse.value = withDelay(delay,
-      withRepeat(
-        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
-        -1, true,
-      ),
-    );
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    opacity:   interpolate(pulse.value, [0, 1], [minOp, maxOp]),
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.07]) }],
-  }));
-
-  return (
-    <Animated.View style={[
-      ss.glowRing,
-      { width: size, height: size, borderRadius: size / 2 },
-      style,
-    ]} />
-  );
-}
-
-// ── Google "G" logo — official 4-colour mark ─────────────────────────────────
-function GoogleIcon({ size = 24 }: { size?: number }) {
+// ── Google "G" mark ───────────────────────────────────────────────────────────
+function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {/* Blue — right bar + top arc */}
       <Path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
       />
-      {/* Green — bottom right */}
       <Path
         d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
         fill="#34A853"
       />
-      {/* Yellow — bottom left */}
       <Path
         d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
         fill="#FBBC05"
       />
-      {/* Red — top left arc */}
       <Path
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
         fill="#EA4335"
@@ -108,288 +60,304 @@ function GoogleIcon({ size = 24 }: { size?: number }) {
   );
 }
 
-// ── Auth button ───────────────────────────────────────────────────────────────
-interface AuthBtnProps {
-  icon:      React.ReactElement;
-  label:     string;
-  primary?:  boolean;
-  onPress:   () => void;
-}
+// ── Main ─────────────────────────────────────────────────────────────────────
+export default function AuthScreen() {
+  const insets              = useSafeAreaInsets();
+  const { continueAsGuest } = useAuth();
+  const [guestLoading, setGuestLoading] = useState(false);
 
-function AuthButton({ icon, label, primary, onPress }: AuthBtnProps) {
-  const handlePress = useCallback(async () => {
+  // Staggered entrance
+  const headerOp = useSharedValue(0);
+  const headerY  = useSharedValue(14);
+  const stackOp  = useSharedValue(0);
+  const legalOp  = useSharedValue(0);
+
+  useEffect(() => {
+    headerOp.value = withDelay(60,  withTiming(1, { duration: 560, easing: Easing.out(Easing.ease) }));
+    headerY.value  = withDelay(60,  withTiming(0, { duration: 560, easing: Easing.out(Easing.ease) }));
+    stackOp.value  = withDelay(260, withTiming(1, { duration: 520, easing: Easing.out(Easing.ease) }));
+    legalOp.value  = withDelay(440, withTiming(1, { duration: 480, easing: Easing.out(Easing.ease) }));
+  }, []);
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity:   headerOp.value,
+    transform: [{ translateY: headerY.value }],
+  }));
+  const stackStyle  = useAnimatedStyle(() => ({ opacity: stackOp.value }));
+  const legalStyle  = useAnimatedStyle(() => ({ opacity: legalOp.value }));
+
+  const haptic = async () => {
     if (Platform.OS !== "web") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    onPress();
-  }, [onPress]);
+  };
 
-  if (primary) {
-    return (
-      <TouchableOpacity style={ss.btnPrimary} onPress={handlePress} activeOpacity={0.84}>
-        <View style={ss.btnIcon}>{icon}</View>
-        <Text style={ss.btnPrimaryLabel}>{label}</Text>
-        <View style={ss.btnSpacer} />
-      </TouchableOpacity>
+  const handleApple = async () => {
+    await haptic();
+    Alert.alert(
+      "Apple ile Giriş",
+      "Bu özellik yakında kullanıma açılacak.",
+      [{ text: "Tamam" }],
     );
-  }
+  };
+
+  const handleGoogle = async () => {
+    await haptic();
+    Alert.alert(
+      "Google ile Giriş",
+      "Bu özellik yakında kullanıma açılacak.",
+      [{ text: "Tamam" }],
+    );
+  };
+
+  const handleEmailLogin = async () => {
+    await haptic();
+    router.push("/login");
+  };
+
+  const handleRegister = async () => {
+    await haptic();
+    router.push("/register");
+  };
+
+  const handleGuest = async () => {
+    await haptic();
+    setGuestLoading(true);
+    try {
+      await continueAsGuest();
+      router.replace("/interests");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  const topPad = insets.top + 16;
+  const btmPad = insets.bottom + 16;
 
   return (
-    <TouchableOpacity style={ss.btnGlass} onPress={handlePress} activeOpacity={0.72}>
-      <View style={ss.btnIcon}>{icon}</View>
-      <Text style={ss.btnGlassLabel}>{label}</Text>
-      <View style={ss.btnSpacer} />
-    </TouchableOpacity>
-  );
-}
+    <View style={[ss.root, { paddingTop: topPad, paddingBottom: btmPad }]}>
+      <StatusBar style="dark" />
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-export default function Auth() {
-  const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
-
-  const handleApple  = useCallback(() => enterApp(), []);
-  const handleGoogle = useCallback(() => enterApp(), []);
-  const handleEmail  = useCallback(() => enterApp(), []);
-  const handleCreate = useCallback(() => enterApp(), []);
-
-  const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
-
-  return (
-    <View style={ss.root}>
-      <StatusBar style="light" />
-
-      {/* Ambient glow behind logo */}
-      <View style={[ss.glowCenter, { top: SH * 0.18 }]}>
-        <GlowRing size={260} delay={0}    minOp={0.03} maxOp={0.11} />
-        <GlowRing size={160} delay={400}  minOp={0.05} maxOp={0.18} />
-        <GlowRing size={80}  delay={800}  minOp={0.08} maxOp={0.26} />
-      </View>
-
-      {/* Logo */}
-      <View style={[ss.logoArea, { paddingTop: topPad + 48 }]}>
-        <Image source={LOGO} style={ss.logo} resizeMode="contain" />
-        <Text style={ss.brand}>AkılCEP</Text>
-        <Text style={ss.tagline}>{t("brand.taglineFull")}</Text>
-      </View>
-
-      {/* Divider */}
-      <View style={ss.dividerRow}>
-        <View style={ss.dividerLine} />
-        <Text style={ss.dividerText}>{t("auth.signInOrCreate")}</Text>
-        <View style={ss.dividerLine} />
-      </View>
-
-      {/* Auth buttons */}
-      <View style={[ss.btnStack, { paddingBottom: btmPad + 20 }]}>
-
-        <AuthButton
-          primary
-          icon={<Ionicons name="logo-apple" size={24} color="#000000" />}
-          label={t("auth.continueWithApple")}
-          onPress={handleApple}
+      {/* Header — leaf logo + title + subtitle */}
+      <Animated.View style={[ss.header, headerStyle]}>
+        <Image
+          source={require("@/assets/images/leaf-only-transparent.png")}
+          style={ss.logo}
+          resizeMode="contain"
         />
+        <Text style={ss.title}>{"AkılCEP'e\nHoş Geldin"}</Text>
+        <Text style={ss.subtitle}>Devam etmek için bir yöntem seç.</Text>
+      </Animated.View>
 
-        <AuthButton
-          icon={<GoogleIcon size={24} />}
-          label={t("auth.continueWithGoogle")}
-          onPress={handleGoogle}
-        />
+      {/* Button stack */}
+      <Animated.View style={[ss.stack, stackStyle]}>
 
-        <View style={ss.btnDivider} />
+        {/* Apple — black */}
+        <TouchableOpacity style={ss.btnBlack} onPress={handleApple} activeOpacity={0.85}>
+          <View style={ss.iconWrap}>
+            <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+          </View>
+          <Text style={ss.labelWhite}>Apple ile Devam Et</Text>
+          <View style={ss.iconWrap} />
+        </TouchableOpacity>
 
-        <AuthButton
-          icon={<Feather name="mail" size={24} color="rgba(255,255,255,0.82)" />}
-          label={t("auth.signInWithEmail")}
-          onPress={handleEmail}
-        />
+        {/* Google — white with border */}
+        <TouchableOpacity style={ss.btnWhite} onPress={handleGoogle} activeOpacity={0.85}>
+          <View style={ss.iconWrap}>
+            <GoogleIcon size={20} />
+          </View>
+          <Text style={ss.labelBlack}>Google ile Devam Et</Text>
+          <View style={ss.iconWrap} />
+        </TouchableOpacity>
 
-        <AuthButton
-          icon={<Feather name="user-plus" size={24} color="rgba(255,255,255,0.62)" />}
-          label={t("auth.createAccount")}
-          onPress={handleCreate}
-        />
+        {/* Divider */}
+        <View style={ss.divider} />
 
-        {/* Legal */}
+        {/* Email login — outline */}
+        <TouchableOpacity style={ss.btnOutline} onPress={handleEmailLogin} activeOpacity={0.85}>
+          <View style={ss.iconWrap}>
+            <Feather name="mail" size={20} color="#000000" />
+          </View>
+          <Text style={ss.labelBlack}>E-posta ile Giriş Yap</Text>
+          <View style={ss.iconWrap} />
+        </TouchableOpacity>
+
+        {/* Create account — outline */}
+        <TouchableOpacity style={ss.btnOutline} onPress={handleRegister} activeOpacity={0.85}>
+          <View style={ss.iconWrap}>
+            <Feather name="user-plus" size={20} color="#000000" />
+          </View>
+          <Text style={ss.labelBlack}>Hesap Oluştur</Text>
+          <View style={ss.iconWrap} />
+        </TouchableOpacity>
+
+        {/* Guest — text only */}
+        <TouchableOpacity
+          onPress={handleGuest}
+          disabled={guestLoading}
+          activeOpacity={0.5}
+          style={ss.guestBtn}
+        >
+          <Text style={ss.guestText}>
+            {guestLoading ? "Yükleniyor..." : "Misafir olarak devam et"}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Legal */}
+      <Animated.View style={[ss.legalWrap, legalStyle]}>
         <Text style={ss.legal}>
-          {t("auth.legalPrefix")}{" "}
-          <Text style={ss.legalLink}>{t("auth.terms")}</Text>
-          {" "}{t("auth.legalConjunction")}{" "}
-          <Text style={ss.legalLink}>{t("auth.privacy")}</Text>
-          {t("auth.legalSuffix")}
+          Devam ederek{" "}
+          <Text style={ss.legalLink}>Kullanım Koşulları</Text>
+          {" "}ve{" "}
+          <Text style={ss.legalLink}>Gizlilik Politikası</Text>
+          {"'nı"} kabul etmiş olursunuz.
         </Text>
-
-      </View>
-
-      {/* Bottom fade — softens the button area edge */}
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.60)"]}
-        style={ss.bottomFade}
-        pointerEvents="none"
-      />
-
+      </Animated.View>
     </View>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const BTN_W = SW - 48;
+const BTN_H = 56;
+const RADIUS = 28;
 
 const ss = StyleSheet.create({
-
   root: {
-    flex:            1,
-    backgroundColor: "#050505",
-    alignItems:      "center",
+    flex:              1,
+    backgroundColor:   "#FFFFFF",
+    paddingHorizontal: 24,
   },
 
-  // Glow rings container
-  glowCenter: {
-    position:       "absolute",
-    left:           SW / 2 - 130,
+  // Header
+  header: {
+    flex:           1,
     alignItems:     "center",
     justifyContent: "center",
-    width:          260,
-    height:         260,
-  },
-  glowRing: {
-    position:        "absolute",
-    borderWidth:     1,
-    borderColor:     "#FFFFFF",
-    backgroundColor: "transparent",
-  },
-
-  // Logo section
-  logoArea: {
-    alignItems: "center",
-    gap:        10,
-    flex:       1,
+    gap:            12,
   },
   logo: {
-    width:  104,
-    height: 104,
+    width:        72,
+    height:       72,
+    marginBottom: 4,
   },
-  brand: {
-    fontSize:      30,
+  title: {
     fontFamily:    "Inter_700Bold",
-    color:         "#FFFFFF",
-    letterSpacing: -0.8,
-    marginTop:     4,
-  },
-  tagline: {
-    fontSize:      15,
-    fontFamily:    "Inter_500Medium",
-    color:         "#E5E5E5",
-    letterSpacing: -0.15,
+    fontSize:      36,
+    letterSpacing: -1.5,
+    color:         "#000000",
     textAlign:     "center",
+    lineHeight:    43,
   },
-
-  // Divider
-  dividerRow: {
-    flexDirection: "row",
-    alignItems:    "center",
-    paddingHorizontal: 24,
-    gap:           12,
-    marginBottom:  20,
-    width:         "100%",
-  },
-  dividerLine: {
-    flex:            1,
-    height:          StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  dividerText: {
-    fontSize:      12,
-    fontFamily:    "Inter_500Medium",
-    color:         "#B3B3B3",
-    letterSpacing: 0.1,
+  subtitle: {
+    fontFamily:    "Inter_400Regular",
+    fontSize:      16,
+    letterSpacing: -0.1,
+    color:         "#000000",
+    opacity:       0.42,
+    textAlign:     "center",
   },
 
   // Button stack
-  btnStack: {
-    width:           "100%",
-    paddingHorizontal: 24,
-    gap:             10,
-    alignItems:      "center",
+  stack: {
+    gap: 10,
   },
 
-  // Primary — white fill (Apple)
-  btnPrimary: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius:    14,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    width:           BTN_W,
-  },
-  btnPrimaryLabel: {
-    flex:          1,
-    textAlign:     "center",
-    fontSize:      16,
-    fontFamily:    "Inter_600SemiBold",
-    color:         "#000000",
-    letterSpacing: -0.3,
-    marginLeft:    -24,   // compensate icon width to visually center label
-  },
-
-  // Glass — outline (Google, Email)
-  btnGlass: {
+  // Black fill — Apple
+  btnBlack: {
     flexDirection:     "row",
     alignItems:        "center",
-    backgroundColor:   "rgba(255,255,255,0.05)",
-    borderWidth:       StyleSheet.hairlineWidth,
-    borderColor:       "rgba(255,255,255,0.18)",
-    borderRadius:      14,
-    paddingVertical:   16,
+    backgroundColor:   "#000000",
+    height:            BTN_H,
+    borderRadius:      RADIUS,
     paddingHorizontal: 20,
-    width:             BTN_W,
   },
-  btnGlassLabel: {
-    flex:          1,
-    textAlign:     "center",
-    fontSize:      16,
-    fontFamily:    "Inter_600SemiBold",
-    color:         "#FFFFFF",
-    letterSpacing: -0.3,
-    marginLeft:    -24,
+  // White fill with border — Google
+  btnWhite: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    backgroundColor:   "#FFFFFF",
+    height:            BTN_H,
+    borderRadius:      RADIUS,
+    paddingHorizontal: 20,
+    borderWidth:       1,
+    borderColor:       "#E5E5E5",
+    shadowColor:       "#000",
+    shadowOffset:      { width: 0, height: 1 },
+    shadowOpacity:     0.05,
+    shadowRadius:      4,
+    elevation:         1,
+  },
+  // Outline — Email / Register
+  btnOutline: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    backgroundColor:   "transparent",
+    height:            BTN_H,
+    borderRadius:      RADIUS,
+    paddingHorizontal: 20,
+    borderWidth:       1,
+    borderColor:       "#E5E5E5",
   },
 
-  btnIcon: {
-    width:          24,
+  labelWhite: {
+    flex:          1,
+    textAlign:     "center",
+    fontFamily:    "Inter_600SemiBold",
+    fontSize:      16,
+    color:         "#FFFFFF",
+    letterSpacing: -0.2,
+  },
+  labelBlack: {
+    flex:          1,
+    textAlign:     "center",
+    fontFamily:    "Inter_600SemiBold",
+    fontSize:      16,
+    color:         "#000000",
+    letterSpacing: -0.2,
+  },
+
+  iconWrap: {
+    width:          20,
     alignItems:     "center",
     justifyContent: "center",
   },
-  btnSpacer: { width: 24 },
 
-  btnDivider: {
-    width:           BTN_W,
+  divider: {
     height:          StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#E8E8E8",
     marginVertical:  2,
   },
 
-  legal: {
-    fontSize:      12,
-    fontFamily:    "Inter_400Regular",
-    color:         "#8A8A8A",
-    textAlign:     "center",
-    lineHeight:    19,
-    paddingHorizontal: 16,
-    marginTop:     6,
+  // Guest text link
+  guestBtn: {
+    alignItems:    "center",
+    paddingVertical: 12,
   },
-  legalLink: {
-    color:      "#AAAAAA",
-    fontFamily: "Inter_500Medium",
+  guestText: {
+    fontFamily:    "Inter_400Regular",
+    fontSize:      14,
+    color:         "#000000",
+    opacity:       0.38,
+    letterSpacing: -0.1,
   },
 
-  // Gradient fade at very bottom
-  bottomFade: {
-    position: "absolute",
-    bottom:   0,
-    left:     0,
-    right:    0,
-    height:   80,
+  // Legal footer
+  legalWrap: {
+    paddingTop:        16,
+    paddingHorizontal: 8,
+  },
+  legal: {
+    fontFamily:    "Inter_400Regular",
+    fontSize:      12,
+    color:         "#000000",
+    opacity:       0.38,
+    textAlign:     "center",
+    lineHeight:    18,
+    letterSpacing: -0.1,
+  },
+  legalLink: {
+    fontFamily: "Inter_500Medium",
+    opacity:    0.6,
   },
 });

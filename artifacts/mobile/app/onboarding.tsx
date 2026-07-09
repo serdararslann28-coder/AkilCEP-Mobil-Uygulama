@@ -1,155 +1,116 @@
 /**
- * AkılCEP — Onboarding (2 screens)
+ * AkılCEP — Welcome Screen (onboarding step 1)
  *
- * Screen 1: large logo, title, subtitle, description → Başlayalım
- * Screen 2: closing title, description → AkılCEP'i Aç → saves flag, opens chat
+ * Pure white, Apple HIG. Large leaf logo, brand title, description, and
+ * a single black "Başlayalım" pill that leads to the auth / continue screen.
  *
- * Apple HIG: white background, Inter typography, monochrome.
- * Crossfade animation between screens.
+ * Exports ONBOARDING_KEY so splash.tsx and ready.tsx can read / set the flag.
  */
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useEffect } from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
-export default function OnboardingScreen() {
+export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
-  const [page, setPage]   = useState<1 | 2>(1);
-  const fadeOp            = useSharedValue(1);
 
-  // Crossfade: out → swap content → in
-  const goToPage2 = () => {
-    fadeOp.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) }, () => {
-      "worklet";
-      runOnJS(setPage)(2);
-      fadeOp.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.ease) });
-    });
-  };
+  // Staggered entrance
+  const logoOp  = useSharedValue(0);
+  const logoY   = useSharedValue(16);
+  const textOp  = useSharedValue(0);
+  const textY   = useSharedValue(12);
+  const btnOp   = useSharedValue(0);
 
-  const finish = async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, "true");
-    router.replace("/chat");
-  };
+  useEffect(() => {
+    logoOp.value = withDelay(80,  withTiming(1, { duration: 640, easing: Easing.out(Easing.ease) }));
+    logoY.value  = withDelay(80,  withTiming(0, { duration: 640, easing: Easing.out(Easing.ease) }));
+    textOp.value = withDelay(320, withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) }));
+    textY.value  = withDelay(320, withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) }));
+    btnOp.value  = withDelay(580, withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) }));
+  }, []);
 
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: fadeOp.value }));
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity:   logoOp.value,
+    transform: [{ translateY: logoY.value }],
+  }));
+  const textStyle = useAnimatedStyle(() => ({
+    opacity:   textOp.value,
+    transform: [{ translateY: textY.value }],
+  }));
+  const btnStyle  = useAnimatedStyle(() => ({ opacity: btnOp.value }));
 
   return (
-    <View style={[ss.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View
+      style={[
+        ss.root,
+        { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 },
+      ]}
+    >
       <StatusBar style="dark" />
-      <Animated.View style={[ss.fill, fadeStyle]}>
-        {page === 1 ? (
-          <Screen1 onPress={goToPage2} />
-        ) : (
-          <Screen2 onPress={finish} />
-        )}
-      </Animated.View>
-    </View>
-  );
-}
 
-// ─── Screen 1 ─────────────────────────────────────────────────────────────────
-
-function Screen1({ onPress }: { onPress: () => void }) {
-  return (
-    <View style={ss.screen}>
-      {/* Large centered logo */}
-      <View style={ss.logoSection}>
+      {/* Logo */}
+      <Animated.View style={[ss.logoSection, logoStyle]}>
         <Image
           source={require("@/assets/images/leaf-only-transparent.png")}
-          style={ss.logoLarge}
+          style={ss.logo}
           resizeMode="contain"
         />
-      </View>
+      </Animated.View>
 
       {/* Text block */}
-      <View style={ss.textSection}>
+      <Animated.View style={[ss.textSection, textStyle]}>
         <Text style={ss.title}>AkılCEP</Text>
         <Text style={ss.subtitle}>Cebindeki Akıl</Text>
         <Text style={ss.description}>
           {"Sor, üret, keşfet ve öğren.\nYapay zekâ artık her an yanında."}
         </Text>
-      </View>
+      </Animated.View>
 
-      {/* Bottom button */}
-      <View style={ss.buttonSection}>
-        <TouchableOpacity style={ss.btn} onPress={onPress} activeOpacity={0.85}>
+      {/* Button */}
+      <Animated.View style={[ss.btnSection, btnStyle]}>
+        <TouchableOpacity
+          style={ss.btn}
+          onPress={() => router.push("/auth")}
+          activeOpacity={0.85}
+        >
           <Text style={ss.btnText}>Başlayalım</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </View>
   );
 }
-
-// ─── Screen 2 ─────────────────────────────────────────────────────────────────
-
-function Screen2({ onPress }: { onPress: () => void }) {
-  return (
-    <View style={ss.screen}>
-      {/* Vertically centered text */}
-      <View style={ss.s2Content}>
-        <Text style={ss.s2Title}>Hazırsın.</Text>
-        <Text style={ss.s2Description}>AkılCEP seni bekliyor.</Text>
-      </View>
-
-      {/* Bottom button */}
-      <View style={ss.buttonSection}>
-        <TouchableOpacity style={ss.btn} onPress={onPress} activeOpacity={0.85}>
-          <Text style={ss.btnText}>AkılCEP'i Aç</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const ss = StyleSheet.create({
   root: {
     flex:            1,
     backgroundColor: "#FFFFFF",
   },
-  fill: {
-    flex: 1,
-  },
-  screen: {
-    flex:    1,
-    paddingBottom: 32,
-  },
 
-  // Screen 1 — logo area
   logoSection: {
-    flex:           1.5,
+    flex:           1.6,
     alignItems:     "center",
     justifyContent: "center",
   },
-  logoLarge: {
+  logo: {
     width:  220,
     height: 220,
   },
 
-  // Screen 1 — text area
   textSection: {
     flex:              1,
-    paddingHorizontal: 36,
-    justifyContent:    "flex-start",
+    paddingHorizontal: 34,
     gap:               10,
+    justifyContent:    "flex-start",
   },
   title: {
     fontFamily:    "Inter_700Bold",
@@ -163,7 +124,7 @@ const ss = StyleSheet.create({
     fontSize:      18,
     letterSpacing: -0.3,
     color:         "#000000",
-    opacity:       0.45,
+    opacity:       0.42,
   },
   description: {
     fontFamily:    "Inter_400Regular",
@@ -171,37 +132,11 @@ const ss = StyleSheet.create({
     lineHeight:    25,
     letterSpacing: -0.1,
     color:         "#000000",
-    opacity:       0.38,
-    marginTop:     6,
+    opacity:       0.35,
+    marginTop:     4,
   },
 
-  // Screen 2 — centred content
-  s2Content: {
-    flex:              1,
-    alignItems:        "center",
-    justifyContent:    "center",
-    paddingHorizontal: 36,
-    gap:               14,
-  },
-  s2Title: {
-    fontFamily:    "Inter_700Bold",
-    fontSize:      52,
-    letterSpacing: -2.2,
-    color:         "#000000",
-    textAlign:     "center",
-  },
-  s2Description: {
-    fontFamily:    "Inter_400Regular",
-    fontSize:      17,
-    lineHeight:    26,
-    letterSpacing: -0.1,
-    color:         "#000000",
-    opacity:       0.38,
-    textAlign:     "center",
-  },
-
-  // Button — shared across both screens
-  buttonSection: {
+  btnSection: {
     paddingHorizontal: 24,
     paddingBottom:     8,
   },

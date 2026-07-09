@@ -1,14 +1,21 @@
 /**
- * Profile — premium Apple-style profile editor.
- * Fully theme-aware: PURE / VOID.
+ * AkılCEP — Profile Screen
+ *
+ * Pure white, Apple HIG. Sections:
+ *   - Avatar + name + username + email + member since
+ *   - Preferences: Language, Appearance, Notifications, Privacy
+ *   - Account: Logout, Delete Account
+ *
+ * Reads real user data from AuthContext; gracefully shows
+ * placeholders when user is guest or not signed in.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { StatusBar } from "expo-status-bar";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -19,7 +26,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -31,43 +37,93 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PhotoCropModal        from "@/components/PhotoCropModal";
-import { useLanguage }       from "@/context/LanguageContext";
-import { useTheme }          from "@/context/ThemeContext";
+import PhotoCropModal    from "@/components/PhotoCropModal";
+import { useAuth }       from "@/context/AuthContext";
+import { useLanguage }   from "@/context/LanguageContext";
+import { useTheme }      from "@/context/ThemeContext";
 import { STARTUP_SOUND_KEY } from "@/app/splash";
 
 const defaultAvatar = require("@/assets/images/avatar.png");
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString("tr-TR", { year: "numeric", month: "long" });
+}
+
+// ── Row component ─────────────────────────────────────────────────────────────
+function Row({
+  icon, label, value, onPress, danger, rightEl,
+}: {
+  icon:     string;
+  label:    string;
+  value?:   string;
+  onPress?: () => void;
+  danger?:  boolean;
+  rightEl?: React.ReactNode;
+}) {
+  const { theme: T } = useTheme();
+  const iconBg = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.045)";
+  const clr    = danger ? "#FF3B30" : T.fg;
+  const ibg    = danger ? "rgba(255,59,48,0.08)" : iconBg;
+
+  return (
+    <TouchableOpacity
+      style={rs.row}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.6 : 1}
+    >
+      <View style={[rs.icon, { backgroundColor: ibg }]}>
+        <Feather name={icon as any} size={15} color={clr} />
+      </View>
+      <Text style={[rs.label, { color: clr }]}>{label}</Text>
+      {value !== undefined && (
+        <Text style={[rs.value, { color: T.zinc }]}>{value}</Text>
+      )}
+      {rightEl ?? (onPress && !danger && (
+        <Feather name="chevron-right" size={14} color={T.zinc} />
+      ))}
+    </TouchableOpacity>
+  );
+}
+
+const rs = StyleSheet.create({
+  row:   { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
+  icon:  { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  label: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+  value: { fontSize: 14, fontFamily: "Inter_400Regular" },
+});
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
+  const insets     = useSafeAreaInsets();
+  const { theme: T } = useTheme();
+  const { t }      = useLanguage();
+  const { user, signOut, updateAvatar } = useAuth();
+
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 32 : insets.bottom;
-  const { theme } = useTheme();
-  const T = theme;
-  const { t } = useLanguage();
 
-  const PHOTO_OPTIONS = [
-    { label: t("profile.takePhoto"),       icon: "camera",  key: "camera"   },
-    { label: t("profile.chooseFromLibrary"),icon: "image",   key: "gallery"  },
-    { label: t("profile.defaultAvatars"),  icon: "grid",    key: "defaults" },
-    { label: t("profile.remove"),          icon: "trash-2", key: "remove", danger: true },
-  ];
-
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
-  const [username,  setUsername]  = useState("SERDAR");
-  const [email,     setEmail]     = useState("serdar@akilcep.ai");
-  const [showSheet, setShowSheet] = useState(false);
+  // Avatar state — prefer auth user's avatar
+  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl ?? null);
   const [cropUri,   setCropUri]   = useState<string | null>(null);
   const [showCrop,  setShowCrop]  = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
 
   // Startup sound preference
   const [startupSound, setStartupSound] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(STARTUP_SOUND_KEY).then((val) => {
-      if (val === "off") setStartupSound(false);
-    }).catch(() => {});
+    AsyncStorage.getItem(STARTUP_SOUND_KEY)
+      .then(val => { if (val === "off") setStartupSound(false); })
+      .catch(() => {});
   }, []);
+
+  // Sync avatar from auth user on mount
+  useEffect(() => {
+    if (user?.avatarUrl) setAvatarUri(user.avatarUrl);
+  }, [user?.avatarUrl]);
 
   const toggleStartupSound = async (value: boolean) => {
     setStartupSound(value);
@@ -75,20 +131,21 @@ export default function ProfileScreen() {
     Haptics.selectionAsync();
   };
 
+  // Photo bottom-sheet animation
   const sheetY     = useSharedValue(600);
   const sheetAlpha = useSharedValue(0);
 
   const openSheet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowSheet(true);
-    sheetAlpha.value = withTiming(1,  { duration: 240 });
-    sheetY.value     = withSpring(0,  { damping: 26, stiffness: 220 });
+    sheetAlpha.value = withTiming(1, { duration: 240 });
+    sheetY.value     = withSpring(0, { damping: 26, stiffness: 220 });
   };
-  const closeSheet = () => {
-    sheetAlpha.value = withTiming(0,  { duration: 200 });
-    sheetY.value     = withSpring(600,{ damping: 28, stiffness: 260 });
+  const closeSheet = useCallback(() => {
+    sheetAlpha.value = withTiming(0, { duration: 200 });
+    sheetY.value     = withSpring(600, { damping: 28, stiffness: 260 });
     setTimeout(() => setShowSheet(false), 220);
-  };
+  }, []);
 
   const sheetStyle   = useAnimatedStyle(() => ({ transform: [{ translateY: sheetY.value }] }));
   const overlayStyle = useAnimatedStyle(() => ({ opacity: sheetAlpha.value }));
@@ -96,190 +153,290 @@ export default function ProfileScreen() {
   const handlePhotoOption = async (key: string) => {
     closeSheet();
     await new Promise(r => setTimeout(r, 300));
-    if (key === "remove" || key === "defaults") { setAvatarUri(null); return; }
+
+    if (key === "remove")   { setAvatarUri(null); updateAvatar("").catch(() => {}); return; }
+    if (key === "defaults") { setAvatarUri(null); return; }
+
     const isCamera = key === "camera";
-    const perm = isCamera
+    const perm     = isCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { Alert.alert(t("profile.permRequired.title"), t("profile.permRequired.msg")); return; }
+
+    if (!perm.granted) {
+      Alert.alert(t("profile.permRequired.title"), t("profile.permRequired.msg"));
+      return;
+    }
+
     const result = isCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.92, allowsEditing: false })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.92, allowsEditing: false });
-    if (!result.canceled && result.assets[0]) { setCropUri(result.assets[0].uri); setShowCrop(true); }
+
+    if (!result.canceled && result.assets[0]) {
+      setCropUri(result.assets[0].uri);
+      setShowCrop(true);
+    }
   };
 
-  const handleCropDone = (uri: string) => { setAvatarUri(uri); setShowCrop(false); setCropUri(null); };
-  const avatarSource = avatarUri ? { uri: avatarUri } : defaultAvatar;
+  const handleCropDone = async (uri: string) => {
+    setAvatarUri(uri);
+    setShowCrop(false);
+    setCropUri(null);
+    try { await updateAvatar(uri); } catch {}
+  };
 
-  // Derived dynamic colours
-  const cardBg     = T.card;
-  const sheetBg    = T.isDark ? "#0E0E0E" : "#F5F5F7";
-  const iconBg     = T.isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.045)";
-  const handleClr  = T.isDark ? "rgba(255,255,255,0.12)"  : "rgba(0,0,0,0.12)";
-  const borderClr  = T.isDark ? "rgba(255,255,255,0.08)"  : "rgba(0,0,0,0.07)";
-  const gradColors: [string, string, string] = T.isDark
-    ? ["#161616", "#111111", "#0C0C0C"]
-    : ["#FFFFFF", "#F0F0F2", "#E8E8EC"];
+  const handleLogout = () => {
+    Alert.alert(
+      "Çıkış Yap",
+      "AkılCEP'ten çıkış yapmak istediğinize emin misiniz?",
+      [
+        { text: "İptal", style: "cancel" },
+        {
+          text: "Çıkış Yap",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace("/onboarding");
+            } catch {}
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Hesabı Sil",
+      "Bu işlem geri alınamaz. Hesabınız ve tüm verileriniz kalıcı olarak silinecek.",
+      [
+        { text: "İptal", style: "cancel" },
+        {
+          text: "Hesabı Sil",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace("/onboarding");
+            } catch {}
+          },
+        },
+      ],
+    );
+  };
+
+  // Derived colours
+  const cardBg    = T.card;
+  const sheetBg   = T.isDark ? "#0E0E0E" : "#F5F5F7";
+  const handleClr = T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
+  const borderClr = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+
+  const PHOTO_OPTIONS = [
+    { label: t("profile.takePhoto"),        icon: "camera",  key: "camera"   },
+    { label: t("profile.chooseFromLibrary"), icon: "image",   key: "gallery"  },
+    { label: t("profile.defaultAvatars"),   icon: "grid",    key: "defaults" },
+    { label: t("profile.remove"),           icon: "trash-2", key: "remove", danger: true },
+  ];
+
+  const avatarSource = avatarUri ? { uri: avatarUri } : defaultAvatar;
 
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
+      <StatusBar style={T.isDark ? "light" : "dark"} />
 
-      {/* ── Floating back button (invisible header) ───────────────────────── */}
+      {/* Floating back */}
       <TouchableOpacity
         onPress={() => router.back()}
         style={[ss.floatBack, { top: topPad + 10, backgroundColor: cardBg }]}
-        hitSlop={14} activeOpacity={0.65}
+        hitSlop={14}
+        activeOpacity={0.65}
       >
         <Feather name="chevron-left" size={18} color={T.fg} />
       </TouchableOpacity>
 
-      {/* ── Floating save button ──────────────────────────────────────────── */}
+      {/* Floating save */}
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.back(); }}
         style={[ss.floatSave, { top: topPad + 10, backgroundColor: T.fg }]}
         activeOpacity={0.75}
       >
-        <Text style={[ss.floatSaveText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>Kaydet</Text>
+        <Text style={[ss.floatSaveText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>
+          Kaydet
+        </Text>
       </TouchableOpacity>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
-          contentContainerStyle={[ss.scroll, { paddingBottom: btmPad + 24, paddingTop: topPad + 56 }]}
+          contentContainerStyle={[
+            ss.scroll,
+            { paddingBottom: btmPad + 24, paddingTop: topPad + 56 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
 
-          {/* Avatar */}
+          {/* ── Avatar ─────────────────────────────────────────────────────── */}
           <View style={ss.avatarSection}>
-            <TouchableOpacity onPress={openSheet} activeOpacity={0.85} style={ss.avatarTouchable}>
-              <Image source={avatarSource} style={[ss.avatarLarge, { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.90)" }]} />
+            <TouchableOpacity
+              onPress={openSheet}
+              activeOpacity={0.85}
+              style={ss.avatarTouchable}
+            >
+              <Image
+                source={avatarSource}
+                style={[
+                  ss.avatarLarge,
+                  { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.90)" },
+                ]}
+              />
               <View style={[ss.cameraOverlay, { backgroundColor: T.fg, borderColor: T.bg }]}>
                 <Feather name="camera" size={14} color={T.isDark ? "#050505" : "#FFFFFF"} />
               </View>
-              <View style={[ss.onlineDot, { backgroundColor: T.onlineDot, borderColor: T.bg }]} />
             </TouchableOpacity>
-            <Text style={[ss.avatarHint, { color: T.muted }]}>{t("profile.changePhoto")}</Text>
+
+            {/* User name */}
+            {user?.fullName && (
+              <Text style={[ss.displayName, { color: T.fg }]}>{user.fullName}</Text>
+            )}
+            {user?.username && (
+              <Text style={[ss.displayUsername, { color: T.zinc }]}>@{user.username}</Text>
+            )}
+            {user?.isGuest && (
+              <View style={[ss.guestBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)" }]}>
+                <Text style={[ss.guestBadgeText, { color: T.zinc }]}>Misafir</Text>
+              </View>
+            )}
           </View>
 
-          {/* Identity fields */}
+          {/* ── Kişisel bilgiler ────────────────────────────────────────────── */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.personalInfo")}</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Kişisel Bilgiler</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <View style={ss.fieldRow}>
-                <Text style={[ss.fieldLabel, { color: T.muted }]}>{t("profile.fieldName")}</Text>
-                <TextInput style={[ss.fieldInput, { color: T.fg }]} value={username} onChangeText={setUsername} placeholderTextColor={T.zinc} returnKeyType="next" autoCapitalize="words" />
-              </View>
-              <View style={[ss.divider, { backgroundColor: borderClr }]} />
-              <View style={ss.fieldRow}>
-                <Text style={[ss.fieldLabel, { color: T.muted }]}>{t("profile.fieldEmail")}</Text>
-                <TextInput style={[ss.fieldInput, { color: T.fg }]} value={email} onChangeText={setEmail} placeholderTextColor={T.zinc} returnKeyType="done" keyboardType="email-address" autoCapitalize="none" />
-              </View>
+              {user?.email && (
+                <>
+                  <Row icon="mail" label="E-posta" value={user.email} />
+                  <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+                </>
+              )}
+              {user?.memberSince && (
+                <Row icon="calendar" label="Üyelik Tarihi" value={formatDate(user.memberSince)} />
+              )}
             </View>
           </View>
 
-          {/* Membership */}
+          {/* ── Tercihler ───────────────────────────────────────────────────── */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.membership")}</Text>
-            <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[ss.memberCard, { borderColor: borderClr }]}>
-              <View style={ss.memberLeft}>
-                <View style={[ss.memberBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
-                  <Feather name="star" size={10} color={T.fg} />
-                  <Text style={[ss.memberBadgeText, { color: T.fg }]}>{t("profile.freeBadge")}</Text>
-                </View>
-                <Text style={[ss.memberTitle, { color: T.fg }]}>{t("profile.freePlan")}</Text>
-                <Text style={[ss.memberSub,   { color: T.muted }]}>{t("profile.freeDesc")}</Text>
-              </View>
-              <TouchableOpacity style={[ss.upgradePill, { backgroundColor: T.isDark ? T.green : T.fg }]} activeOpacity={0.80} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
-                <Text style={[ss.upgradeText, { color: T.isDark ? "#050505" : "#FFF" }]}>{t("profile.upgradePremium")}</Text>
-                <Feather name="arrow-right" size={12} color={T.isDark ? "#050505" : "#FFF"} />
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-
-          {/* Account */}
-          <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("settings.account")}</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Tercihler</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              {[
-                { icon: "lock",   label: t("profile.changePassword") },
-                { icon: "shield", label: t("profile.twoFactor") },
-                { icon: "bell",   label: t("settings.notifications") },
-              ].map((item, i, arr) => (
-                <React.Fragment key={item.label}>
-                  <TouchableOpacity style={ss.accountRow} activeOpacity={0.6}>
-                    <View style={[ss.accountIcon, { backgroundColor: iconBg }]}>
-                      <Feather name={item.icon as any} size={15} color={T.fg} />
-                    </View>
-                    <Text style={[ss.accountLabel, { color: T.fg }]}>{item.label}</Text>
-                    <Feather name="chevron-right" size={14} color={T.zinc} />
-                  </TouchableOpacity>
-                  {i < arr.length - 1 && <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 18 }]} />}
-                </React.Fragment>
-              ))}
+              <Row
+                icon="globe"
+                label="Dil"
+                value={t("language.current") ?? "Türkçe"}
+                onPress={() => router.push("/language")}
+              />
+              <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+              <Row
+                icon="moon"
+                label="Görünüm"
+                value={T.isDark ? "Koyu" : "Açık"}
+                onPress={() => {}}
+              />
+              <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+              <Row icon="bell" label="Bildirimler" onPress={() => {}} />
+              <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+              <Row icon="shield" label="Gizlilik" onPress={() => {}} />
             </View>
           </View>
 
-          {/* Sound settings */}
+          {/* ── Ses ayarları ────────────────────────────────────────────────── */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.soundSection")}</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Ses</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <View style={ss.accountRow}>
-                <View style={[ss.accountIcon, { backgroundColor: iconBg }]}>
-                  <Feather name="volume-2" size={15} color={T.fg} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[ss.accountLabel, { color: T.fg }]}>{t("profile.startupSound")}</Text>
-                  <Text style={[ss.soundSub, { color: T.zinc }]}>
-                    {startupSound ? t("profile.on") : t("profile.off")}
-                  </Text>
-                </View>
-                <Switch
-                  value={startupSound}
-                  onValueChange={toggleStartupSound}
-                  trackColor={{ false: "rgba(120,120,128,0.24)", true: T.isDark ? "#39FF14" : "#34C759" }}
-                  thumbColor="#FFFFFF"
-                  ios_backgroundColor="rgba(120,120,128,0.24)"
-                />
-              </View>
+              <Row
+                icon="volume-2"
+                label={t("profile.startupSound")}
+                rightEl={
+                  <Switch
+                    value={startupSound}
+                    onValueChange={toggleStartupSound}
+                    trackColor={{ false: "rgba(120,120,128,0.24)", true: T.isDark ? "#39FF14" : "#34C759" }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="rgba(120,120,128,0.24)"
+                  />
+                }
+              />
             </View>
           </View>
 
-          {/* Danger */}
+          {/* ── Hesap ───────────────────────────────────────────────────────── */}
           <View style={ss.section}>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
-              <TouchableOpacity style={ss.accountRow} activeOpacity={0.6} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}>
-                <View style={[ss.accountIcon, { backgroundColor: "rgba(255,59,48,0.08)" }]}>
-                  <Feather name="trash-2" size={15} color="#FF3B30" />
-                </View>
-                <Text style={[ss.accountLabel, { color: "#FF3B30" }]}>{t("profile.deleteAccount")}</Text>
-              </TouchableOpacity>
+              <Row
+                icon="log-out"
+                label="Çıkış Yap"
+                onPress={handleLogout}
+              />
+              <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
+              <Row
+                icon="trash-2"
+                label="Hesabı Sil"
+                onPress={handleDeleteAccount}
+                danger
+              />
             </View>
           </View>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Photo action sheet */}
+      {/* ── Photo action sheet ───────────────────────────────────────────────── */}
       {showSheet && (
         <>
           <Animated.View style={[ss.sheetOverlay, overlayStyle]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
           </Animated.View>
-          <Animated.View style={[ss.actionSheet, sheetStyle, { paddingBottom: btmPad + 8, backgroundColor: sheetBg }]}>
+          <Animated.View
+            style={[
+              ss.actionSheet,
+              sheetStyle,
+              { paddingBottom: btmPad + 8, backgroundColor: sheetBg },
+            ]}
+          >
             <View style={[ss.sheetHandle, { backgroundColor: handleClr }]} />
-            <Text style={[ss.sheetTitle, { color: T.fg }]}>{t("profile.profilePhoto")}</Text>
+            <Text style={[ss.sheetTitle, { color: T.fg }]}>
+              {t("profile.profilePhoto")}
+            </Text>
             {PHOTO_OPTIONS.map((opt, i) => (
               <React.Fragment key={opt.key}>
-                <TouchableOpacity style={ss.sheetRow} onPress={() => handlePhotoOption(opt.key)} activeOpacity={0.6}>
-                  <View style={[ss.sheetIcon, { backgroundColor: opt.danger ? "rgba(255,59,48,0.08)" : iconBg }]}>
-                    <Feather name={opt.icon as any} size={16} color={opt.danger ? "#FF3B30" : T.fg} />
+                <TouchableOpacity
+                  style={ss.sheetRow}
+                  onPress={() => handlePhotoOption(opt.key)}
+                  activeOpacity={0.6}
+                >
+                  <View style={[ss.sheetIcon, { backgroundColor: opt.danger ? "rgba(255,59,48,0.08)" : T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.045)" }]}>
+                    <Feather
+                      name={opt.icon as any}
+                      size={16}
+                      color={opt.danger ? "#FF3B30" : T.fg}
+                    />
                   </View>
-                  <Text style={[ss.sheetLabel, { color: opt.danger ? "#FF3B30" : T.fg }]}>{opt.label}</Text>
+                  <Text style={[ss.sheetLabel, { color: opt.danger ? "#FF3B30" : T.fg }]}>
+                    {opt.label}
+                  </Text>
                 </TouchableOpacity>
-                {i < PHOTO_OPTIONS.length - 1 && <View style={[ss.divider, { backgroundColor: borderClr }]} />}
+                {i < PHOTO_OPTIONS.length - 1 && (
+                  <View style={[ss.divider, { backgroundColor: borderClr }]} />
+                )}
               </React.Fragment>
             ))}
-            <TouchableOpacity style={[ss.cancelBtn, { backgroundColor: cardBg }]} onPress={closeSheet} activeOpacity={0.75}>
+            <TouchableOpacity
+              style={[ss.cancelBtn, { backgroundColor: cardBg }]}
+              onPress={closeSheet}
+              activeOpacity={0.75}
+            >
               <Text style={[ss.cancelText, { color: T.fg }]}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -287,16 +444,20 @@ export default function ProfileScreen() {
       )}
 
       {showCrop && cropUri && (
-        <PhotoCropModal uri={cropUri} onDone={handleCropDone} onCancel={() => { setShowCrop(false); setCropUri(null); }} />
+        <PhotoCropModal
+          uri={cropUri}
+          onDone={handleCropDone}
+          onCancel={() => { setShowCrop(false); setCropUri(null); }}
+        />
       )}
     </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   root: { flex: 1 },
 
-  // Floating back button (invisible header)
   floatBack: {
     position:       "absolute",
     left:           16,
@@ -312,8 +473,6 @@ const ss = StyleSheet.create({
     shadowRadius:   8,
     elevation:      3,
   },
-
-  // Floating save button (top-right)
   floatSave: {
     position:          "absolute",
     right:             16,
@@ -329,42 +488,106 @@ const ss = StyleSheet.create({
 
   scroll: { paddingHorizontal: 20, gap: 28 },
 
-  avatarSection:   { alignItems: "center", gap: 12, paddingTop: 12 },
-  avatarTouchable: { width: 100, height: 100 },
-  avatarLarge:     { width: 100, height: 100, borderRadius: 50, borderWidth: 2 },
-  cameraOverlay:   { position: "absolute", bottom: 2, right: 2, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 2 },
-  onlineDot:       { position: "absolute", top: 4, right: 4, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-  avatarHint:      { fontSize: 12, fontFamily: "Inter_400Regular", letterSpacing: 0.2 },
+  // Avatar section
+  avatarSection:   { alignItems: "center", gap: 8, paddingTop: 12 },
+  avatarTouchable: { width: 100, height: 100, position: "relative" },
+  avatarLarge: {
+    width:        100,
+    height:       100,
+    borderRadius: 50,
+    borderWidth:  2,
+  },
+  cameraOverlay: {
+    position:        "absolute",
+    bottom:          2,
+    right:           2,
+    width:           28,
+    height:          28,
+    borderRadius:    14,
+    alignItems:      "center",
+    justifyContent:  "center",
+    borderWidth:     2,
+  },
+  displayName: {
+    fontFamily:    "Inter_600SemiBold",
+    fontSize:      18,
+    letterSpacing: -0.4,
+    marginTop:     4,
+  },
+  displayUsername: {
+    fontFamily: "Inter_400Regular",
+    fontSize:   14,
+  },
+  guestBadge: {
+    paddingHorizontal: 12,
+    paddingVertical:   4,
+    borderRadius:      12,
+    marginTop:         2,
+  },
+  guestBadgeText: {
+    fontFamily: "Inter_500Medium",
+    fontSize:   12,
+  },
 
+  // Section
   section:      { gap: 8 },
-  sectionLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1.5, textTransform: "uppercase", paddingLeft: 4 },
-  card:         { borderRadius: 18, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
-  fieldRow:     { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 18, gap: 14 },
-  fieldLabel:   { width: 72, fontSize: 14, fontFamily: "Inter_400Regular" },
-  fieldInput:   { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "right", padding: 0 },
-  divider:      { height: StyleSheet.hairlineWidth },
+  sectionLabel: {
+    fontSize:        10,
+    fontFamily:      "Inter_600SemiBold",
+    letterSpacing:   1.5,
+    textTransform:   "uppercase",
+    paddingLeft:     4,
+  },
+  card: {
+    borderRadius:  18,
+    overflow:      "hidden",
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius:  10,
+    elevation:     2,
+  },
+  divider: { height: StyleSheet.hairlineWidth },
 
-  memberCard:      { borderRadius: 18, padding: 20, flexDirection: "row", alignItems: "center", gap: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4, borderWidth: StyleSheet.hairlineWidth },
-  memberLeft:      { flex: 1, gap: 4 },
-  memberBadge:     { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingVertical: 3, paddingHorizontal: 8, borderRadius: 20, marginBottom: 2 },
-  memberBadgeText: { fontSize: 9, fontFamily: "Inter_600SemiBold", letterSpacing: 1.4 },
-  memberTitle:     { fontSize: 16, fontFamily: "Inter_600SemiBold", letterSpacing: -0.3 },
-  memberSub:       { fontSize: 12, fontFamily: "Inter_400Regular" },
-  upgradePill:     { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 },
-  upgradeText:     { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-
-  accountRow:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
-  accountIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  accountLabel:{ flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
-  soundSub:    { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
-
-  sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.18)", zIndex: 300 },
-  actionSheet:  { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 301, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 20 },
-  sheetHandle:  { width: 38, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },
-  sheetTitle:   { fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center", marginBottom: 16, letterSpacing: -0.2 },
-  sheetRow:     { flexDirection: "row", alignItems: "center", paddingVertical: 14, gap: 14 },
-  sheetIcon:    { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  sheetLabel:   { fontSize: 15, fontFamily: "Inter_400Regular" },
-  cancelBtn:    { marginTop: 12, borderRadius: 16, paddingVertical: 16, alignItems: "center" },
-  cancelText:   { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  // Photo sheet
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    zIndex:          300,
+  },
+  actionSheet: {
+    position:            "absolute",
+    bottom:              0,
+    left:                0,
+    right:               0,
+    zIndex:              301,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius:28,
+    paddingHorizontal:   20,
+    paddingTop:          8,
+    shadowColor:         "#000",
+    shadowOffset:        { width: 0, height: -4 },
+    shadowOpacity:       0.08,
+    shadowRadius:        24,
+    elevation:           20,
+  },
+  sheetHandle: {
+    width:       38,
+    height:      4,
+    borderRadius:2,
+    alignSelf:   "center",
+    marginBottom:16,
+  },
+  sheetTitle: {
+    fontSize:      15,
+    fontFamily:    "Inter_600SemiBold",
+    textAlign:     "center",
+    marginBottom:  16,
+    letterSpacing: -0.2,
+  },
+  sheetRow:  { flexDirection: "row", alignItems: "center", paddingVertical: 14, gap: 14 },
+  sheetIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  sheetLabel:{ fontSize: 15, fontFamily: "Inter_400Regular" },
+  cancelBtn: { marginTop: 12, borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  cancelText:{ fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
