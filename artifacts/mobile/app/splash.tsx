@@ -35,11 +35,11 @@ export default function SplashScreen() {
     // Fade in
     opacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.ease) });
 
-    // Scale in (0.95 → 1.0) then breathe (1.0 ↔ 1.02) indefinitely
+    // Scale in (0.97 → 1.0) then breathe (1.0 ↔ 0.97) indefinitely — very subtle
     scale.value = withSequence(
-      withTiming(1.0, { duration: 600, easing: Easing.out(Easing.ease) }),
+      withTiming(1.0, { duration: 700, easing: Easing.out(Easing.ease) }),
       withRepeat(
-        withTiming(1.02, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.97, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
         -1,
         true,
       ),
@@ -80,7 +80,7 @@ export default function SplashScreen() {
       <StatusBar style="dark" />
       <Animated.View style={[StyleSheet.absoluteFill, ss.center, screenStyle]}>
         <Animated.Image
-          source={require("@/assets/images/logo-transparent.png")}
+          source={require("@/assets/images/leaf-only-transparent.png")}
           style={[ss.logo, logoStyle]}
           resizeMode="contain"
         />
@@ -99,7 +99,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width:  200,
-    height: 200,
+    width:  240,
+    height: 240,
   },
 });
