@@ -280,10 +280,6 @@ export default function SideMenu({ visible, onClose }: Props) {
           <Image source={defaultAvatar} style={ss.profileAvatar} resizeMode="cover" />
           <View style={ss.profileInfo}>
             <Text style={[ss.profileName, { color: T.fg }]}>SERDAR</Text>
-            <View style={ss.statusRow}>
-              <View style={[ss.statusDot, { backgroundColor: T.onlineDot }]} />
-              <Text style={[ss.statusLabel, { color: muted }]}>Çevrimiçi</Text>
-            </View>
           </View>
           <Feather name="chevron-right" size={16} color={muted} style={{ opacity: 0.60 }} />
         </TouchableOpacity>
@@ -523,8 +519,8 @@ const ss = StyleSheet.create({
   },
 
   profileInfo: {
-    flex: 1,
-    gap:  3,
+    flex:            1,
+    justifyContent:  "center",
   },
 
   profileName: {
