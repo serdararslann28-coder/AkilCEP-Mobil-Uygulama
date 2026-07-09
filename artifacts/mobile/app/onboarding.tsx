@@ -81,7 +81,6 @@ function Screen1({ onPress }: { onPress: () => void }) {
       {/* Text block */}
       <View style={ss.textSection}>
         <Text style={ss.title}>AkılCEP</Text>
-        <Text style={ss.subtitle}>Cebindeki Akıl</Text>
         <Text style={ss.description}>
           {"Sor, üret, keşfet ve öğren.\nYapay zekâ artık her an yanında."}
         </Text>
