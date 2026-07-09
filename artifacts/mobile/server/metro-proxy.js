@@ -13,8 +13,19 @@
  *   3. For Expo manifest responses (multipart/mixed or application/expo+json),
  *      every ":PORT" occurrence is stripped from URLs so Expo Go resolves them
  *      through Replit's HTTPS proxy (port 443) instead of the internal port.
- *   4. GET /__expo serves an HTML page showing the correct QR code so the user
- *      can scan the right URL (exps://domain, not exp://domain:PORT).
+ *   4. GET /__expo serves an HTML page showing the correct QR code.
+ *
+ * Fallback:
+ *   After Metro and the bundle are ready, a self-diagnostic verifies that the
+ *   proxy is correctly rewriting manifests. If the proxy cannot reach Metro or
+ *   the manifest is malformed, it logs a clear warning with the direct URL so
+ *   the developer can investigate. The proxy never prevents Metro from running
+ *   — Metro always starts independently in the background.
+ *
+ *   To bypass the proxy entirely (e.g. for debugging), set:
+ *     EXPO_NO_PROXY=1
+ *   in the environment. Metro will then bind directly on $PORT and Expo Go
+ *   must be reached via exp:// (not exps://) over the internal network only.
  */
 
 "use strict";
@@ -65,17 +76,17 @@ function rewriteManifest(body) {
   return body;
 }
 
+// Only rewrite actual Expo manifest responses.
+//
+// CRITICAL: Do NOT match on the presence of the `Expo-Platform` header alone.
+// Every request Expo Go sends (bundle, assets, HMR) includes that header.
+// Matching on it causes the proxy to buffer and UTF-8-decode binary Hermes
+// bytecode bundles, which corrupts them and makes Expo Go see HTTP 000.
+//
+// The real manifest request is uniquely identified by its Accept header
+// requesting multipart/mixed or application/expo+json, AND its path not
+// ending in .bundle / .map / asset paths.
 function isManifestRequest(req) {
-  // Only rewrite actual Expo manifest responses.
-  //
-  // CRITICAL: Do NOT match on the presence of the `Expo-Platform` header alone.
-  // Every request Expo Go sends (bundle, assets, HMR) includes that header.
-  // Matching on it causes the proxy to buffer and UTF-8-decode binary Hermes
-  // bytecode bundles, which corrupts them and makes Expo Go see HTTP 000.
-  //
-  // The real manifest request is uniquely identified by its Accept header
-  // requesting multipart/mixed or application/expo+json, AND its path not
-  // ending in .bundle / .map / asset paths.
   const accept = req.headers["accept"] || "";
   const urlPath = (req.url || "").split("?")[0];
 
@@ -137,6 +148,8 @@ async function serveQrPage(res) {
          border:1px solid #222;width:100%}
     .badge{background:#1c3a1c;color:#4ade80;padding:6px 14px;border-radius:20px;
            font-size:13px;font-weight:500}
+    .warn{background:#3a1c1c;color:#f87171;padding:6px 14px;border-radius:20px;
+          font-size:13px;font-weight:500}
     p{font-size:14px;color:#aaa;text-align:center;line-height:1.5}
     .note{font-size:12px;color:#555;text-align:center;max-width:340px;line-height:1.6;
           border-top:1px solid #1a1a1a;padding-top:16px}
@@ -200,7 +213,7 @@ const server = http.createServer((req, res) => {
 
   const proxyReq = http.request(proxyOpts, (proxyRes) => {
     if (!isManifestRequest(req)) {
-      // Pass non-manifest responses straight through
+      // Pass non-manifest responses straight through (includes binary bundles)
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res, { end: true });
       return;
@@ -266,16 +279,22 @@ server.on("upgrade", (req, socket, head) => {
   target.on("error", () => socket.destroy());
 });
 
-// ─── iOS bundle pre-warmer ────────────────────────────────────────────────────
+// ─── iOS bundle pre-warmer + self-diagnostic ─────────────────────────────────
 //
 // Metro builds the iOS bundle on the FIRST request, which takes 1-3 minutes
 // on a cold start. Expo Go has a connection timeout; if the bundle isn't ready
 // in time it shows "Packager is not running". We fire a background bundle
 // request as soon as Metro is up so the bundle is cached before Expo Go asks.
+//
+// After the bundle is warm we run a self-diagnostic: fetch the manifest through
+// the proxy itself (not directly to Metro) and verify that the URL rewriting
+// worked correctly. If it didn't, we log a clear warning with the raw Metro URL
+// so the developer has a fallback.
 
-function prewarmIosBundle() {
+function prewarmAndDiagnose() {
   let attempts = 0;
 
+  // Step 1: wait for Metro to be ready on its internal port
   function waitForMetro(resolve, reject) {
     const req = http.get(
       {
@@ -288,18 +307,18 @@ function prewarmIosBundle() {
         res.resume();
         if (res.statusCode === 200) return resolve();
         if (++attempts < 60) return setTimeout(() => waitForMetro(resolve, reject), 3000);
-        reject(new Error("Metro did not become ready"));
+        reject(new Error("Metro did not become ready after 3 min"));
       }
     );
     req.on("error", () => {
       if (++attempts < 60) setTimeout(() => waitForMetro(resolve, reject), 3000);
-      else reject(new Error("Metro did not become ready"));
+      else reject(new Error("Metro did not become ready after 3 min"));
     });
   }
 
   new Promise(waitForMetro)
+    // Step 2: fetch the manifest from Metro directly to find the bundle URL
     .then(() => {
-      // Fetch the manifest to find the exact iOS bundle URL
       return new Promise((resolve) => {
         const mReq = http.get(
           {
@@ -323,43 +342,121 @@ function prewarmIosBundle() {
         mReq.on("error", () => resolve(""));
       });
     })
+    // Step 3: pre-warm the iOS bundle in Metro's cache
     .then((manifestText) => {
-      // Extract the bundle URL and strip the domain to get the Metro-local path
       const m = manifestText.match(/"url":"([^"]+entry\.bundle[^"]+)"/);
       if (!m) {
         console.log("[metro-proxy] pre-warm: bundle URL not found in manifest");
-        return;
+        return null;
       }
       const bundlePath = m[1].replace(/^https?:\/\/[^/]+/, "");
       console.log("[metro-proxy] pre-warming iOS bundle (first build ~1-2 min) …");
 
-      const bReq = http.get(
-        {
-          hostname: "localhost",
-          port: METRO_PORT,
-          path: bundlePath,
-          headers: {
-            host: `localhost:${METRO_PORT}`,
-            "expo-platform": "ios",
+      return new Promise((resolve) => {
+        const bReq = http.get(
+          {
+            hostname: "localhost",
+            port: METRO_PORT,
+            path: bundlePath,
+            headers: {
+              host: `localhost:${METRO_PORT}`,
+              "expo-platform": "ios",
+            },
           },
-        },
-        (res) => {
-          // Drain the response to complete the request and populate Metro's cache
-          res.resume();
-          res.on("end", () =>
-            console.log("[metro-proxy] iOS bundle pre-warm complete ✓")
-          );
-        }
-      );
-      bReq.setTimeout(300_000, () => {
-        console.log("[metro-proxy] pre-warm timed out after 5 min");
-        bReq.destroy();
+          (res) => {
+            res.resume();
+            res.on("end", () => {
+              console.log("[metro-proxy] iOS bundle pre-warm complete ✓");
+              resolve(bundlePath);
+            });
+          }
+        );
+        bReq.setTimeout(300_000, () => {
+          console.log("[metro-proxy] pre-warm timed out after 5 min");
+          bReq.destroy();
+          resolve(null);
+        });
+        bReq.on("error", (e) => {
+          console.log("[metro-proxy] pre-warm error:", e.message);
+          resolve(null);
+        });
       });
-      bReq.on("error", (e) =>
-        console.log("[metro-proxy] pre-warm error:", e.message)
-      );
     })
-    .catch((e) => console.log("[metro-proxy] pre-warm failed:", e.message));
+    // Step 4: self-diagnostic — fetch the manifest through the proxy and
+    // verify that URL rewriting is working (no internal ports leak through)
+    .then((bundlePath) => {
+      if (!EXPO_DOMAIN) {
+        console.log(
+          "[metro-proxy] WARN: REPLIT_EXPO_DEV_DOMAIN is not set — " +
+          "Expo Go cannot connect from a physical device."
+        );
+        return;
+      }
+
+      return new Promise((resolve) => {
+        const diagReq = http.get(
+          {
+            hostname: "localhost",
+            port: PROXY_PORT,
+            path: "/",
+            headers: {
+              host: `localhost:${PROXY_PORT}`,
+              accept: "multipart/mixed,application/json",
+              "expo-platform": "ios",
+              "expo-api-version": "1",
+            },
+          },
+          (res) => {
+            let buf = "";
+            res.on("data", (d) => (buf += d));
+            res.on("end", () => {
+              const portLeak = buf.match(/:\d{4,5}/g);
+              const hasInternalPort =
+                portLeak && portLeak.some((p) => p !== ":443");
+
+              if (res.statusCode !== 200) {
+                // Proxy is not forwarding manifests — fatal for Expo Go
+                console.log(
+                  `[metro-proxy] DIAGNOSTIC FAILED: manifest returned HTTP ${res.statusCode}\n` +
+                  `  Expo Go will not be able to connect through the proxy.\n` +
+                  `  Fallback: set EXPO_NO_PROXY=1 and restart, then scan:\n` +
+                  `    exp://localhost:${METRO_PORT} (LAN only, dev machine only)`
+                );
+              } else if (hasInternalPort) {
+                // URL rewriting missed some port references
+                console.log(
+                  `[metro-proxy] DIAGNOSTIC WARNING: manifest still contains internal ports\n` +
+                  `  Leaked port references: ${portLeak.join(", ")}\n` +
+                  `  Expo Go may fail. Check rewriteManifest() in server/metro-proxy.js.`
+                );
+              } else {
+                // Everything looks correct
+                console.log(
+                  `[metro-proxy] self-diagnostic OK — manifest is clean, Expo Go ready ✓\n` +
+                  `  Scan QR from: https://${EXPO_DOMAIN}/__expo`
+                );
+              }
+              resolve();
+            });
+          }
+        );
+        diagReq.on("error", (e) => {
+          // The proxy itself is unreachable — Metro is still running on METRO_PORT
+          console.log(
+            `[metro-proxy] DIAGNOSTIC FAILED: proxy not reachable (${e.message})\n` +
+            `  Metro is still running on internal port ${METRO_PORT}.\n` +
+            `  Expo Go cannot connect from a physical device through this proxy.\n` +
+            `  Fallback: set EXPO_NO_PROXY=1 and restart to expose Metro directly.`
+          );
+          resolve();
+        });
+        diagReq.setTimeout(10_000, () => {
+          diagReq.destroy();
+          resolve();
+        });
+      });
+    })
+    .catch((e) => console.log("[metro-proxy] startup error:", e.message));
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
@@ -385,7 +482,7 @@ server.listen(PROXY_PORT, () => {
   console.log(`╚${border}╝\n`);
   console.log(`[metro-proxy] :${PROXY_PORT} → Metro :${METRO_PORT}`);
 
-  // Start background bundle pre-warming after a short delay
-  // (gives Metro time to finish its own startup sequence)
-  setTimeout(prewarmIosBundle, 8000);
+  // Start background pre-warm + diagnostic 8 seconds after Metro begins its
+  // own startup sequence (Metro takes a few seconds to begin accepting requests)
+  setTimeout(prewarmAndDiagnose, 8000);
 });
