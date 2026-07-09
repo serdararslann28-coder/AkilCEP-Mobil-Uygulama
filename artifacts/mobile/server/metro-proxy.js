@@ -21,6 +21,7 @@
 
 const http = require("http");
 const net = require("net");
+const QRCode = require("qrcode");
 
 const PROXY_PORT = parseInt(process.env.PORT || "18115", 10);
 const METRO_PORT = parseInt(process.env.METRO_PORT || String(PROXY_PORT + 1), 10);
@@ -75,8 +76,25 @@ function isManifestRequest(req) {
 
 // ─── QR code landing page ─────────────────────────────────────────────────────
 
-function serveQrPage(res) {
+async function serveQrPage(res) {
   const url = EXPO_GO_URL || "REPLIT_EXPO_DEV_DOMAIN not set";
+
+  let qrDataUrl = "";
+  try {
+    qrDataUrl = await QRCode.toDataURL(url, {
+      width: 240,
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+      errorCorrectionLevel: "M",
+    });
+  } catch (err) {
+    qrDataUrl = "";
+  }
+
+  const qrImg = qrDataUrl
+    ? `<img src="${qrDataUrl}" width="240" height="240" alt="Expo Go QR Code" style="border-radius:8px;display:block"/>`
+    : `<div style="width:240px;height:240px;background:#333;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px">QR unavailable</div>`;
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,38 +111,31 @@ function serveQrPage(res) {
     .card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;
           padding:32px;display:flex;flex-direction:column;align-items:center;gap:20px;
           max-width:380px;width:100%}
-    #qr{width:240px;height:240px;border-radius:8px;background:#fff;padding:8px}
-    .url{font-family:monospace;font-size:12px;color:#888;word-break:break-all;text-align:center}
+    .url{font-family:monospace;font-size:11px;color:#666;word-break:break-all;
+         text-align:center;background:#111;padding:10px 12px;border-radius:8px;
+         border:1px solid #222;width:100%}
     .badge{background:#1c3a1c;color:#4ade80;padding:6px 14px;border-radius:20px;
            font-size:13px;font-weight:500}
     p{font-size:14px;color:#aaa;text-align:center;line-height:1.5}
-    .note{font-size:12px;color:#555;text-align:center;max-width:340px;line-height:1.6}
+    .note{font-size:12px;color:#555;text-align:center;max-width:340px;line-height:1.6;
+          border-top:1px solid #1a1a1a;padding-top:16px}
   </style>
 </head>
 <body>
   <h1>AkılCEP AI — Expo Go</h1>
   <div class="card">
     <div class="badge">Scan with Expo Go</div>
-    <div id="qr"></div>
-    <p>Point your phone camera at this QR code while Expo Go is open</p>
+    ${qrImg}
+    <p>Open Expo Go on your phone, then scan this QR code</p>
     <div class="url">${url}</div>
   </div>
-  <div class="note">
-    <strong>Important:</strong> Only scan <em>this</em> QR code.<br/>
-    The QR code in the workflow console shows an internal port<br/>
-    that is unreachable from your device.
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script>
-    new QRCode(document.getElementById("qr"), {
-      text: ${JSON.stringify(url)},
-      width: 224, height: 224,
-      colorDark: "#000000", colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  </script>
+  <p class="note">
+    <strong>Do not</strong> scan the QR from the Metro/workflow console —<br/>
+    it points to an internal port unreachable from your device.
+  </p>
 </body>
 </html>`;
+
   res.writeHead(200, {
     "content-type": "text/html; charset=utf-8",
     "content-length": String(Buffer.byteLength(html, "utf8")),

@@ -64,6 +64,7 @@
     "expo-file-system": "^56.0.7",
     "expo-media-library": "^56.0.6",
     "expo-speech": "^56.0.3",
+    "qrcode": "^1.5.4",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-webview": "^13.15.0"
   }
