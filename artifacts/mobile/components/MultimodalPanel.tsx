@@ -1,8 +1,8 @@
 /**
  * MultimodalPanel — premium Apple-inspired attachment sheet.
  *
- * Layout: single horizontal row of 4 equal-width cards (flex:1 each).
- *         Cards stretch to equal height — tallest card sets the row height.
+ * Layout: 2×2 grid — two rows of two equal-width cards.
+ *         Icon (52px circle) centered at top, title + subtitle centered below.
  *
  * Glass surface:
  *   Outer Animated.View: shadow carrier (no overflow:hidden)
@@ -10,12 +10,11 @@
  *   BlurView intensity 85 + soft white overlay + hairline border
  *
  * Entry:
- *   Panel: overdamped spring up + 200ms opacity
- *   Backdrop blur: 180ms fade
+ *   Panel: overdamped spring + 200ms opacity
+ *   Backdrop: 180ms fade
  *   Cards: staggered 0/50/100/150ms — opacity + scale 0.96→1.00
  *
- * Press: scale 1→0.98 in 90ms, return in 200ms cubic-out + light haptic
- *
+ * Press: scale 1→0.98 in 90ms, return in 200ms cubic-out + haptic
  * Close: 150ms snap-down, cards collapse in 110ms
  */
 import { BlurView }           from "expo-blur";
@@ -46,10 +45,11 @@ import { useTheme } from "@/context/ThemeContext";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
-const PANEL_MX  = SW * 0.04;      // 4% each side → 92% panel width
-const INNER_PAD = 16;
-const CARD_GAP  = 10;
-const PANEL_GAP = 8;              // gap between panel bottom and input bar top
+const PANEL_MX  = SW * 0.04;                              // 4% each side → 92% width
+const INNER_PAD = 14;                                     // horizontal + vertical padding inside panel
+const CARD_GAP  = 12;                                     // gap between cards
+const CARD_W    = (SW * 0.92 - INNER_PAD * 2 - CARD_GAP) / 2;  // exactly ~45% of panel
+const PANEL_GAP = 8;                                      // gap between panel bottom and input bar
 
 // ─── Easing curves ────────────────────────────────────────────────────────────
 const EASE_OUT  = Easing.out(Easing.cubic);
@@ -61,10 +61,10 @@ const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 const ACTIONS = [
-  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                   },
-  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"            },
+  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                       },
+  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"                },
   { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel\nve diğer dosyalar" },
-  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"               },
+  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"                   },
 ] as const;
 
 type ActionId = typeof ACTIONS[number]["id"];
@@ -87,10 +87,9 @@ function ActionCard({
   isDark:  boolean;
   onPress: () => void;
 }) {
-  const stagger = index * 50;
-
-  const entOp    = useSharedValue(0);
-  const entScale = useSharedValue(0.96);
+  const stagger    = index * 50;
+  const entOp      = useSharedValue(0);
+  const entScale   = useSharedValue(0.96);
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
@@ -104,7 +103,7 @@ function ActionCard({
     }
   }, [open]);
 
-  const cardStyle = useAnimatedStyle(() => ({
+  const cardAnim = useAnimatedStyle(() => ({
     opacity:   entOp.value,
     transform: [{ scale: entScale.value * pressScale.value }],
   }));
@@ -127,21 +126,16 @@ function ActionCard({
   const subColor   = isDark ? "rgba(255,255,255,0.44)" : "#9B9B9B";
 
   return (
-    <Pressable
-      style={ss.cardPressable}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-    >
-      <Animated.View style={[ss.card, cardStyle, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-        {/* Icon circle — 52×52 centered */}
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onPress}>
+      <Animated.View style={[ss.card, cardAnim, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        {/* Icon circle — 52×52, centered */}
         <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
           <Feather name={icon} size={26} color={iconColor} />
         </View>
-        {/* Title */}
-        <Text style={[ss.cardLabel, { color: labelColor }]}>{label}</Text>
-        {/* Subtitle — wraps naturally, no truncation */}
-        <Text style={[ss.cardSub, { color: subColor }]}>{sub}</Text>
+        {/* Title — up to 2 lines, centered */}
+        <Text style={[ss.cardLabel, { color: labelColor }]} numberOfLines={2}>{label}</Text>
+        {/* Subtitle — up to 2 lines, centered */}
+        <Text style={[ss.cardSub, { color: subColor }]} numberOfLines={2}>{sub}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -240,7 +234,7 @@ export default function MultimodalPanel({
 
   return (
     <>
-      {/* Very light backdrop — dims content gently, Apple-style */}
+      {/* Very light backdrop — Apple-style, not dark */}
       <Animated.View
         style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
         pointerEvents={open ? "auto" : "none"}
@@ -253,7 +247,7 @@ export default function MultimodalPanel({
         style={[ss.panelShadow, panelStyle, { shadowColor, shadowOpacity }]}
         pointerEvents={open ? "box-none" : "none"}
       >
-        {/* Glass surface — clips BlurView to borderRadius 34 */}
+        {/* Glass surface — clips blur to borderRadius 34 */}
         <View style={ss.panelGlass}>
 
           <BlurView
@@ -261,25 +255,40 @@ export default function MultimodalPanel({
             tint={blurTint}
             intensity={85}
           />
-
-          {/* Soft white overlay */}
           <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
-
-          {/* Hairline border */}
           <View style={[StyleSheet.absoluteFill, ss.panelBorder, { borderColor }]} />
 
           {/* Drag handle */}
           <Animated.View style={[ss.dragPill, pillStyle, { backgroundColor: pillColor }]} />
 
-          {/* Single-row 4-card grid */}
-          <View style={ss.grid}>
-            {ACTIONS.map((a, i) => (
+          {/* Row 1 */}
+          <View style={ss.gridRow}>
+            {ACTIONS.slice(0, 2).map((a, i) => (
               <ActionCard
                 key={a.id}
                 icon={a.icon}
                 label={a.label}
                 sub={a.sub}
                 index={i}
+                open={open}
+                isDark={T.isDark}
+                onPress={handlers[a.id]}
+              />
+            ))}
+          </View>
+
+          {/* Gap between rows */}
+          <View style={{ height: CARD_GAP }} />
+
+          {/* Row 2 */}
+          <View style={ss.gridRow}>
+            {ACTIONS.slice(2, 4).map((a, i) => (
+              <ActionCard
+                key={a.id}
+                icon={a.icon}
+                label={a.label}
+                sub={a.sub}
+                index={i + 2}
                 open={open}
                 isDark={T.isDark}
                 onPress={handlers[a.id]}
@@ -296,7 +305,6 @@ export default function MultimodalPanel({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
 
-  // Very light overlay — not dark, Apple-style
   backdrop: {
     zIndex:          150,
     backgroundColor: "rgba(0,0,0,0.05)",
@@ -309,17 +317,17 @@ const ss = StyleSheet.create({
     left:          PANEL_MX,
     right:         PANEL_MX,
     borderRadius:  34,
-    shadowOffset:  { width: 0, height: 2 },
+    shadowOffset:  { width: 0, height: 4 },
     shadowRadius:  24,
     elevation:     18,
   },
 
-  // Glass surface — clips blur + overlays to radius 34
+  // Glass surface — clips blur + overlays
   panelGlass: {
     borderRadius:      34,
     overflow:          "hidden",
     paddingHorizontal: INNER_PAD,
-    paddingBottom:     INNER_PAD,
+    paddingBottom:     INNER_PAD + 2,
     paddingTop:        10,
   },
 
@@ -336,53 +344,49 @@ const ss = StyleSheet.create({
     marginBottom: 14,
   },
 
-  // Single horizontal row — alignItems stretch equalizes card heights
-  grid: {
-    flexDirection: "row",
-    gap:           CARD_GAP,
-    alignItems:    "stretch",
+  // Row — two equal-width cards side by side
+  gridRow: {
+    flexDirection:  "row",
+    gap:            CARD_GAP,
+    alignItems:     "stretch",  // equal height within each row
   },
 
-  // Pressable fills flex:1 so grid gaps work correctly
-  cardPressable: {
-    flex: 1,
-  },
-
-  // Card — flex:1 height from tallest sibling via stretch
+  // Card — fixed width (~45% of panel), centered content
   card: {
-    flex:           1,
+    width:          CARD_W,
     borderRadius:   22,
     borderWidth:    0.5,
     alignItems:     "center",
-    paddingHorizontal: 6,
-    paddingTop:     16,
-    paddingBottom:  14,
+    paddingTop:     18,
+    paddingBottom:  16,
+    paddingHorizontal: 10,
   },
 
-  // Icon circle — 52×52 centered
+  // Icon circle — 52×52
   iconWrap: {
     width:          52,
     height:         52,
     borderRadius:   26,
     alignItems:     "center",
     justifyContent: "center",
-    marginBottom:   12,
+    marginBottom:   14,
   },
 
-  // Title — SF Pro Display Medium equivalent
+  // Title — Inter Medium 17px, centered
   cardLabel: {
     fontSize:      17,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,
     textAlign:     "center",
-    marginBottom:  4,
+    marginBottom:  5,
+    lineHeight:    22,
   },
 
-  // Subtitle — wraps naturally, no truncation
+  // Subtitle — Inter Regular 13px, centered, max 2 lines
   cardSub: {
     fontSize:   13,
     fontFamily: "Inter_400Regular",
-    lineHeight: 17,
+    lineHeight: 18,
     textAlign:  "center",
   },
 
