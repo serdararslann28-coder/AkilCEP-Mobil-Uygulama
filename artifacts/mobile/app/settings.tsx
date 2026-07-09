@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useLanguage }        from "@/context/LanguageContext";
 import { ThemeMode, useTheme } from "@/context/ThemeContext";
 
 // ─── Theme options ─────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ function ToggleRow({
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const { theme: T, themeMode, setThemeMode, showToast } = useTheme();
+  const { lang, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -174,12 +176,13 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Dil ──────────────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>Dil</Text>
+        <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.language")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <Row
             icon="globe"
-            label="Uygulama Dili"
-            value="Türkçe"
+            label={t("settings.appLanguage")}
+            value={lang === "tr" ? "🇹🇷  Türkçe" : "🇬🇧  English"}
+            onPress={() => router.push("/language")}
             divider={divider}
             fg={T.fg}
             muted={muted}
