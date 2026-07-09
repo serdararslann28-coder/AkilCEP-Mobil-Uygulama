@@ -66,9 +66,30 @@ function rewriteManifest(body) {
 }
 
 function isManifestRequest(req) {
+  // Only rewrite actual Expo manifest responses.
+  //
+  // CRITICAL: Do NOT match on the presence of the `Expo-Platform` header alone.
+  // Every request Expo Go sends (bundle, assets, HMR) includes that header.
+  // Matching on it causes the proxy to buffer and UTF-8-decode binary Hermes
+  // bytecode bundles, which corrupts them and makes Expo Go see HTTP 000.
+  //
+  // The real manifest request is uniquely identified by its Accept header
+  // requesting multipart/mixed or application/expo+json, AND its path not
+  // ending in .bundle / .map / asset paths.
   const accept = req.headers["accept"] || "";
+  const urlPath = (req.url || "").split("?")[0];
+
+  // Bundles, source maps, and assets must pass through unmodified
+  if (
+    urlPath.endsWith(".bundle") ||
+    urlPath.endsWith(".map") ||
+    urlPath.startsWith("/assets/") ||
+    urlPath.startsWith("/static/")
+  ) {
+    return false;
+  }
+
   return (
-    req.headers["expo-platform"] !== undefined ||
     accept.includes("application/expo+json") ||
     accept.includes("multipart/mixed")
   );
@@ -215,10 +236,22 @@ const server = http.createServer((req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const target = net.connect(METRO_PORT, "localhost", () => {
-    // Replay the HTTP upgrade request to Metro's WebSocket server
+    // Strip the same headers as the HTTP handler so Metro's CorsMiddleware
+    // does not reject the WebSocket upgrade (it runs on upgrade requests too).
+    const skipWsHeaders = new Set([
+      "origin",
+      "x-forwarded-for",
+      "x-forwarded-host",
+      "x-forwarded-proto",
+      "x-replit-user-id",
+      "x-replit-user-name",
+    ]);
     const headerLines = [
       `${req.method} ${req.url} HTTP/1.1`,
-      ...Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`),
+      `host: localhost:${METRO_PORT}`,
+      ...Object.entries(req.headers)
+        .filter(([k]) => k !== "host" && !skipWsHeaders.has(k.toLowerCase()))
+        .map(([k, v]) => `${k}: ${v}`),
       "",
       "",
     ].join("\r\n");
@@ -232,6 +265,102 @@ server.on("upgrade", (req, socket, head) => {
   socket.on("error", () => target.destroy());
   target.on("error", () => socket.destroy());
 });
+
+// ─── iOS bundle pre-warmer ────────────────────────────────────────────────────
+//
+// Metro builds the iOS bundle on the FIRST request, which takes 1-3 minutes
+// on a cold start. Expo Go has a connection timeout; if the bundle isn't ready
+// in time it shows "Packager is not running". We fire a background bundle
+// request as soon as Metro is up so the bundle is cached before Expo Go asks.
+
+function prewarmIosBundle() {
+  let attempts = 0;
+
+  function waitForMetro(resolve, reject) {
+    const req = http.get(
+      {
+        hostname: "localhost",
+        port: METRO_PORT,
+        path: "/status",
+        headers: { host: `localhost:${METRO_PORT}` },
+      },
+      (res) => {
+        res.resume();
+        if (res.statusCode === 200) return resolve();
+        if (++attempts < 60) return setTimeout(() => waitForMetro(resolve, reject), 3000);
+        reject(new Error("Metro did not become ready"));
+      }
+    );
+    req.on("error", () => {
+      if (++attempts < 60) setTimeout(() => waitForMetro(resolve, reject), 3000);
+      else reject(new Error("Metro did not become ready"));
+    });
+  }
+
+  new Promise(waitForMetro)
+    .then(() => {
+      // Fetch the manifest to find the exact iOS bundle URL
+      return new Promise((resolve) => {
+        const mReq = http.get(
+          {
+            hostname: "localhost",
+            port: METRO_PORT,
+            path: "/",
+            headers: {
+              host: `localhost:${METRO_PORT}`,
+              accept: "multipart/mixed,application/json",
+              "expo-platform": "ios",
+              "expo-api-version": "1",
+              "expo-runtime-version": "exposdk:54.0.0",
+            },
+          },
+          (res) => {
+            let buf = "";
+            res.on("data", (d) => (buf += d));
+            res.on("end", () => resolve(buf));
+          }
+        );
+        mReq.on("error", () => resolve(""));
+      });
+    })
+    .then((manifestText) => {
+      // Extract the bundle URL and strip the domain to get the Metro-local path
+      const m = manifestText.match(/"url":"([^"]+entry\.bundle[^"]+)"/);
+      if (!m) {
+        console.log("[metro-proxy] pre-warm: bundle URL not found in manifest");
+        return;
+      }
+      const bundlePath = m[1].replace(/^https?:\/\/[^/]+/, "");
+      console.log("[metro-proxy] pre-warming iOS bundle (first build ~1-2 min) …");
+
+      const bReq = http.get(
+        {
+          hostname: "localhost",
+          port: METRO_PORT,
+          path: bundlePath,
+          headers: {
+            host: `localhost:${METRO_PORT}`,
+            "expo-platform": "ios",
+          },
+        },
+        (res) => {
+          // Drain the response to complete the request and populate Metro's cache
+          res.resume();
+          res.on("end", () =>
+            console.log("[metro-proxy] iOS bundle pre-warm complete ✓")
+          );
+        }
+      );
+      bReq.setTimeout(300_000, () => {
+        console.log("[metro-proxy] pre-warm timed out after 5 min");
+        bReq.destroy();
+      });
+      bReq.on("error", (e) =>
+        console.log("[metro-proxy] pre-warm error:", e.message)
+      );
+    })
+    .catch((e) => console.log("[metro-proxy] pre-warm failed:", e.message));
+}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
@@ -255,4 +384,8 @@ server.listen(PROXY_PORT, () => {
   }
   console.log(`╚${border}╝\n`);
   console.log(`[metro-proxy] :${PROXY_PORT} → Metro :${METRO_PORT}`);
+
+  // Start background bundle pre-warming after a short delay
+  // (gives Metro time to finish its own startup sequence)
+  setTimeout(prewarmIosBundle, 8000);
 });
