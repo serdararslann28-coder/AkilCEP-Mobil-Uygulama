@@ -1,7 +1,14 @@
 /**
  * LanguageContext — persists the user's language choice (tr | en).
- * Loads translations from JSON files with dot-path resolver.
- * t("section.key") or t("section.nested.key") both work.
+ *
+ * Default language: Turkish ("tr").
+ * - First launch (no AsyncStorage entry): always Turkish.
+ * - Stored value of "en": switch to English.
+ * - Any other stored value, null, or AsyncStorage error: stay Turkish.
+ * - Missing key in current language: fall back to Turkish translation.
+ * - Missing key in Turkish too: return key name as last resort.
+ *
+ * t("section.key") and t("section.nested.key") both work.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
@@ -18,7 +25,7 @@ interface LanguageContextValue {
   t:       (key: string) => string;
 }
 
-// ─── Flatten nested JSON into dot-path map ──────────────────────────────────────
+// ─── Flatten nested JSON into a dot-path lookup map ─────────────────────────────
 function flatten(obj: Record<string, unknown>, prefix = ""): Record<string, string> {
   return Object.entries(obj).reduce<Record<string, string>>((acc, [k, v]) => {
     const fullKey = prefix ? `${prefix}.${k}` : k;
@@ -39,21 +46,35 @@ const FLAT: Record<Lang, Record<string, string>> = {
 // ─── Storage key ────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "@akilcep_language";
 
-// ─── Context ────────────────────────────────────────────────────────────────────
+// ─── Safe translation using Turkish flat map (used before Provider mounts) ──────
+const trLookup = (key: string): string => FLAT["tr"][key] ?? key;
+
+// ─── Context default — Turkish, never returns raw key names ─────────────────────
 const LanguageContext = createContext<LanguageContextValue>({
   lang:    "tr",
   setLang: async () => {},
-  t:       (k) => k,
+  t:       trLookup,
 });
 
 // ─── Provider ───────────────────────────────────────────────────────────────────
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  // Always start with Turkish — AsyncStorage read happens asynchronously after.
   const [lang, setLangState] = useState<Lang>("tr");
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === "tr" || stored === "en") setLangState(stored);
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((stored) => {
+        // Only accept exactly "tr" or "en"; everything else (null, corrupt) → Turkish.
+        if (stored === "en") {
+          setLangState("en");
+        } else {
+          setLangState("tr");
+        }
+      })
+      .catch(() => {
+        // AsyncStorage failure → keep Turkish.
+        setLangState("tr");
+      });
   }, []);
 
   const setLang = useCallback(async (l: Lang) => {
@@ -62,6 +83,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
+    // Resolution order: selected language → Turkish fallback → key name.
     (key: string): string => FLAT[lang][key] ?? FLAT["tr"][key] ?? key,
     [lang],
   );
