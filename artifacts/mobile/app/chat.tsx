@@ -35,7 +35,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -159,6 +159,13 @@ export default function ChatScreen() {
   const topPad      = Platform.OS === "web" ? 60 : insets.top;
   const bottomPad   = Platform.OS === "web" ? 34 : insets.bottom;
   const isSpeaking  = voicePhase === "speaking";
+
+  // Keyboard height tracking — dock floats above keyboard
+  const { reanimated: kbReanimated } = useKeyboardContext();
+  const kbH = kbReanimated.height;
+  const dockKbStyle = useAnimatedStyle(() => ({
+    bottom: bottomPad + 12 - kbH.value,
+  }));
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
   const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
@@ -858,7 +865,7 @@ export default function ChatScreen() {
           )}
           inverted
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={ss.msgList}
+          contentContainerStyle={[ss.msgList, { paddingTop: bottomPad + 72 }]}
           ListHeaderComponent={isTyping ? (
             imagePending ? (
               <ImageGenCard />
@@ -876,168 +883,159 @@ export default function ChatScreen() {
         {/* ════ VOICE ORB PANEL — slides in above input ════ */}
         <VoiceOrbPanel phase={voicePhase} isDark={T.isDark} />
 
-        {/* ════ INPUT AREA ════ */}
-        <View style={[ss.inputOuter, { paddingBottom: bottomPad + 12 }]}>
+      </KeyboardAvoidingView>
 
-          {/* ── Floating input dock ─────────────────────────────────────────────
-               Three siblings in a row: [dockPlus 52×52] [dockPill flex:1 h54] [dockAi 56×56]
-               Matches attached reference image exactly.
-          ─────────────────────────────────────────────────────────────────── */}
-          <View style={ss.dock}>
+      {/* ════ FLOATING DOCK — absolute, floats over content, tracks keyboard ════ */}
+      <Animated.View style={[ss.inputOuter, dockKbStyle]}>
+        <View style={ss.dock}>
 
-            {/* A — circular + button, 52×52, white, soft shadow */}
-            <Animated.View style={[ss.dockPlus, plusCircleScaleStyle]}>
-              <Pressable
-                style={ss.dockPlusInner}
-                onPressIn={() => {
-                  plusScaleSV.value = withTiming(1, PRESS_IN);
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
-                onPress={() => { setPanelOpen(p => !p); }}
-                hitSlop={4}
-              >
-                <Animated.View style={plusRotAnim}>
-                  <Feather name="plus" size={20} color="#000000" />
-                </Animated.View>
-              </Pressable>
-            </Animated.View>
+          {/* A — circular + button, 42×42, white, soft shadow */}
+          <Animated.View style={[ss.dockPlus, plusCircleScaleStyle]}>
+            <Pressable
+              style={ss.dockPlusInner}
+              onPressIn={() => {
+                plusScaleSV.value = withTiming(1, PRESS_IN);
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
+              onPress={() => { setPanelOpen(p => !p); }}
+              hitSlop={4}
+            >
+              <Animated.View style={plusRotAnim}>
+                <Feather name="plus" size={20} color="#000000" />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
 
-            {/* B — white pill, flex:1, height 54, radius 27 */}
-            {/* dockPillShell: shadow carrier — no overflow:hidden so shadow renders on iOS */}
-            <Animated.View style={[ss.dockPillShell, inputGlowStyle, inputFieldAnim]}>
-              {/* dockPillBody: row, clips content, sets background colour */}
-              <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
+          {/* B — white pill, flex:1 */}
+          <Animated.View style={[ss.dockPillShell, inputGlowStyle, inputFieldAnim]}>
+            <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
 
-                {/* Shimmer sweep while typing */}
-                <Animated.View style={[ss.dockShimmer, shimmerStyle]} pointerEvents="none">
-                  <LinearGradient
-                    colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                </Animated.View>
-
-                {/* Custom animated placeholder — fades on focus; native placeholder cleared */}
-                {!voiceActive && (
-                  <Animated.Text
-                    style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.36)" : "#B8B8B8" }, placeholderFadeStyle]}
-                    pointerEvents="none"
-                    numberOfLines={1}
-                  >
-                    Yaz…
-                  </Animated.Text>
-                )}
-
-                {/* Text field — flex:1, single line, vertically centred */}
-                <TextInput
-                  style={[
-                    ss.dockField,
-                    { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
-                  ]}
-                  placeholder=""
-                  multiline
-                  scrollEnabled={scrollEnabled}
-                  value={inputText}
-                  onContentSizeChange={onContentSizeChange}
-                  onChangeText={(t) => {
-                    setInputText(t);
-                    // Hide placeholder immediately when typing, restore when cleared and unfocused
-                    if (t.length > 0) {
-                      placeholderSV.value = withTiming(0, { duration: 100 });
-                    } else if (inputFocused.value < 0.5) {
-                      placeholderSV.value = withTiming(1, { duration: 150 });
-                    }
-                  }}
-                  maxLength={2000}
-                  returnKeyType="send"
-                  onSubmitEditing={() => { if (hasText) handleSend(); }}
-                  editable={!voiceActive}
-                  onFocus={() => {
-                    inputFocused.value  = withTiming(1, FOCUS_DUR);
-                    placeholderSV.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
-                  }}
-                  onBlur={() => {
-                    inputFocused.value = withTiming(0, FOCUS_DUR);
-                    if (inputText.length === 0) {
-                      placeholderSV.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
-                    }
-                  }}
+              {/* Shimmer sweep while typing */}
+              <Animated.View style={[ss.dockShimmer, shimmerStyle]} pointerEvents="none">
+                <LinearGradient
+                  colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
                 />
+              </Animated.View>
 
-                {/* Thin vertical divider between text and mic */}
-                <View
-                  style={[ss.dockDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.11)" }]}
+              {/* Custom animated placeholder */}
+              {!voiceActive && (
+                <Animated.Text
+                  style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.36)" : "#B8B8B8" }, placeholderFadeStyle]}
                   pointerEvents="none"
-                />
+                  numberOfLines={1}
+                >
+                  Yaz…
+                </Animated.Text>
+              )}
 
-                {/* Mic — 44×44 touch target, right of divider */}
-                <Animated.View style={[ss.dockMicWrap, micScaleStyle]}>
-                  <Animated.View
-                    style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
-                    pointerEvents="none"
-                  />
-                  <AkilMic
-                    listening={sttListening}
-                    size={20}
-                    color={sttListening
-                      ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
-                      : (T.isDark ? "rgba(255,255,255,0.60)" : "#2E2E2E")}
-                    onPressIn={() => {
-                      micPressGlow.value = withTiming(1, PRESS_IN);
-                      micScaleSV.value   = withTiming(0.95, { duration: 120 });
-                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    onPressOut={() => {
-                      micPressGlow.value = withTiming(0, PRESS_OUT);
-                      micScaleSV.value   = withTiming(1.0, { duration: 120 });
-                    }}
-                    onPress={handleSttPress}
-                    hitSlop={8}
-                  />
-                </Animated.View>
-
-              </View>
-            </Animated.View>
-
-            {/* C — black AI voice button, 56×56 */}
-            {/* dockAiShell: shadow carrier; dockAiBody: black fill, clips ripple */}
-            <Animated.View style={[ss.dockAiShell, aiCombinedStyle]}>
-              <Pressable
-                style={ss.dockAiBody}
-                onPressIn={() => {
-                  sendPressGlow.value = withTiming(1, PRESS_IN);
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                }}
-                onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
-                onPress={hasText ? handleSend : () => {
-                  if (Platform.OS === "web") {
-                    Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
-                    return;
+              {/* Text field */}
+              <TextInput
+                style={[
+                  ss.dockField,
+                  { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
+                ]}
+                placeholder=""
+                multiline
+                scrollEnabled={scrollEnabled}
+                value={inputText}
+                onContentSizeChange={onContentSizeChange}
+                onChangeText={(t) => {
+                  setInputText(t);
+                  if (t.length > 0) {
+                    placeholderSV.value = withTiming(0, { duration: 100 });
+                  } else if (inputFocused.value < 0.5) {
+                    placeholderSV.value = withTiming(1, { duration: 150 });
                   }
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push("/voice");
                 }}
-                hitSlop={4}
-              >
+                maxLength={2000}
+                returnKeyType="send"
+                onSubmitEditing={() => { if (hasText) handleSend(); }}
+                editable={!voiceActive}
+                onFocus={() => {
+                  inputFocused.value  = withTiming(1, FOCUS_DUR);
+                  placeholderSV.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
+                }}
+                onBlur={() => {
+                  inputFocused.value = withTiming(0, FOCUS_DUR);
+                  if (inputText.length === 0) {
+                    placeholderSV.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
+                  }
+                }}
+              />
+
+              {/* Divider */}
+              <View
+                style={[ss.dockDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.11)" }]}
+                pointerEvents="none"
+              />
+
+              {/* Mic */}
+              <Animated.View style={[ss.dockMicWrap, micScaleStyle]}>
                 <Animated.View
-                  style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
                   pointerEvents="none"
                 />
-                <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                  <Feather name="arrow-up" size={20} color="#FFFFFF" />
-                </Animated.View>
-                <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                  <WaveformBars active={voiceActive || sttListening} />
-                </Animated.View>
-              </Pressable>
-            </Animated.View>
+                <AkilMic
+                  listening={sttListening}
+                  size={20}
+                  color={sttListening
+                    ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
+                    : (T.isDark ? "rgba(255,255,255,0.60)" : "#2E2E2E")}
+                  onPressIn={() => {
+                    micPressGlow.value = withTiming(1, PRESS_IN);
+                    micScaleSV.value   = withTiming(0.95, { duration: 120 });
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  onPressOut={() => {
+                    micPressGlow.value = withTiming(0, PRESS_OUT);
+                    micScaleSV.value   = withTiming(1.0, { duration: 120 });
+                  }}
+                  onPress={handleSttPress}
+                  hitSlop={8}
+                />
+              </Animated.View>
 
-          </View>
+            </View>
+          </Animated.View>
+
+          {/* C — black AI voice button */}
+          <Animated.View style={[ss.dockAiShell, aiCombinedStyle]}>
+            <Pressable
+              style={ss.dockAiBody}
+              onPressIn={() => {
+                sendPressGlow.value = withTiming(1, PRESS_IN);
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+              onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
+              onPress={hasText ? handleSend : () => {
+                if (Platform.OS === "web") {
+                  Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                  return;
+                }
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/voice");
+              }}
+              hitSlop={4}
+            >
+              <Animated.View
+                style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                pointerEvents="none"
+              />
+              <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
+                <Feather name="arrow-up" size={20} color="#FFFFFF" />
+              </Animated.View>
+              <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
+                <WaveformBars active={voiceActive || sttListening} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
 
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
 
       {/* ════ SECRET CHAT — START MODAL ════ */}
       <Modal visible={secretModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSecretModal(false)}>
@@ -1342,9 +1340,11 @@ const ss = StyleSheet.create({
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
 
-  // Input area
+  // Floating dock — absolute, no background, tracks keyboard via dockKbStyle
   inputOuter: {
-    paddingHorizontal: 0,
+    position:          "absolute",
+    left:              0,
+    right:             0,
     paddingTop:        4,
     alignItems:        "center",
   },
