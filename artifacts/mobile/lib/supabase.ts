@@ -5,7 +5,10 @@
  * If not set, isSupabaseConfigured is false and AuthContext uses a local-only fallback.
  * The app works fully in both modes — guest mode never requires Supabase.
  */
-import "react-native-url-polyfill/auto";
+// NOTE: react-native-url-polyfill/auto is intentionally NOT imported here.
+// Expo SDK 50+ / Hermes already provides native URL + URLSearchParams.
+// Importing the polyfill unconditionally replaces globalThis.URL at startup,
+// which breaks Expo Router's path parsing and causes Expo Go to fail to connect.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 

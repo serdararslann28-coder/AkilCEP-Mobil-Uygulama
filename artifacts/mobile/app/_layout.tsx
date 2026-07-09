@@ -15,8 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary }    from "@/components/ErrorBoundary";
-// TEMP DISABLED FOR REGRESSION TEST — AuthProvider (supabase + url-polyfill)
-// import { AuthProvider }     from "@/context/AuthContext";
+import { AuthProvider }     from "@/context/AuthContext";
 import { ChatProvider }     from "@/context/ChatContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider }    from "@/context/ThemeContext";
@@ -92,11 +91,13 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <LanguageProvider>
-                <ThemeProvider>
-                  <ChatProvider>
-                    <RootLayoutNav />
-                  </ChatProvider>
-                </ThemeProvider>
+                <AuthProvider>
+                  <ThemeProvider>
+                    <ChatProvider>
+                      <RootLayoutNav />
+                    </ChatProvider>
+                  </ThemeProvider>
+                </AuthProvider>
               </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
