@@ -57,13 +57,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.1",
-    "expo-audio": "^56.0.10",
+    "expo-audio": "^1.1.1",
     "expo-av": "^16.0.8",
     "expo-camera": "^17.0.10",
-    "expo-clipboard": "^56.0.3",
-    "expo-file-system": "^56.0.7",
-    "expo-media-library": "^56.0.6",
-    "expo-speech": "^56.0.3",
+    "expo-clipboard": "^8.0.8",
+    "expo-file-system": "^19.0.23",
+    "expo-media-library": "^18.2.1",
+    "expo-speech": "^14.0.8",
     "qrcode": "^1.5.4",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-webview": "^13.15.0"

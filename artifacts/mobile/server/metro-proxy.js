@@ -152,12 +152,29 @@ const server = http.createServer((req, res) => {
     return serveQrPage(res);
   }
 
+  // Build forwarded headers. We must rewrite `host` so Metro doesn't reject
+  // the request as coming from an unknown host. We also strip `origin` and
+  // Replit's proxy-injected headers — without this, Metro's CorsMiddleware
+  // sees `Origin: https://[replit-domain]`, fails the localhost+allowlist
+  // check, and returns a 500 that Expo Go interprets as "Packager not running".
+  const forwardHeaders = {
+    ...req.headers,
+    host: `localhost:${METRO_PORT}`,
+  };
+  // Strip headers that trigger Metro's CORS rejection
+  delete forwardHeaders["origin"];
+  delete forwardHeaders["x-forwarded-for"];
+  delete forwardHeaders["x-forwarded-host"];
+  delete forwardHeaders["x-forwarded-proto"];
+  delete forwardHeaders["x-replit-user-id"];
+  delete forwardHeaders["x-replit-user-name"];
+
   const proxyOpts = {
     hostname: "localhost",
     port: METRO_PORT,
     path: req.url,
     method: req.method,
-    headers: { ...req.headers, host: `localhost:${METRO_PORT}` },
+    headers: forwardHeaders,
   };
 
   const proxyReq = http.request(proxyOpts, (proxyRes) => {
