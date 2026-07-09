@@ -116,6 +116,11 @@
   },
   "voice": {
     "alertTitle": "Voice Mode",
+    "alert": {
+      "recFail": "Could Not Start Recording",
+      "recFailMsg": "Microphone unavailable. Please try again.",
+      "serverError": "Server did not respond. Please try again."
+    },
     "status": {
       "init": "Preparing...",
       "idle": "Tap to speak",
@@ -173,7 +178,9 @@
     "tagline": "Intelligence in Your Pocket",
     "searchPlaceholder": "Search...",
     "emptySearch": "No results found",
+    "noResults": "No results found",
     "emptyHistory": "No conversations yet",
+    "settings": "Settings",
     "about": "About",
     "newChat": "New Chat",
     "today": "Today",
@@ -185,6 +192,7 @@
   "menu": {
     "newChat": "New Chat",
     "visualization": "Visualization",
+    "visualize": "Visualization",
     "premium": "Premium",
     "settings": "Settings",
     "helpSupport": "Help & Support",

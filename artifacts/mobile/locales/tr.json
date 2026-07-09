@@ -116,6 +116,11 @@
   },
   "voice": {
     "alertTitle": "Ses Modu",
+    "alert": {
+      "recFail": "Kayıt Başlatılamadı",
+      "recFailMsg": "Mikrofon kullanılamıyor. Lütfen tekrar deneyin.",
+      "serverError": "Sunucu yanıt vermedi. Tekrar deneyin."
+    },
     "status": {
       "init": "Hazırlanıyor...",
       "idle": "Konuşmak için dokunun",
@@ -173,7 +178,9 @@
     "tagline": "Cebindeki Akıl",
     "searchPlaceholder": "Ara...",
     "emptySearch": "Sonuç bulunamadı",
+    "noResults": "Sonuç bulunamadı",
     "emptyHistory": "Henüz sohbet yok",
+    "settings": "Ayarlar",
     "about": "Hakkımızda",
     "newChat": "Yeni Sohbet",
     "today": "Bugün",
@@ -185,6 +192,7 @@
   "menu": {
     "newChat": "Yeni Sohbet",
     "visualization": "Görselleştirme",
+    "visualize": "Görselleştirme",
     "premium": "Premium",
     "settings": "Ayarlar",
     "helpSupport": "Yardım & Destek",
