@@ -72,7 +72,7 @@ function Screen1({ onPress }: { onPress: () => void }) {
       {/* Large centered logo */}
       <View style={ss.logoSection}>
         <Image
-          source={require("@/assets/images/logo-transparent.png")}
+          source={require("@/assets/images/leaf-only-transparent.png")}
           style={ss.logoLarge}
           resizeMode="contain"
         />
@@ -81,6 +81,7 @@ function Screen1({ onPress }: { onPress: () => void }) {
       {/* Text block */}
       <View style={ss.textSection}>
         <Text style={ss.title}>AkılCEP</Text>
+        <Text style={ss.subtitle}>Cebindeki Akıl</Text>
         <Text style={ss.description}>
           {"Sor, üret, keşfet ve öğren.\nYapay zekâ artık her an yanında."}
         </Text>
