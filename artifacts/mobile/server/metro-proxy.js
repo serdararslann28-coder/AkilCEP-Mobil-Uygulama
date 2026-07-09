@@ -396,45 +396,64 @@ function prewarmAndDiagnose() {
         mReq.on("error", () => resolve(""));
       });
     })
-    // Step 3: pre-warm the iOS bundle in Metro's cache
+    // Step 3: pre-warm iOS and Android bundles in Metro's cache in parallel.
+    // Both platforms are warmed so the first device connection (regardless of
+    // platform) is instant instead of waiting 1-2 min for a cold bundle build.
     .then((manifestText) => {
       const m = manifestText.match(/"url":"([^"]+entry\.bundle[^"]+)"/);
       if (!m) {
         console.log("[metro-proxy] pre-warm: bundle URL not found in manifest");
         return null;
       }
-      const bundlePath = m[1].replace(/^https?:\/\/[^/]+/, "");
-      console.log("[metro-proxy] pre-warming iOS bundle (first build ~1-2 min) …");
 
-      return new Promise((resolve) => {
-        const bReq = http.get(
-          {
-            hostname: "localhost",
-            port: METRO_PORT,
-            path: bundlePath,
-            headers: {
-              host: `localhost:${METRO_PORT}`,
-              "expo-platform": "ios",
+      // The manifest URL always contains platform=ios from the warm-up fetch.
+      // Replace it with platform=android to get the Android bundle path.
+      const iosBundlePath = m[1].replace(/^https?:\/\/[^/]+/, "");
+      const androidBundlePath = iosBundlePath.replace(
+        "platform=ios",
+        "platform=android"
+      );
+
+      console.log("[metro-proxy] pre-warming iOS + Android bundles in parallel …");
+
+      function warmBundle(platform, bundlePath) {
+        return new Promise((resolve) => {
+          const bReq = http.get(
+            {
+              hostname: "localhost",
+              port: METRO_PORT,
+              path: bundlePath,
+              headers: {
+                host: `localhost:${METRO_PORT}`,
+                "expo-platform": platform,
+              },
             },
-          },
-          (res) => {
-            res.resume();
-            res.on("end", () => {
-              console.log("[metro-proxy] iOS bundle pre-warm complete ✓");
-              resolve(bundlePath);
-            });
-          }
-        );
-        bReq.setTimeout(300_000, () => {
-          console.log("[metro-proxy] pre-warm timed out after 5 min");
-          bReq.destroy();
-          resolve(null);
+            (res) => {
+              res.resume();
+              res.on("end", () => {
+                console.log(`[metro-proxy] ${platform} bundle pre-warm complete ✓`);
+                resolve(iosBundlePath);
+              });
+            }
+          );
+          bReq.setTimeout(300_000, () => {
+            console.log(`[metro-proxy] ${platform} pre-warm timed out after 5 min`);
+            bReq.destroy();
+            resolve(null);
+          });
+          bReq.on("error", (e) => {
+            console.log(`[metro-proxy] ${platform} pre-warm error:`, e.message);
+            resolve(null);
+          });
         });
-        bReq.on("error", (e) => {
-          console.log("[metro-proxy] pre-warm error:", e.message);
-          resolve(null);
-        });
-      });
+      }
+
+      // Run both platform builds in parallel; return when iOS finishes
+      // (Android may still be building, but that's fine — it's in Metro's queue)
+      return Promise.all([
+        warmBundle("ios", iosBundlePath),
+        warmBundle("android", androidBundlePath),
+      ]).then(([iosPath]) => iosPath);
     })
     // Step 4: self-diagnostic — fetch the manifest through the proxy and
     // verify that URL rewriting is working (no internal ports leak through)
