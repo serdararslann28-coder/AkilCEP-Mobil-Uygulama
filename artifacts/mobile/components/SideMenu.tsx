@@ -440,12 +440,12 @@ const ss = StyleSheet.create({
   brandRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           8,
+    gap:           14,
   },
 
   brandLogo: {
-    width:  22,
-    height: 22,
+    width:  38,
+    height: 38,
   },
 
   brandName: {
