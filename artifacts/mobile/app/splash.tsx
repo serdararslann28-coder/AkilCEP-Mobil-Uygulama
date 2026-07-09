@@ -53,6 +53,12 @@ export default function SplashScreen() {
 
     // Navigate at 1500 ms
     const nav = setTimeout(async () => {
+      // In development, always show onboarding regardless of saved state.
+      // In production, respect the AsyncStorage completion flag.
+      if (__DEV__) {
+        router.replace("/onboarding");
+        return;
+      }
       const done = await AsyncStorage.getItem(ONBOARDING_KEY);
       router.replace(done === "true" ? "/chat" : "/onboarding");
     }, 1500);
