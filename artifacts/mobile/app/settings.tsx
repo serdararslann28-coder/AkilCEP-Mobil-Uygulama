@@ -127,10 +127,10 @@ export default function SettingsScreen() {
       >
 
         {/* ── Page title ───────────────────────────────────────────────────── */}
-        <Text style={[ss.pageTitle, { color: T.fg }]}>Ayarlar</Text>
+        <Text style={[ss.pageTitle, { color: T.fg }]}>{t("settings.title")}</Text>
 
         {/* ── Görünüm ──────────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>Görünüm</Text>
+        <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.appearance")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <View style={ss.themeRow}>
             {THEME_OPTIONS.map((opt) => {
@@ -147,7 +147,7 @@ export default function SettingsScreen() {
                   ]}
                   onPress={() => {
                 setThemeMode(opt.mode);
-                showToast(opt.mode === "light" ? "☀️  Açık Tema Aktif" : "🌙  Koyu Tema Aktif");
+                showToast(opt.mode === "light" ? t("settings.themeToastLight") : t("settings.themeToastDark"));
               }}
                   activeOpacity={0.72}
                 >
@@ -167,7 +167,7 @@ export default function SettingsScreen() {
                       },
                     ]}
                   >
-                    {opt.label}
+                    {opt.mode === "light" ? t("settings.themeLight") : t("settings.themeDark")}
                   </Text>
                 </TouchableOpacity>
               );
@@ -191,11 +191,11 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Bildirimler ──────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>Bildirimler</Text>
+        <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.notifications")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <ToggleRow
             icon="bell"
-            label="Bildirimler"
+            label={t("settings.notifications")}
             value={notifications}
             onToggle={setNotifications}
             divider={divider}
@@ -206,11 +206,11 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Hesap ────────────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>Hesap</Text>
+        <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.account")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           <Row
             icon="user"
-            label="Profil"
+            label={t("settings.profile")}
             onPress={() => router.push("/profile")}
             divider={divider}
             fg={T.fg}
@@ -218,7 +218,7 @@ export default function SettingsScreen() {
           />
           <Row
             icon="shield"
-            label="Gizlilik"
+            label={t("settings.privacyItem")}
             onPress={() => {}}
             divider={divider}
             fg={T.fg}
@@ -226,7 +226,7 @@ export default function SettingsScreen() {
           />
           <Row
             icon="help-circle"
-            label="Destek"
+            label={t("settings.support")}
             onPress={() => {}}
             divider={divider}
             fg={T.fg}
@@ -241,18 +241,18 @@ export default function SettingsScreen() {
             style={[ss.logoutBtn, { borderColor: cardBorder }]}
             onPress={() =>
               Alert.alert(
-                "Çıkış Yap",
-                "Hesabınızdan çıkmak istediğinizden emin misiniz?",
+                t("settings.logout"),
+                t("settings.logoutConfirm"),
                 [
-                  { text: "İptal",     style: "cancel"      },
-                  { text: "Çıkış Yap", style: "destructive" },
+                  { text: t("common.cancel"),  style: "cancel"      },
+                  { text: t("settings.logout"), style: "destructive" },
                 ]
               )
             }
             activeOpacity={0.72}
           >
             <Feather name="log-out" size={16} color="#FF3B30" />
-            <Text style={ss.logoutLabel}>Çıkış Yap</Text>
+            <Text style={ss.logoutLabel}>{t("settings.logout")}</Text>
           </TouchableOpacity>
         </View>
 

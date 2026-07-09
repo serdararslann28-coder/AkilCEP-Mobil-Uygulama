@@ -24,6 +24,7 @@ import { router }       from "expo-router";
 import { StatusBar }    from "expo-status-bar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useChat }      from "@/context/ChatContext";
+import { useLanguage }  from "@/context/LanguageContext";
 import {
   Alert,
   Dimensions,
@@ -90,6 +91,7 @@ export default function VisionScreen() {
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
 
+  const { t } = useLanguage();
   const { startVisionAnalysis } = useChat();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef       = useRef<CameraView>(null);
@@ -213,11 +215,11 @@ export default function VisionScreen() {
 
   const handleAnalyze = useCallback(async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Kamera Analizi", "Bu özellik yalnızca mobil cihazlarda çalışır.");
+      Alert.alert(t("vision.alert.analyzeWeb"), t("vision.alert.mobileOnly"));
       return;
     }
     if (!permGranted) {
-      Alert.alert("Kamera İzni", "Analiz için kamera iznine ihtiyaç var.");
+      Alert.alert(t("vision.alert.cameraPerm"), t("vision.alert.cameraPermMsg"));
       return;
     }
     if (!cameraRef.current) return;
@@ -234,7 +236,7 @@ export default function VisionScreen() {
       });
 
       if (!photo?.base64) {
-        Alert.alert("Fotoğraf Hatası", "Fotoğraf çekilemedi. Tekrar deneyin.");
+        Alert.alert(t("vision.alert.photoError"), t("vision.alert.photoErrorMsg"));
         return;
       }
 
@@ -242,15 +244,15 @@ export default function VisionScreen() {
       router.replace("/chat");
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata.";
-      Alert.alert("Fotoğraf Hatası", `Fotoğraf çekilemedi.\n\n${msg}`);
+      const msg = err instanceof Error ? err.message : t("vision.alert.unknownError");
+      Alert.alert(t("vision.alert.photoError"), `${t("vision.alert.photoErrorMsg")}\n\n${msg}`);
     }
   }, [permGranted, startVisionAnalysis, triggerFlash, triggerDetection]);
 
   // ── "Sor" — voice question pipeline ─────────────────────────────────────────
   const handleAsk = useCallback(async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Sesli Soru", "Bu özellik yalnızca mobil cihazlarda çalışır.");
+      Alert.alert(t("vision.alert.askWeb"), t("vision.alert.mobileOnly"));
       return;
     }
 
@@ -313,7 +315,7 @@ export default function VisionScreen() {
         });
 
         if (!photo?.base64) {
-          Alert.alert("Fotoğraf Hatası", "Fotoğraf çekilemedi. Tekrar deneyin.");
+          Alert.alert(t("vision.alert.photoError"), t("vision.alert.photoErrorMsg"));
           setAskState("idle");
           return;
         }
@@ -330,20 +332,20 @@ export default function VisionScreen() {
       } catch (err: unknown) {
         console.warn("[vision ask] processing error:", err);
         setAskState("idle");
-        Alert.alert("Sesli Soru Hatası", "İşlem tamamlanamadı. Tekrar deneyin.");
+        Alert.alert(t("vision.alert.askError"), t("vision.alert.askErrorMsg"));
       }
       return;
     }
 
     // ── Phase 1: start mic recording ───────────────────────────────────────────
     if (!permGranted) {
-      Alert.alert("Kamera İzni", "Sesli soru için kamera iznine de ihtiyaç var.");
+      Alert.alert(t("vision.alert.cameraPerm"), t("vision.alert.cameraPermAsk"));
       return;
     }
 
     const { granted: micGranted } = await Audio.requestPermissionsAsync();
     if (!micGranted) {
-      Alert.alert("Mikrofon İzni", "Sesli soru için mikrofon iznine ihtiyaç var.");
+      Alert.alert(t("vision.alert.micPerm"), t("vision.alert.micPermMsg"));
       return;
     }
 
@@ -356,7 +358,7 @@ export default function VisionScreen() {
       askRecordingRef.current = recording;
       setAskState("listening");
     } catch {
-      Alert.alert("Mikrofon Hatası", "Ses kaydı başlatılamadı. Tekrar deneyin.");
+      Alert.alert(t("vision.alert.micError"), t("vision.alert.micErrorMsg"));
     }
   }, [askState, permGranted, triggerFlash, triggerDetection, startVisionAnalysis]);
 
@@ -410,7 +412,7 @@ export default function VisionScreen() {
 
       {/* Ask overlay — shown while listening or analyzing */}
       {askState !== "idle" && (
-        <AskOverlay
+        <AskOverlay t={t}
           state={askState}
           btmPad={btmPad}
           onStop={() => void handleAsk()}
@@ -509,7 +511,7 @@ export default function VisionScreen() {
           <View style={[ss.sideBtnIcon, askState !== "idle" && ss.sideBtnDimmed]}>
             <Feather name="zap" size={19} color="rgba(255,255,255,0.85)" />
           </View>
-          <Text style={ss.sideBtnLabel}>Analiz Et</Text>
+          <Text style={ss.sideBtnLabel}>{t("vision.analyzeBtn")}</Text>
         </TouchableOpacity>
 
         {/* Shutter — Apple-style */}
@@ -540,7 +542,7 @@ export default function VisionScreen() {
             ss.sideBtnLabel,
             askState === "listening" && { color: "rgba(255,100,100,0.90)" },
           ]}>
-            {askState === "listening" ? "Durdur" : askState === "analyzing" ? "Analiz" : "Sor"}
+            {askState === "listening" ? t("vision.stopBtn") : askState === "analyzing" ? t("vision.analyzingBtn") : t("vision.askBtn")}
           </Text>
         </TouchableOpacity>
       </Animated.View>
@@ -645,10 +647,12 @@ function AskOverlay({
   state,
   btmPad,
   onStop,
+  t,
 }: {
   state:   AskState;
   btmPad:  number;
   onStop:  () => void;
+  t:       (k: string) => string;
 }) {
   const opAnim = useSharedValue(0);
 
@@ -668,13 +672,13 @@ function AskOverlay({
         {state === "listening" ? (
           <>
             <MicRipple />
-            <Text style={ss.overlayText}>Dinleniyor…</Text>
+            <Text style={ss.overlayText}>{t("vision.overlay.listening")}</Text>
             <TouchableOpacity
               style={ss.overlayStop}
               onPress={onStop}
               activeOpacity={0.70}
             >
-              <Text style={ss.overlayStopText}>Gönder</Text>
+              <Text style={ss.overlayStopText}>{t("vision.overlay.send")}</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -682,7 +686,7 @@ function AskOverlay({
             <View style={ss.overlaySpinWrap}>
               <AnalyzingDots />
             </View>
-            <Text style={ss.overlayText}>Analiz ediliyor…</Text>
+            <Text style={ss.overlayText}>{t("vision.overlay.analyzing")}</Text>
           </>
         )}
       </BlurView>

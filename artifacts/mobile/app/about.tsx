@@ -17,26 +17,27 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme }    from "@/context/ThemeContext";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
-
-// ─── Feature list ──────────────────────────────────────────────────────────────
-const FEATURES: {
-  icon:  React.ComponentProps<typeof Feather>["name"];
-  label: string;
-  desc:  string;
-}[] = [
-  { icon: "message-circle", label: "Yapay Zeka Sohbet",  desc: "Türkçe ile sınırsız sohbet"       },
-  { icon: "camera",         label: "AkılCEP Vision",     desc: "Fotoğraf ve görsel analizi"        },
-  { icon: "mic",            label: "Sesli Sohbet",       desc: "Doğal ses asistanı"               },
-  { icon: "image",          label: "Görsel Üretme",      desc: "Yapay zeka ile görsel oluşturma"  },
-  { icon: "globe",          label: "Web Arama",          desc: "Güncel bilgiye erişim"            },
-];
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function AboutScreen() {
   const { theme: T } = useTheme();
+  const { t } = useLanguage();
+
+  const FEATURES: {
+    icon:  React.ComponentProps<typeof Feather>["name"];
+    label: string;
+    desc:  string;
+  }[] = [
+    { icon: "message-circle", label: t("about.feat1.label"), desc: t("about.feat1.desc") },
+    { icon: "camera",         label: t("about.feat2.label"), desc: t("about.feat2.desc") },
+    { icon: "mic",            label: t("about.feat3.label"), desc: t("about.feat3.desc") },
+    { icon: "image",          label: t("about.feat4.label"), desc: t("about.feat4.desc") },
+    { icon: "globe",          label: t("about.feat5.label"), desc: t("about.feat5.desc") },
+  ];
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -76,14 +77,14 @@ export default function AboutScreen() {
             />
           </View>
           <Text style={[ss.heroTitle, { color: T.fg }]}>AkılCEP</Text>
-          <Text style={[ss.heroSub, { color: muted }]}>Cebindeki Akıl</Text>
+          <Text style={[ss.heroSub, { color: muted }]}>{t("about.tagline")}</Text>
           <Text style={[ss.heroDesc, { color: T.fgSoft }]}>
-            Türkçe konuşan yapay zeka asistanı.
+            {t("about.heroDesc")}
           </Text>
         </View>
 
         {/* ── Features ─────────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>Özellikler</Text>
+        <Text style={[ss.sectionLabel, { color: muted }]}>{t("about.features")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
           {FEATURES.map((f, idx) => (
             <View

@@ -41,7 +41,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { useTheme } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme }    from "@/context/ThemeContext";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 const SW        = Dimensions.get("window").width;
@@ -59,15 +60,8 @@ const EASE_SNAP = Easing.out(Easing.ease);
 // ─── Spring — overdamped, zero overshoot ──────────────────────────────────────
 const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
-const ACTIONS = [
-  { id: "camera", icon: "camera"    as const, label: "Fotoğraf Çek",  sub: "Kamerayı aç"                       },
-  { id: "photos", icon: "image"     as const, label: "Galeriden Seç", sub: "Mevcut görsel yükle"                },
-  { id: "files",  icon: "paperclip" as const, label: "Dosya Ekle",    sub: "PDF, Word, Excel\nve diğer dosyalar" },
-  { id: "audio",  icon: "mic"       as const, label: "Ses Kaydı",     sub: "Sesini analiz et"                   },
-] as const;
-
-type ActionId = typeof ACTIONS[number]["id"];
+// ─── Action IDs ───────────────────────────────────────────────────────────────
+type ActionId = "camera" | "photos" | "files" | "audio";
 
 // ─── ActionCard ───────────────────────────────────────────────────────────────
 function ActionCard({
@@ -157,6 +151,14 @@ export default function MultimodalPanel({
   bottomOffset,
 }: Props) {
   const { theme: T } = useTheme();
+  const { t } = useLanguage();
+
+  const ACTIONS: { id: ActionId; icon: React.ComponentProps<typeof Feather>["name"]; label: string; sub: string }[] = [
+    { id: "camera", icon: "camera",    label: t("multimodal.takePhoto.label"), sub: t("multimodal.takePhoto.sub")  },
+    { id: "photos", icon: "image",     label: t("multimodal.gallery.label"),   sub: t("multimodal.gallery.sub")    },
+    { id: "files",  icon: "paperclip", label: t("multimodal.file.label"),      sub: t("multimodal.file.sub")       },
+    { id: "audio",  icon: "mic",       label: t("multimodal.audio.label"),     sub: t("multimodal.audio.sub")      },
+  ];
   const { reanimated } = useKeyboardContext();
   const kbH = reanimated.height;
 

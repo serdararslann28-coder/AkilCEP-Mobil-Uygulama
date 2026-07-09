@@ -26,9 +26,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useChat }  from "@/context/ChatContext";
-import { useTheme } from "@/context/ThemeContext";
-import ThemeToggle  from "@/components/ThemeToggle";
+import { useChat }     from "@/context/ChatContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme }    from "@/context/ThemeContext";
+import ThemeToggle     from "@/components/ThemeToggle";
 
 const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 const avatar   = require("@/assets/images/avatar.png");
@@ -48,17 +49,6 @@ const EXAMPLE_HISTORY = [
   { id: "h5", title: "Kullanıcı Deneyimi Analizi",  time: "3g" },
 ];
 
-// ─── Menu groups — icon-free, clean text only ───────────────────────────────────
-const GROUP_PRIMARY = [
-  { label: "Yeni Sohbet",    route: "/chat", accent: false },
-  { label: "Görselleştirme", route: null,    accent: false },
-] as const;
-
-const GROUP_SECONDARY = [
-  { label: "Premium",        route: null, accent: true  },
-  { label: "Ayarlar",        route: null, accent: false },
-  { label: "Yardım & Destek",route: null, accent: false },
-] as const;
 
 // ─── Component ──────────────────────────────────────────────────────────────────
 interface Props {
@@ -72,6 +62,18 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
   const { theme } = useTheme();
   const T = theme;
+  const { t } = useLanguage();
+
+  const GROUP_PRIMARY = [
+    { label: t("menu.newChat"),       route: "/chat", accent: false },
+    { label: t("menu.visualize"),     route: null,    accent: false },
+  ];
+
+  const GROUP_SECONDARY = [
+    { label: t("menu.premium"),       route: null, accent: true  },
+    { label: t("menu.settings"),      route: null, accent: false },
+    { label: t("menu.helpSupport"),   route: null, accent: false },
+  ];
 
   const {
     conversations, currentConversation,
@@ -118,7 +120,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
 
   // ── Merge real + example history ───────────────────────────────────────────
   const realConvs = conversations.slice(0, 5).map(c => ({
-    id: c.id, title: c.title, time: "Az önce", real: true,
+    id: c.id, title: c.title, time: t("menu.recentTime"), real: true,
   }));
   const displayHistory = realConvs.length > 0
     ? realConvs
@@ -207,10 +209,10 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
                 <View style={[ss.onlineDot, { backgroundColor: T.onlineDot, borderColor: groupBg }]} />
               </View>
               <View style={ss.profileText}>
-                <Text style={[ss.profileName, { color: T.fg }]}>Kullanıcı</Text>
+                <Text style={[ss.profileName, { color: T.fg }]}>{t("menu.user")}</Text>
                 <View style={ss.profileSubRow}>
                   <View style={[ss.planChip, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.048)" }]}>
-                    <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.50)" }]}>Ücretsiz</Text>
+                    <Text style={[ss.planChipLabel, { color: T.isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.50)" }]}>{t("menu.freePlan")}</Text>
                   </View>
                   <Text style={[ss.planSub, { color: T.muted }]}>AkılCEP</Text>
                 </View>
@@ -222,7 +224,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
           </TouchableOpacity>
 
           {/* ── SABİTLENENLER ── */}
-          <SectionHeader title="SABİTLENENLER" T={T} />
+          <SectionHeader title={t("menu.pinned")} T={T} />
           <View style={[ss.listCard, {
             backgroundColor: groupBg,
             borderColor:     groupBorder,
@@ -257,7 +259,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
           </View>
 
           {/* ── GEÇMİŞ SOHBETLER ── */}
-          <SectionHeader title="GEÇMİŞ SOHBETLER" T={T} action="Tümünü Gör" />
+          <SectionHeader title={t("menu.history")} T={T} action={t("menu.seeAll")} />
           <View style={[ss.listCard, {
             backgroundColor: groupBg,
             borderColor:     groupBorder,
@@ -374,7 +376,7 @@ export default function FullscreenMenu({ visible, onClose }: Props) {
               <Text style={[ss.menuLabel, {
                 color: T.isDark ? "rgba(255,80,70,0.72)" : "rgba(220,38,30,0.82)",
               }]}>
-                Çıkış Yap
+                {t("menu.logout")}
               </Text>
             </TouchableOpacity>
           </View>

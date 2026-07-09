@@ -60,6 +60,7 @@ import ThinkingCard     from "@/components/ThinkingCard";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
 import { AkilMic }      from "@/components/AkilMic";
 import { useChat }      from "@/context/ChatContext";
+import { useLanguage }  from "@/context/LanguageContext";
 import { useTheme }     from "@/context/ThemeContext";
 
 const leafOnly = require("@/assets/images/leaf-only-transparent.png");
@@ -113,6 +114,7 @@ function WaveformBars({ active }: { active: boolean }) {
 
 export default function ChatScreen() {
   const { theme: T }   = useTheme();
+  const { t }          = useLanguage();
   const insets          = useSafeAreaInsets();
   const {
     currentMessages,
@@ -452,9 +454,9 @@ export default function ChatScreen() {
       permGrantedRef.current = granted;
       if (!granted) {
         Alert.alert(
-          "Mikrofon İzni",
-          "Sesli mod için mikrofon izni gereklidir.",
-          [{ text: "Tamam" }]
+          t("chat.alert.micPerm"),
+          t("chat.alert.micPermMsg"),
+          [{ text: t("common.ok") }]
         );
       }
       return granted;
@@ -495,7 +497,7 @@ export default function ChatScreen() {
     const p = voicePhaseRef.current;
 
     if (Platform.OS === "web") {
-      Alert.alert("Sesli Mod", "Sesli mod mobil cihazlarda çalışır.");
+      Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.voiceModeMsg"));
       return;
     }
 
@@ -534,7 +536,7 @@ export default function ChatScreen() {
   // ── STT helpers — mic icon fills input field (no navigation) ────────────────
   const handleSttPress = async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Ses Girişi", "Sesli giriş yalnızca mobil cihazlarda çalışır.");
+      Alert.alert(t("chat.alert.voiceInput"), t("chat.alert.voiceInputMsg"));
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -559,7 +561,7 @@ export default function ChatScreen() {
         -1, true,
       );
     } catch {
-      Alert.alert("Ses Girişi", "Mikrofon başlatılamadı.");
+      Alert.alert(t("chat.alert.voiceInput"), t("chat.alert.micStartFail"));
     }
   };
 
@@ -616,7 +618,7 @@ export default function ChatScreen() {
       applyVoice("listening");
     } catch (err) {
       console.warn("[voice] startListening:", err);
-      Alert.alert("Kayıt Hatası", "Mikrofon başlatılamadı. Tekrar deneyin.");
+      Alert.alert(t("chat.alert.recError"), t("chat.alert.recErrorMsg"));
     }
   };
 
@@ -678,7 +680,7 @@ export default function ChatScreen() {
       if (abort.signal.aborted) return;
 
       if (!res.ok) {
-        Alert.alert("Ses Modu", "Sunucu yanıt vermedi. Tekrar deneyin.");
+        Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.serverError"));
         applyVoice("idle");
         return;
       }
@@ -821,7 +823,7 @@ export default function ChatScreen() {
         {/* "Gizli" badge — slides in below logo when secret mode is active */}
         <Animated.View style={[ss.secretBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.055)", borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.09)" }, badgeStyle]}>
           <Feather name="lock" size={7} color={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"} />
-          <Text style={[ss.secretBadgeText, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)" }]}>Gizli</Text>
+          <Text style={[ss.secretBadgeText, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)" }]}>{t("chat.secretBadge")}</Text>
         </Animated.View>
       </View>
 
@@ -871,7 +873,7 @@ export default function ChatScreen() {
               <ImageGenCard />
             ) : (
               <ThinkingCard label={
-                visionPending ? "Fotoğraf analiz ediliyor…" : undefined
+                visionPending ? t("chat.visionPending") : undefined
               } />
             )
           ) : null}
@@ -928,7 +930,7 @@ export default function ChatScreen() {
                   pointerEvents="none"
                   numberOfLines={1}
                 >
-                  Yaz…
+                  {t("chat.placeholder")}
                 </Animated.Text>
               )}
 
@@ -1013,7 +1015,7 @@ export default function ChatScreen() {
               onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
               onPress={hasText ? handleSend : () => {
                 if (Platform.OS === "web") {
-                  Alert.alert("Sesli Mod", "Sesli mod yalnızca mobil cihazlarda çalışır.");
+                  Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.voiceMobileOnly"));
                   return;
                 }
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1044,8 +1046,8 @@ export default function ChatScreen() {
             <View style={[ss.modalIconCircle, { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }]}>
               <Feather name="lock" size={20} color={T.isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.50)"} />
             </View>
-            <Text style={[ss.modalTitle, { color: T.fg }]}>Gizli Sohbet</Text>
-            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>Bu sohbet geçmişe kaydedilmez.</Text>
+            <Text style={[ss.modalTitle, { color: T.fg }]}>{t("chat.secretModal.title")}</Text>
+            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>{t("chat.secretModal.desc")}</Text>
             <TouchableOpacity
               style={[ss.modalBtn, { backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)" }]}
               activeOpacity={0.70}
@@ -1056,10 +1058,10 @@ export default function ChatScreen() {
               }}
             >
               <Feather name="lock" size={13} color={T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)"} />
-              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>Gizli Sohbet Başlat</Text>
+              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>{t("chat.secretModal.start")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.modalBtnGhost} activeOpacity={0.55} onPress={() => setSecretModal(false)}>
-              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>İptal</Text>
+              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1085,14 +1087,14 @@ export default function ChatScreen() {
             >
               <Feather name="x" size={20} color={T.fg} />
             </TouchableOpacity>
-            <Text style={[ss.expandTitle, { color: T.fgSoft }]}>Uzun Mesaj</Text>
+            <Text style={[ss.expandTitle, { color: T.fgSoft }]}>{t("chat.expandTitle")}</Text>
             <View style={{ width: 44 }} />
           </View>
 
           {/* Large text area */}
           <TextInput
             style={[ss.expandInput, { color: T.fg }]}
-            placeholder="AkılCEP'e yaz…"
+            placeholder={t("chat.expandPlaceholder")}
             placeholderTextColor={T.muted}
             value={inputText}
             onChangeText={setInputText}
@@ -1128,8 +1130,8 @@ export default function ChatScreen() {
             <View style={[ss.modalIconCircle, { backgroundColor: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }]}>
               <Feather name="shield-off" size={20} color={T.isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.50)"} />
             </View>
-            <Text style={[ss.modalTitle, { color: T.fg }]}>Gizli sohbet sonlandırılsın mı?</Text>
-            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>Tüm mesajlar silinecek ve sohbet geçmişe kaydedilmeyecek.</Text>
+            <Text style={[ss.modalTitle, { color: T.fg }]}>{t("chat.exitModal.title")}</Text>
+            <Text style={[ss.modalDesc,  { color: T.fgSoft }]}>{t("chat.exitModal.desc")}</Text>
             <TouchableOpacity
               style={[ss.modalBtn, { backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)" }]}
               activeOpacity={0.70}
@@ -1139,10 +1141,10 @@ export default function ChatScreen() {
                 startNewConversation();
               }}
             >
-              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>Sonlandır</Text>
+              <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>{t("chat.exitModal.end")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.modalBtnGhost} activeOpacity={0.55} onPress={() => setExitModal(false)}>
-              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>Devam Et</Text>
+              <Text style={[ss.modalBtnGhostText, { color: T.muted }]}>{t("chat.exitModal.continue")}</Text>
             </TouchableOpacity>
           </View>
         </View>

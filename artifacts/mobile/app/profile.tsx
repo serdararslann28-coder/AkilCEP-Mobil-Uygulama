@@ -32,17 +32,11 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PhotoCropModal        from "@/components/PhotoCropModal";
+import { useLanguage }       from "@/context/LanguageContext";
 import { useTheme }          from "@/context/ThemeContext";
 import { STARTUP_SOUND_KEY } from "@/app/splash";
 
 const defaultAvatar = require("@/assets/images/avatar.png");
-
-const PHOTO_OPTIONS = [
-  { label: "Fotoğraf Çek",         icon: "camera",  key: "camera"   },
-  { label: "Galeriden Seç",        icon: "image",   key: "gallery"  },
-  { label: "Varsayılan Avatarlar", icon: "grid",    key: "defaults" },
-  { label: "Kaldır",               icon: "trash-2", key: "remove", danger: true },
-];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +44,14 @@ export default function ProfileScreen() {
   const btmPad = Platform.OS === "web" ? 32 : insets.bottom;
   const { theme } = useTheme();
   const T = theme;
+  const { t } = useLanguage();
+
+  const PHOTO_OPTIONS = [
+    { label: t("profile.takePhoto"),       icon: "camera",  key: "camera"   },
+    { label: t("profile.chooseFromLibrary"),icon: "image",   key: "gallery"  },
+    { label: t("profile.defaultAvatars"),  icon: "grid",    key: "defaults" },
+    { label: t("profile.remove"),          icon: "trash-2", key: "remove", danger: true },
+  ];
 
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [username,  setUsername]  = useState("SERDAR");
@@ -99,7 +101,7 @@ export default function ProfileScreen() {
     const perm = isCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { Alert.alert("İzin gerekli", "Lütfen ayarlardan izin verin."); return; }
+    if (!perm.granted) { Alert.alert(t("profile.permRequired.title"), t("profile.permRequired.msg")); return; }
     const result = isCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.92, allowsEditing: false })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.92, allowsEditing: false });
@@ -156,20 +158,20 @@ export default function ProfileScreen() {
               </View>
               <View style={[ss.onlineDot, { backgroundColor: T.onlineDot, borderColor: T.bg }]} />
             </TouchableOpacity>
-            <Text style={[ss.avatarHint, { color: T.muted }]}>Fotoğrafı değiştir</Text>
+            <Text style={[ss.avatarHint, { color: T.muted }]}>{t("profile.changePhoto")}</Text>
           </View>
 
           {/* Identity fields */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>KİŞİSEL BİLGİLER</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.personalInfo")}</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               <View style={ss.fieldRow}>
-                <Text style={[ss.fieldLabel, { color: T.muted }]}>Ad</Text>
+                <Text style={[ss.fieldLabel, { color: T.muted }]}>{t("profile.fieldName")}</Text>
                 <TextInput style={[ss.fieldInput, { color: T.fg }]} value={username} onChangeText={setUsername} placeholderTextColor={T.zinc} returnKeyType="next" autoCapitalize="words" />
               </View>
               <View style={[ss.divider, { backgroundColor: borderClr }]} />
               <View style={ss.fieldRow}>
-                <Text style={[ss.fieldLabel, { color: T.muted }]}>E-posta</Text>
+                <Text style={[ss.fieldLabel, { color: T.muted }]}>{t("profile.fieldEmail")}</Text>
                 <TextInput style={[ss.fieldInput, { color: T.fg }]} value={email} onChangeText={setEmail} placeholderTextColor={T.zinc} returnKeyType="done" keyboardType="email-address" autoCapitalize="none" />
               </View>
             </View>
@@ -177,18 +179,18 @@ export default function ProfileScreen() {
 
           {/* Membership */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>ÜYELİK</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.membership")}</Text>
             <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[ss.memberCard, { borderColor: borderClr }]}>
               <View style={ss.memberLeft}>
                 <View style={[ss.memberBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}>
                   <Feather name="star" size={10} color={T.fg} />
-                  <Text style={[ss.memberBadgeText, { color: T.fg }]}>ÜCRETSİZ</Text>
+                  <Text style={[ss.memberBadgeText, { color: T.fg }]}>{t("profile.freeBadge")}</Text>
                 </View>
-                <Text style={[ss.memberTitle, { color: T.fg }]}>Ücretsiz Plan</Text>
-                <Text style={[ss.memberSub,   { color: T.muted }]}>Temel AI deneyimi</Text>
+                <Text style={[ss.memberTitle, { color: T.fg }]}>{t("profile.freePlan")}</Text>
+                <Text style={[ss.memberSub,   { color: T.muted }]}>{t("profile.freeDesc")}</Text>
               </View>
               <TouchableOpacity style={[ss.upgradePill, { backgroundColor: T.isDark ? T.green : T.fg }]} activeOpacity={0.80} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
-                <Text style={[ss.upgradeText, { color: T.isDark ? "#050505" : "#FFF" }]}>Premium'a Geç</Text>
+                <Text style={[ss.upgradeText, { color: T.isDark ? "#050505" : "#FFF" }]}>{t("profile.upgradePremium")}</Text>
                 <Feather name="arrow-right" size={12} color={T.isDark ? "#050505" : "#FFF"} />
               </TouchableOpacity>
             </LinearGradient>
@@ -196,12 +198,12 @@ export default function ProfileScreen() {
 
           {/* Account */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>HESAP</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("settings.account")}</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               {[
-                { icon: "lock",   label: "Şifre Değiştir" },
-                { icon: "shield", label: "İki Faktörlü Doğrulama" },
-                { icon: "bell",   label: "Bildirimler" },
+                { icon: "lock",   label: t("profile.changePassword") },
+                { icon: "shield", label: t("profile.twoFactor") },
+                { icon: "bell",   label: t("settings.notifications") },
               ].map((item, i, arr) => (
                 <React.Fragment key={item.label}>
                   <TouchableOpacity style={ss.accountRow} activeOpacity={0.6}>
@@ -219,16 +221,16 @@ export default function ProfileScreen() {
 
           {/* Sound settings */}
           <View style={ss.section}>
-            <Text style={[ss.sectionLabel, { color: T.zinc }]}>SES</Text>
+            <Text style={[ss.sectionLabel, { color: T.zinc }]}>{t("profile.soundSection")}</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               <View style={ss.accountRow}>
                 <View style={[ss.accountIcon, { backgroundColor: iconBg }]}>
                   <Feather name="volume-2" size={15} color={T.fg} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[ss.accountLabel, { color: T.fg }]}>Açılış Sesi</Text>
+                  <Text style={[ss.accountLabel, { color: T.fg }]}>{t("profile.startupSound")}</Text>
                   <Text style={[ss.soundSub, { color: T.zinc }]}>
-                    {startupSound ? "Açık" : "Kapalı"}
+                    {startupSound ? t("profile.on") : t("profile.off")}
                   </Text>
                 </View>
                 <Switch
@@ -249,7 +251,7 @@ export default function ProfileScreen() {
                 <View style={[ss.accountIcon, { backgroundColor: "rgba(255,59,48,0.08)" }]}>
                   <Feather name="trash-2" size={15} color="#FF3B30" />
                 </View>
-                <Text style={[ss.accountLabel, { color: "#FF3B30" }]}>Hesabı Sil</Text>
+                <Text style={[ss.accountLabel, { color: "#FF3B30" }]}>{t("profile.deleteAccount")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -265,7 +267,7 @@ export default function ProfileScreen() {
           </Animated.View>
           <Animated.View style={[ss.actionSheet, sheetStyle, { paddingBottom: btmPad + 8, backgroundColor: sheetBg }]}>
             <View style={[ss.sheetHandle, { backgroundColor: handleClr }]} />
-            <Text style={[ss.sheetTitle, { color: T.fg }]}>Profil Fotoğrafı</Text>
+            <Text style={[ss.sheetTitle, { color: T.fg }]}>{t("profile.profilePhoto")}</Text>
             {PHOTO_OPTIONS.map((opt, i) => (
               <React.Fragment key={opt.key}>
                 <TouchableOpacity style={ss.sheetRow} onPress={() => handlePhotoOption(opt.key)} activeOpacity={0.6}>
@@ -278,7 +280,7 @@ export default function ProfileScreen() {
               </React.Fragment>
             ))}
             <TouchableOpacity style={[ss.cancelBtn, { backgroundColor: cardBg }]} onPress={closeSheet} activeOpacity={0.75}>
-              <Text style={[ss.cancelText, { color: T.fg }]}>İptal</Text>
+              <Text style={[ss.cancelText, { color: T.fg }]}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </Animated.View>
         </>

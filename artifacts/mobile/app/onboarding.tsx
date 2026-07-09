@@ -47,6 +47,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "@/context/LanguageContext";
 
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
@@ -1286,35 +1287,37 @@ interface ScreenCfg {
   isFinal?:     boolean;
 }
 
-const SCREENS: ScreenCfg[] = [
-  {
-    Illustration: AwakeningIllustration,
-    title: "AkılCEP", subtitle: "Cebindeki akıl.",
-    showSkip: false, buttonLabel: "Devam Et",
-  },
-  {
-    Illustration: ThinkIllustration,
-    title: "Düşün.", subtitle: "Her soruya daha akıllı yaklaş.",
-    showSkip: true, buttonLabel: "Devam Et",
-  },
-  {
-    Illustration: UnderstandIllustration,
-    title: "Anla.", subtitle: "Web, belgeler ve görseller tek yerde.",
-    showSkip: true, buttonLabel: "Devam",
-  },
-  {
-    Illustration: SpeakIllustration,
-    title: "Konuş.", subtitle: "Yazmak zorunda değilsin.",
-    showSkip: true, buttonLabel: "Devam",
-  },
-  {
-    Illustration: BeginIllustration,
-    title: "Başlayalım.", subtitle: "AkılCEP seninle.",
-    showSkip: false, buttonLabel: "Başla", isFinal: true,
-  },
-];
+function getScreens(t: (k: string) => string): ScreenCfg[] {
+  return [
+    {
+      Illustration: AwakeningIllustration,
+      title: "AkılCEP", subtitle: t("onboarding.s1.subtitle"),
+      showSkip: false, buttonLabel: t("onboarding.continue"),
+    },
+    {
+      Illustration: ThinkIllustration,
+      title: t("onboarding.s2.title"), subtitle: t("onboarding.s2.subtitle"),
+      showSkip: true, buttonLabel: t("onboarding.continue"),
+    },
+    {
+      Illustration: UnderstandIllustration,
+      title: t("onboarding.s3.title"), subtitle: t("onboarding.s3.subtitle"),
+      showSkip: true, buttonLabel: t("onboarding.next"),
+    },
+    {
+      Illustration: SpeakIllustration,
+      title: t("onboarding.s4.title"), subtitle: t("onboarding.s4.subtitle"),
+      showSkip: true, buttonLabel: t("onboarding.next"),
+    },
+    {
+      Illustration: BeginIllustration,
+      title: t("onboarding.s5.title"), subtitle: t("onboarding.s5.subtitle"),
+      showSkip: false, buttonLabel: t("onboarding.start"), isFinal: true,
+    },
+  ];
+}
 
-const NUM = SCREENS.length;
+const NUM = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE INDICATOR
@@ -1334,6 +1337,8 @@ function PageDot({ index, scrollX }: { index: number; scrollX: SharedValue<numbe
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Onboarding() {
   const insets  = useSafeAreaInsets();
+  const { t }   = useLanguage();
+  const SCREENS = getScreens(t);
   const listRef = useRef<FlatList<number>>(null);
   const [idx, setIdx] = useState(0);
   const scrollX = useSharedValue(0);
@@ -1389,7 +1394,7 @@ export default function Onboarding() {
               hitSlop={16}
               activeOpacity={0.45}
             >
-              <Text style={ss.skipTxt}>Atla</Text>
+              <Text style={ss.skipTxt}>{t("onboarding.skip")}</Text>
             </TouchableOpacity>
           )}
 

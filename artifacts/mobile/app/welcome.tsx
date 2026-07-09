@@ -14,6 +14,7 @@
 import { router }      from "expo-router";
 import { StatusBar }   from "expo-status-bar";
 import React, { useEffect } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -37,6 +38,8 @@ const T_WELCOME  = 800;
 const T_NAVIGATE = 1500;
 
 export default function Welcome() {
+  const { t } = useLanguage();
+
   // Fade-in values
   const iconOp    = useSharedValue(0);
   const brandOp   = useSharedValue(0);
@@ -110,7 +113,7 @@ export default function Welcome() {
 
         {/* Welcome line */}
         <Animated.Text style={[ss.welcome, welcomeStyle]}>
-          HOŞ GELDİN
+          {t("brand.welcomeGreeting")}
         </Animated.Text>
 
       </View>

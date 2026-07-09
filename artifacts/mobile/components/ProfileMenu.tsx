@@ -26,22 +26,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme }    from "@/context/ThemeContext";
 
 const SCREEN_H = Dimensions.get("window").height;
 const avatar   = require("@/assets/images/avatar.png");
-
-const SECTIONS = [
-  [
-    { icon: "user",     label: "Profil",     action: "profile" },
-    { icon: "cpu",      label: "Hafıza",     action: "" },
-    { icon: "mic",      label: "Voice Mode", action: "voice" },
-  ],
-  [
-    { icon: "star",     label: "Premium",    action: "" },
-    { icon: "settings", label: "Ayarlar",    action: "" },
-  ],
-];
 
 interface ProfileMenuProps {
   visible: boolean;
@@ -53,6 +42,19 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
   const btmPad = Platform.OS === "web" ? 32 : insets.bottom;
   const { theme } = useTheme();
   const T = theme;
+  const { t } = useLanguage();
+
+  const SECTIONS = [
+    [
+      { icon: "user",     label: t("profileMenu.profile"),  action: "profile" },
+      { icon: "cpu",      label: t("profileMenu.memory"),   action: "" },
+      { icon: "mic",      label: t("profileMenu.voiceMode"),action: "voice" },
+    ],
+    [
+      { icon: "star",     label: t("profileMenu.premium"),  action: "" },
+      { icon: "settings", label: t("profileMenu.settings"), action: "" },
+    ],
+  ];
 
   const translateY     = useSharedValue(SCREEN_H);
   const overlayOpacity = useSharedValue(0);
@@ -115,8 +117,8 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
               <View style={[ss.onlineDot, { backgroundColor: T.onlineDot, borderColor: sheetBg }]} />
             </View>
             <View style={ss.identityText}>
-              <Text style={[ss.userName, { color: T.fg }]}>Kullanıcı</Text>
-              <Text style={[ss.userSub,  { color: T.muted }]}>Ücretsiz Plan · AkılCEP</Text>
+              <Text style={[ss.userName, { color: T.fg }]}>{t("profileMenu.user")}</Text>
+              <Text style={[ss.userSub,  { color: T.muted }]}>{t("profileMenu.freePlanSub")}</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={12} activeOpacity={0.6}>
               <Feather name="x" size={18} color={T.zinc} />
@@ -129,10 +131,10 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
               <Feather name="star" size={11} color={T.isDark ? T.green : T.fgSoft} />
               <Text style={[ss.premiumBadgeText, { color: T.isDark ? T.green : T.fgSoft }]}>PREMIUM</Text>
             </View>
-            <Text style={[ss.premiumTitle, { color: T.fg }]}>AkılCEP Premium</Text>
-            <Text style={[ss.premiumSub,   { color: T.muted }]}>Daha güçlü yapay zeka deneyimi</Text>
+            <Text style={[ss.premiumTitle, { color: T.fg }]}>{t("profileMenu.premiumTitle")}</Text>
+            <Text style={[ss.premiumSub,   { color: T.muted }]}>{t("profileMenu.premiumSub")}</Text>
             <View style={ss.featurePills}>
-              {["Sınırsız Voice Mode","Gelişmiş AI Modeller","Akıllı Hafıza","PDF Analizi","Hızlı Yanıtlar"].map(f => (
+              {[t("profileMenu.feat1"), t("profileMenu.feat2"), t("profileMenu.feat3"), t("profileMenu.feat4"), t("profileMenu.feat5")].map(f => (
                 <View key={f} style={[ss.pill, { backgroundColor: featurePill }]}>
                   <Text style={[ss.pillText, { color: T.fgSoft }]}>{f}</Text>
                 </View>
@@ -143,7 +145,7 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClose(); }}
               activeOpacity={0.80}
             >
-              <Text style={[ss.premiumCTAText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>Premium'a Geç</Text>
+              <Text style={[ss.premiumCTAText, { color: T.isDark ? "#050505" : "#FFFFFF" }]}>{t("profileMenu.upgradePremium")}</Text>
               <Feather name="arrow-right" size={14} color={T.isDark ? "#050505" : "#FFFFFF"} />
             </TouchableOpacity>
           </LinearGradient>
@@ -178,7 +180,7 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
               <View style={[ss.menuIcon, { backgroundColor: "rgba(255,59,48,0.10)" }]}>
                 <Feather name="log-out" size={16} color="#FF3B30" />
               </View>
-              <Text style={[ss.menuLabel, { color: "#FF3B30" }]}>Çıkış Yap</Text>
+              <Text style={[ss.menuLabel, { color: "#FF3B30" }]}>{t("profileMenu.logout")}</Text>
             </TouchableOpacity>
           </View>
 

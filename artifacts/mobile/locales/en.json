@@ -1,0 +1,223 @@
+{
+  "brand": {
+    "tagline": "Intelligence in Your Pocket",
+    "taglineFull": "Always by your side.",
+    "taglineShort": "Intelligence in your pocket.",
+    "heroDesc": "Your AI assistant in Turkish.",
+    "welcomeGreeting": "WELCOME"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "ok": "OK",
+    "retry": "Try Again",
+    "close": "Close"
+  },
+  "auth": {
+    "signInOrCreate": "Sign in or create an account",
+    "continueWithApple": "Continue with Apple",
+    "continueWithGoogle": "Continue with Google",
+    "signInWithEmail": "Sign in with Email",
+    "createAccount": "Create Account",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "legalPrefix": "By continuing, you agree to our",
+    "legalConjunction": "and",
+    "legalSuffix": "."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeToastLight": "☀️  Light Theme Active",
+    "themeToastDark": "🌙  Dark Theme Active",
+    "language": "Language",
+    "appLanguage": "App Language",
+    "notifications": "Notifications",
+    "account": "Account",
+    "profile": "Profile",
+    "privacyItem": "Privacy",
+    "support": "Support",
+    "logout": "Sign Out",
+    "logoutConfirm": "Are you sure you want to sign out?"
+  },
+  "language": {
+    "title": "App Language",
+    "subtitle": "Choose your preferred language",
+    "note": "Language change applies instantly across all screens."
+  },
+  "chat": {
+    "placeholder": "Type…",
+    "secretBadge": "Secret",
+    "visionPending": "Analyzing photo…",
+    "expandTitle": "Long Message",
+    "expandPlaceholder": "Write to AkılCEP…",
+    "secretModal": {
+      "title": "Secret Chat",
+      "desc": "This conversation won't be saved to history.",
+      "start": "Start Secret Chat"
+    },
+    "exitModal": {
+      "title": "End secret chat?",
+      "desc": "All messages will be deleted and not saved to history.",
+      "end": "End",
+      "continue": "Continue"
+    },
+    "alert": {
+      "micPerm": "Microphone Permission",
+      "micPermMsg": "Microphone permission is required for voice mode.",
+      "voiceMode": "Voice Mode",
+      "voiceModeMsg": "Voice mode works on mobile devices.",
+      "voiceMobileOnly": "Voice mode is only available on mobile devices.",
+      "voiceInput": "Voice Input",
+      "voiceInputMsg": "Voice input is only available on mobile devices.",
+      "micStartFail": "Could not start microphone.",
+      "recError": "Recording Error",
+      "recErrorMsg": "Could not start microphone. Please try again.",
+      "serverError": "Server did not respond. Please try again."
+    }
+  },
+  "profile": {
+    "takePhoto": "Take Photo",
+    "chooseFromLibrary": "Choose from Library",
+    "defaultAvatars": "Default Avatars",
+    "remove": "Remove",
+    "permRequired": {
+      "title": "Permission Required",
+      "msg": "Please allow access in settings."
+    },
+    "changePhoto": "Change photo",
+    "personalInfo": "PERSONAL INFO",
+    "fieldName": "Name",
+    "fieldEmail": "Email",
+    "membership": "MEMBERSHIP",
+    "freePlan": "Free Plan",
+    "freeBadge": "FREE",
+    "freeDesc": "Basic AI experience",
+    "upgradePremium": "Upgrade to Premium",
+    "changePassword": "Change Password",
+    "twoFactor": "Two-Factor Authentication",
+    "soundSection": "SOUND",
+    "startupSound": "Startup Sound",
+    "on": "On",
+    "off": "Off",
+    "deleteAccount": "Delete Account",
+    "profilePhoto": "Profile Photo"
+  },
+  "about": {
+    "tagline": "Intelligence in Your Pocket",
+    "heroDesc": "Your AI assistant in Turkish.",
+    "features": "Features",
+    "feat1": { "label": "AI Chat", "desc": "Unlimited conversations in Turkish" },
+    "feat2": { "label": "AkılCEP Vision", "desc": "Photo and image analysis" },
+    "feat3": { "label": "Voice Chat", "desc": "Natural voice assistant" },
+    "feat4": { "label": "Image Generation", "desc": "Create images with AI" },
+    "feat5": { "label": "Web Search", "desc": "Access to current information" }
+  },
+  "voice": {
+    "alertTitle": "Voice Mode",
+    "status": {
+      "init": "Preparing...",
+      "idle": "Tap to speak",
+      "listening": "I'm listening",
+      "thinking": "Thinking...",
+      "speaking": "AkılCEP is responding",
+      "unavailable": "Microphone unavailable"
+    },
+    "recordError": {
+      "title": "Could Not Start Recording",
+      "msg": "Microphone unavailable. Please try again.",
+      "ok": "OK"
+    }
+  },
+  "vision": {
+    "analyzeBtn": "Analyze",
+    "askBtn": "Ask",
+    "stopBtn": "Stop",
+    "analyzingBtn": "Analyzing",
+    "overlay": {
+      "listening": "Listening…",
+      "send": "Send",
+      "analyzing": "Analyzing…"
+    },
+    "alert": {
+      "analyzeWeb": "Camera Analysis",
+      "mobileOnly": "This feature is only available on mobile devices.",
+      "cameraPerm": "Camera Permission",
+      "cameraPermMsg": "Camera permission is required for analysis.",
+      "cameraPermAsk": "Camera permission is also required for voice questions.",
+      "photoError": "Photo Error",
+      "photoErrorMsg": "Could not take photo. Please try again.",
+      "unknownError": "Unknown error.",
+      "askWeb": "Voice Question",
+      "askError": "Voice Question Error",
+      "askErrorMsg": "Could not complete. Please try again.",
+      "micPerm": "Microphone Permission",
+      "micPermMsg": "Microphone permission is required for voice questions.",
+      "micError": "Microphone Error",
+      "micErrorMsg": "Could not start recording. Please try again."
+    }
+  },
+  "onboarding": {
+    "s1": { "subtitle": "Intelligence in your pocket." },
+    "s2": { "title": "Think.", "subtitle": "Approach every question smarter." },
+    "s3": { "title": "Understand.", "subtitle": "Web, docs, and images in one place." },
+    "s4": { "title": "Speak.", "subtitle": "You don't have to type." },
+    "s5": { "title": "Let's Begin.", "subtitle": "AkılCEP is with you." },
+    "continue": "Continue",
+    "next": "Next",
+    "start": "Start",
+    "skip": "Skip"
+  },
+  "sidebar": {
+    "tagline": "Intelligence in Your Pocket",
+    "searchPlaceholder": "Search...",
+    "emptySearch": "No results found",
+    "emptyHistory": "No conversations yet",
+    "about": "About",
+    "newChat": "New Chat",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "earlier": "Earlier"
+  },
+  "menu": {
+    "newChat": "New Chat",
+    "visualization": "Visualization",
+    "premium": "Premium",
+    "settings": "Settings",
+    "helpSupport": "Help & Support",
+    "pinned": "PINNED",
+    "history": "RECENT CONVERSATIONS",
+    "seeAll": "See All",
+    "user": "User",
+    "freePlan": "Free",
+    "logout": "Sign Out",
+    "recentTime": "Just now"
+  },
+  "profileMenu": {
+    "user": "User",
+    "freePlanSub": "Free Plan · AkılCEP",
+    "premiumTitle": "AkılCEP Premium",
+    "premiumSub": "A more powerful AI experience",
+    "feat1": "Unlimited Voice Mode",
+    "feat2": "Advanced AI Models",
+    "feat3": "Smart Memory",
+    "feat4": "PDF Analysis",
+    "feat5": "Fast Responses",
+    "upgradePremium": "Upgrade to Premium",
+    "profile": "Profile",
+    "memory": "Memory",
+    "voiceMode": "Voice Mode",
+    "premium": "Premium",
+    "settings": "Settings",
+    "logout": "Sign Out"
+  },
+  "multimodal": {
+    "takePhoto": { "label": "Take Photo", "sub": "Open camera" },
+    "gallery": { "label": "Choose from Gallery", "sub": "Upload existing image" },
+    "file": { "label": "Attach File", "sub": "PDF, Word, Excel and other files" },
+    "audio": { "label": "Voice Recording", "sub": "Analyze your voice" }
+  }
+}

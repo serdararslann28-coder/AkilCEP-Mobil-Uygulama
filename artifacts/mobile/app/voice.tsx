@@ -44,8 +44,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import VoiceCanvas from "@/components/VoiceCanvas";
-import { useChat }  from "@/context/ChatContext";
+import VoiceCanvas   from "@/components/VoiceCanvas";
+import { useChat }    from "@/context/ChatContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 const { width: W, height: H } = Dimensions.get("window");
 
@@ -54,14 +55,6 @@ const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 // ── Phase machine ──────────────────────────────────────────────────────────────
 type Phase = "init" | "idle" | "listening" | "thinking" | "speaking" | "unavailable";
 
-const STATUS: Record<Phase, string> = {
-  init:        "Hazırlanıyor...",
-  idle:        "Konuşmak için dokunun",
-  listening:   "Sizi dinliyorum",
-  thinking:    "Düşünüyorum...",
-  speaking:    "AkılCEP yanıtlıyor",
-  unavailable: "Mikrofon kullanılamıyor",
-};
 
 const canvasState = (p: Phase): "idle" | "listening" | "speaking" =>
   p === "listening" ? "listening" : p === "speaking" ? "speaking" : "idle";
@@ -71,6 +64,16 @@ export default function VoiceScreen() {
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 20 : insets.bottom;
+
+  const { t } = useLanguage();
+  const STATUS: Record<Phase, string> = {
+    init:        t("voice.status.init"),
+    idle:        t("voice.status.idle"),
+    listening:   t("voice.status.listening"),
+    thinking:    t("voice.status.thinking"),
+    speaking:    t("voice.status.speaking"),
+    unavailable: t("voice.status.unavailable"),
+  };
 
   const { injectMessages, startNewConversation } = useChat();
 
@@ -284,9 +287,9 @@ export default function VoiceScreen() {
     } catch (err) {
       console.warn("[voice] startListening:", err);
       Alert.alert(
-        "Kayıt Başlatılamadı",
-        "Mikrofon kullanılamıyor. Lütfen tekrar deneyin.",
-        [{ text: "Tamam" }]
+        t("voice.alert.recFail"),
+        t("voice.alert.recFailMsg"),
+        [{ text: t("common.ok") }]
       );
       applyPhase("idle");
     }
@@ -352,7 +355,7 @@ export default function VoiceScreen() {
       if (abort.signal.aborted) return;
 
       if (!res.ok) {
-        showErrorAlert("Sunucu yanıt vermedi. Tekrar deneyin.");
+        showErrorAlert(t("voice.alert.serverError"));
         applyPhase("idle");
         return;
       }
@@ -429,7 +432,7 @@ export default function VoiceScreen() {
   };
 
   const showErrorAlert = (msg: string) => {
-    Alert.alert("Ses Modu", msg, [{ text: "Tamam" }]);
+    Alert.alert(t("voice.alertTitle"), msg, [{ text: t("common.ok") }]);
   };
 
   // ── Animated styles ────────────────────────────────────────────────────────

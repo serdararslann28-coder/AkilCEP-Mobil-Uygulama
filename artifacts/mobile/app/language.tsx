@@ -103,9 +103,7 @@ export default function LanguageScreen() {
 
         {/* ── Info note ──────────────────────────────────────────────────────── */}
         <Text style={[ss.note, { color: muted }]}>
-          {lang === "tr"
-            ? "Dil değişikliği tüm ekranlara anında uygulanır."
-            : "Language change applies instantly across all screens."}
+          {t("language.note")}
         </Text>
 
       </ScrollView>

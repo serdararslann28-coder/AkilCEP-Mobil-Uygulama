@@ -43,8 +43,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useChat }    from "@/context/ChatContext";
-import { useTheme }   from "@/context/ThemeContext";
+import { useChat }     from "@/context/ChatContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme }    from "@/context/ThemeContext";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -54,31 +55,33 @@ const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
 const defaultAvatar = require("@/assets/images/avatar.png");
 
 // ─── Date grouping helpers (createdAt is a number/ms timestamp) ────────────────
-function getDateGroup(ts: number): string {
+function getDateGroup(ts: number, t: (k: string) => string): string {
   const now  = new Date();
   const date = new Date(ts);
   const isSameDay =
     now.getDate()     === date.getDate()     &&
     now.getMonth()    === date.getMonth()    &&
     now.getFullYear() === date.getFullYear();
-  if (isSameDay) return "Bugün";
+  if (isSameDay) return t("sidebar.today");
   const diffDays = (now.getTime() - date.getTime()) / 86_400_000;
-  if (diffDays < 2)  return "Dün";
-  if (diffDays < 7)  return "Bu Hafta";
-  if (diffDays < 30) return "Bu Ay";
-  return "Daha Önce";
+  if (diffDays < 2)  return t("sidebar.yesterday");
+  if (diffDays < 7)  return t("sidebar.thisWeek");
+  if (diffDays < 30) return t("sidebar.thisMonth");
+  return t("sidebar.earlier");
 }
-const GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Daha Önce"];
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; }
 
 export default function SideMenu({ visible, onClose }: Props) {
   const { theme: T, toggle } = useTheme();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
   const isDark = T.isDark;
+
+  const GROUP_ORDER = [t("sidebar.today"), t("sidebar.yesterday"), t("sidebar.thisWeek"), t("sidebar.thisMonth"), t("sidebar.earlier")];
 
   const { conversations, currentConversation, loadConversation, startNewConversation } = useChat();
 
@@ -137,7 +140,7 @@ export default function SideMenu({ visible, onClose }: Props) {
   const grouped = useMemo(() => {
     const map: Record<string, typeof conversations> = {};
     for (const conv of filtered) {
-      const g = getDateGroup(conv.createdAt);
+      const g = getDateGroup(conv.createdAt, t);
       if (!map[g]) map[g] = [];
       map[g].push(conv);
     }
@@ -215,7 +218,7 @@ export default function SideMenu({ visible, onClose }: Props) {
                 />
                 <Text style={[ss.brandName, { color: T.fg }]}>AkılCEP</Text>
               </View>
-              <Text style={[ss.brandSub, { color: muted }]}>Cebindeki Akıl</Text>
+              <Text style={[ss.brandSub, { color: muted }]}>{t("brand.tagline")}</Text>
             </View>
 
             {/* Action icons */}
@@ -255,7 +258,7 @@ export default function SideMenu({ visible, onClose }: Props) {
               <Feather name="search" size={14} color={muted} />
               <TextInput
                 style={[ss.searchInput, { color: T.fg, backgroundColor: inputBg }]}
-                placeholder="Sohbet ara..."
+                placeholder={t("sidebar.searchPlaceholder")}
                 placeholderTextColor={muted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -296,7 +299,7 @@ export default function SideMenu({ visible, onClose }: Props) {
         >
           {grouped.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
-              {searchQuery.trim() ? "Sonuç bulunamadı" : "Henüz sohbet yok"}
+              {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
             </Text>
           ) : (
             grouped.map(({ label, items }) => (
@@ -357,7 +360,7 @@ export default function SideMenu({ visible, onClose }: Props) {
             activeOpacity={0.68}
           >
             <Feather name="settings" size={16} color={T.fg} style={{ opacity: 0.55 }} />
-            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>Ayarlar</Text>
+            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>{t("sidebar.settings")}</Text>
             <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
           </TouchableOpacity>
 
@@ -367,7 +370,7 @@ export default function SideMenu({ visible, onClose }: Props) {
             activeOpacity={0.68}
           >
             <Feather name="info" size={16} color={T.fg} style={{ opacity: 0.55 }} />
-            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>Hakkımızda</Text>
+            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>{t("sidebar.about")}</Text>
             <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
           </TouchableOpacity>
 
@@ -381,7 +384,7 @@ export default function SideMenu({ visible, onClose }: Props) {
             activeOpacity={0.82}
           >
             <Feather name="plus" size={16} color={T.primaryForeground} />
-            <Text style={[ss.fabLabel, { color: T.primaryForeground }]}>Yeni Sohbet</Text>
+            <Text style={[ss.fabLabel, { color: T.primaryForeground }]}>{t("sidebar.newChat")}</Text>
           </TouchableOpacity>
         </View>
 

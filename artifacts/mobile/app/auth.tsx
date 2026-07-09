@@ -36,6 +36,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useLanguage }    from "@/context/LanguageContext";
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
 const LOGO = require("@/assets/images/akilcep-icon.png");
@@ -145,6 +146,7 @@ function AuthButton({ icon, label, primary, onPress }: AuthBtnProps) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Auth() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const handleApple  = useCallback(() => enterApp(), []);
   const handleGoogle = useCallback(() => enterApp(), []);
@@ -169,13 +171,13 @@ export default function Auth() {
       <View style={[ss.logoArea, { paddingTop: topPad + 48 }]}>
         <Image source={LOGO} style={ss.logo} resizeMode="contain" />
         <Text style={ss.brand}>AkılCEP</Text>
-        <Text style={ss.tagline}>Cebindeki akıl, her zaman yanında.</Text>
+        <Text style={ss.tagline}>{t("brand.taglineFull")}</Text>
       </View>
 
       {/* Divider */}
       <View style={ss.dividerRow}>
         <View style={ss.dividerLine} />
-        <Text style={ss.dividerText}>Giriş yap veya hesap oluştur</Text>
+        <Text style={ss.dividerText}>{t("auth.signInOrCreate")}</Text>
         <View style={ss.dividerLine} />
       </View>
 
@@ -185,13 +187,13 @@ export default function Auth() {
         <AuthButton
           primary
           icon={<Ionicons name="logo-apple" size={24} color="#000000" />}
-          label="Apple ile Devam Et"
+          label={t("auth.continueWithApple")}
           onPress={handleApple}
         />
 
         <AuthButton
           icon={<GoogleIcon size={24} />}
-          label="Google ile Devam Et"
+          label={t("auth.continueWithGoogle")}
           onPress={handleGoogle}
         />
 
@@ -199,23 +201,23 @@ export default function Auth() {
 
         <AuthButton
           icon={<Feather name="mail" size={24} color="rgba(255,255,255,0.82)" />}
-          label="E-posta ile Giriş"
+          label={t("auth.signInWithEmail")}
           onPress={handleEmail}
         />
 
         <AuthButton
           icon={<Feather name="user-plus" size={24} color="rgba(255,255,255,0.62)" />}
-          label="Hesap Oluştur"
+          label={t("auth.createAccount")}
           onPress={handleCreate}
         />
 
         {/* Legal */}
         <Text style={ss.legal}>
-          Devam ederek{" "}
-          <Text style={ss.legalLink}>Kullanım Şartları</Text>
-          {" "}ve{" "}
-          <Text style={ss.legalLink}>Gizlilik Politikası</Text>
-          {"'nı kabul edersiniz."}
+          {t("auth.legalPrefix")}{" "}
+          <Text style={ss.legalLink}>{t("auth.terms")}</Text>
+          {" "}{t("auth.legalConjunction")}{" "}
+          <Text style={ss.legalLink}>{t("auth.privacy")}</Text>
+          {t("auth.legalSuffix")}
         </Text>
 
       </View>

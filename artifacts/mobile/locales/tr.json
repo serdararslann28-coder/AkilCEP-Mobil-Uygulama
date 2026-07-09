@@ -1,0 +1,223 @@
+{
+  "brand": {
+    "tagline": "Cebindeki Akıl",
+    "taglineFull": "Cebindeki akıl, her zaman yanında.",
+    "taglineShort": "Cebindeki akıl.",
+    "heroDesc": "Türkçe konuşan yapay zeka asistanı.",
+    "welcomeGreeting": "HOŞ GELDİN"
+  },
+  "common": {
+    "cancel": "İptal",
+    "ok": "Tamam",
+    "retry": "Tekrar Dene",
+    "close": "Kapat"
+  },
+  "auth": {
+    "signInOrCreate": "Giriş yap veya hesap oluştur",
+    "continueWithApple": "Apple ile Devam Et",
+    "continueWithGoogle": "Google ile Devam Et",
+    "signInWithEmail": "E-posta ile Giriş",
+    "createAccount": "Hesap Oluştur",
+    "terms": "Kullanım Şartları",
+    "privacy": "Gizlilik Politikası",
+    "legalPrefix": "Devam ederek",
+    "legalConjunction": "ve",
+    "legalSuffix": "'nı kabul edersiniz."
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "appearance": "Görünüm",
+    "themeLight": "Açık",
+    "themeDark": "Koyu",
+    "themeToastLight": "☀️  Açık Tema Aktif",
+    "themeToastDark": "🌙  Koyu Tema Aktif",
+    "language": "Dil",
+    "appLanguage": "Uygulama Dili",
+    "notifications": "Bildirimler",
+    "account": "Hesap",
+    "profile": "Profil",
+    "privacyItem": "Gizlilik",
+    "support": "Destek",
+    "logout": "Çıkış Yap",
+    "logoutConfirm": "Hesabınızdan çıkmak istediğinizden emin misiniz?"
+  },
+  "language": {
+    "title": "Uygulama Dili",
+    "subtitle": "Tercih ettiğiniz dili seçin",
+    "note": "Dil değişikliği tüm ekranlara anında uygulanır."
+  },
+  "chat": {
+    "placeholder": "Yaz…",
+    "secretBadge": "Gizli",
+    "visionPending": "Fotoğraf analiz ediliyor…",
+    "expandTitle": "Uzun Mesaj",
+    "expandPlaceholder": "AkılCEP'e yaz…",
+    "secretModal": {
+      "title": "Gizli Sohbet",
+      "desc": "Bu sohbet geçmişe kaydedilmez.",
+      "start": "Gizli Sohbet Başlat"
+    },
+    "exitModal": {
+      "title": "Gizli sohbet sonlandırılsın mı?",
+      "desc": "Tüm mesajlar silinecek ve sohbet geçmişe kaydedilmeyecek.",
+      "end": "Sonlandır",
+      "continue": "Devam Et"
+    },
+    "alert": {
+      "micPerm": "Mikrofon İzni",
+      "micPermMsg": "Sesli mod için mikrofon izni gereklidir.",
+      "voiceMode": "Sesli Mod",
+      "voiceModeMsg": "Sesli mod mobil cihazlarda çalışır.",
+      "voiceMobileOnly": "Sesli mod yalnızca mobil cihazlarda çalışır.",
+      "voiceInput": "Ses Girişi",
+      "voiceInputMsg": "Sesli giriş yalnızca mobil cihazlarda çalışır.",
+      "micStartFail": "Mikrofon başlatılamadı.",
+      "recError": "Kayıt Hatası",
+      "recErrorMsg": "Mikrofon başlatılamadı. Tekrar deneyin.",
+      "serverError": "Sunucu yanıt vermedi. Tekrar deneyin."
+    }
+  },
+  "profile": {
+    "takePhoto": "Fotoğraf Çek",
+    "chooseFromLibrary": "Galeriden Seç",
+    "defaultAvatars": "Varsayılan Avatarlar",
+    "remove": "Kaldır",
+    "permRequired": {
+      "title": "İzin gerekli",
+      "msg": "Lütfen ayarlardan izin verin."
+    },
+    "changePhoto": "Fotoğrafı değiştir",
+    "personalInfo": "KİŞİSEL BİLGİLER",
+    "fieldName": "Ad",
+    "fieldEmail": "E-posta",
+    "membership": "ÜYELİK",
+    "freePlan": "Ücretsiz Plan",
+    "freeBadge": "ÜCRETSİZ",
+    "freeDesc": "Temel AI deneyimi",
+    "upgradePremium": "Premium'a Geç",
+    "changePassword": "Şifre Değiştir",
+    "twoFactor": "İki Faktörlü Doğrulama",
+    "soundSection": "SES",
+    "startupSound": "Açılış Sesi",
+    "on": "Açık",
+    "off": "Kapalı",
+    "deleteAccount": "Hesabı Sil",
+    "profilePhoto": "Profil Fotoğrafı"
+  },
+  "about": {
+    "tagline": "Cebindeki Akıl",
+    "heroDesc": "Türkçe konuşan yapay zeka asistanı.",
+    "features": "Özellikler",
+    "feat1": { "label": "Yapay Zeka Sohbet", "desc": "Türkçe ile sınırsız sohbet" },
+    "feat2": { "label": "AkılCEP Vision", "desc": "Fotoğraf ve görsel analizi" },
+    "feat3": { "label": "Sesli Sohbet", "desc": "Doğal ses asistanı" },
+    "feat4": { "label": "Görsel Üretme", "desc": "Yapay zeka ile görsel oluşturma" },
+    "feat5": { "label": "Web Arama", "desc": "Güncel bilgiye erişim" }
+  },
+  "voice": {
+    "alertTitle": "Ses Modu",
+    "status": {
+      "init": "Hazırlanıyor...",
+      "idle": "Konuşmak için dokunun",
+      "listening": "Sizi dinliyorum",
+      "thinking": "Düşünüyorum...",
+      "speaking": "AkılCEP yanıtlıyor",
+      "unavailable": "Mikrofon kullanılamıyor"
+    },
+    "recordError": {
+      "title": "Kayıt Başlatılamadı",
+      "msg": "Mikrofon kullanılamıyor. Lütfen tekrar deneyin.",
+      "ok": "Tamam"
+    }
+  },
+  "vision": {
+    "analyzeBtn": "Analiz Et",
+    "askBtn": "Sor",
+    "stopBtn": "Durdur",
+    "analyzingBtn": "Analiz",
+    "overlay": {
+      "listening": "Dinleniyor…",
+      "send": "Gönder",
+      "analyzing": "Analiz ediliyor…"
+    },
+    "alert": {
+      "analyzeWeb": "Kamera Analizi",
+      "mobileOnly": "Bu özellik yalnızca mobil cihazlarda çalışır.",
+      "cameraPerm": "Kamera İzni",
+      "cameraPermMsg": "Analiz için kamera iznine ihtiyaç var.",
+      "cameraPermAsk": "Sesli soru için kamera iznine de ihtiyaç var.",
+      "photoError": "Fotoğraf Hatası",
+      "photoErrorMsg": "Fotoğraf çekilemedi. Tekrar deneyin.",
+      "unknownError": "Bilinmeyen hata.",
+      "askWeb": "Sesli Soru",
+      "askError": "Sesli Soru Hatası",
+      "askErrorMsg": "İşlem tamamlanamadı. Tekrar deneyin.",
+      "micPerm": "Mikrofon İzni",
+      "micPermMsg": "Sesli soru için mikrofon iznine ihtiyaç var.",
+      "micError": "Mikrofon Hatası",
+      "micErrorMsg": "Ses kaydı başlatılamadı. Tekrar deneyin."
+    }
+  },
+  "onboarding": {
+    "s1": { "subtitle": "Cebindeki akıl." },
+    "s2": { "title": "Düşün.", "subtitle": "Her soruya daha akıllı yaklaş." },
+    "s3": { "title": "Anla.", "subtitle": "Web, belgeler ve görseller tek yerde." },
+    "s4": { "title": "Konuş.", "subtitle": "Yazmak zorunda değilsin." },
+    "s5": { "title": "Başlayalım.", "subtitle": "AkılCEP seninle." },
+    "continue": "Devam Et",
+    "next": "Devam",
+    "start": "Başla",
+    "skip": "Atla"
+  },
+  "sidebar": {
+    "tagline": "Cebindeki Akıl",
+    "searchPlaceholder": "Ara...",
+    "emptySearch": "Sonuç bulunamadı",
+    "emptyHistory": "Henüz sohbet yok",
+    "about": "Hakkımızda",
+    "newChat": "Yeni Sohbet",
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "thisWeek": "Bu Hafta",
+    "thisMonth": "Bu Ay",
+    "earlier": "Daha Önce"
+  },
+  "menu": {
+    "newChat": "Yeni Sohbet",
+    "visualization": "Görselleştirme",
+    "premium": "Premium",
+    "settings": "Ayarlar",
+    "helpSupport": "Yardım & Destek",
+    "pinned": "SABİTLENENLER",
+    "history": "GEÇMİŞ SOHBETLER",
+    "seeAll": "Tümünü Gör",
+    "user": "Kullanıcı",
+    "freePlan": "Ücretsiz",
+    "logout": "Çıkış Yap",
+    "recentTime": "Az önce"
+  },
+  "profileMenu": {
+    "user": "Kullanıcı",
+    "freePlanSub": "Ücretsiz Plan · AkılCEP",
+    "premiumTitle": "AkılCEP Premium",
+    "premiumSub": "Daha güçlü yapay zeka deneyimi",
+    "feat1": "Sınırsız Voice Mode",
+    "feat2": "Gelişmiş AI Modeller",
+    "feat3": "Akıllı Hafıza",
+    "feat4": "PDF Analizi",
+    "feat5": "Hızlı Yanıtlar",
+    "upgradePremium": "Premium'a Geç",
+    "profile": "Profil",
+    "memory": "Hafıza",
+    "voiceMode": "Voice Mode",
+    "premium": "Premium",
+    "settings": "Ayarlar",
+    "logout": "Çıkış Yap"
+  },
+  "multimodal": {
+    "takePhoto": { "label": "Fotoğraf Çek", "sub": "Kamerayı aç" },
+    "gallery": { "label": "Galeriden Seç", "sub": "Mevcut görsel yükle" },
+    "file": { "label": "Dosya Ekle", "sub": "PDF, Word, Excel ve diğer dosyalar" },
+    "audio": { "label": "Ses Kaydı", "sub": "Sesini analiz et" }
+  }
+}
