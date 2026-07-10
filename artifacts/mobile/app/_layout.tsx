@@ -14,21 +14,17 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-// DIAGNOSTIC: AuthProvider, ChatProvider, LanguageProvider, ThemeProvider
-// are all temporarily removed to isolate the Android Expo Go crash.
-// Restore these four imports and their JSX wrapping when diagnosis is complete:
-//
-//   import { AuthProvider }     from "@/context/AuthContext";
-//   import { ChatProvider }     from "@/context/ChatContext";
-//   import { LanguageProvider } from "@/context/LanguageContext";
-//   import { ThemeProvider }    from "@/context/ThemeContext";
+import { ErrorBoundary }    from "@/components/ErrorBoundary";
+import { AuthProvider }     from "@/context/AuthContext";
+import { ChatProvider }     from "@/context/ChatContext";
+import { LanguageProvider } from "@/context/LanguageContext";
+import { ThemeProvider }    from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// Splash is always the entry point — it resolves AsyncStorage + navigation itself.
 function RootLayoutNav() {
   return (
     <Stack initialRouteName="splash">
@@ -94,8 +90,15 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              {/* DIAGNOSTIC: providers stripped — bare nav only */}
-              <RootLayoutNav />
+              <LanguageProvider>
+                <AuthProvider>
+                  <ThemeProvider>
+                    <ChatProvider>
+                      <RootLayoutNav />
+                    </ChatProvider>
+                  </ThemeProvider>
+                </AuthProvider>
+              </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

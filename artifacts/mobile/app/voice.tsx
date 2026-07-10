@@ -320,7 +320,7 @@ export default function VoiceScreen() {
       let base64: string;
       try {
         base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
       } catch {
         // Fallback: fetch blob → FileReader

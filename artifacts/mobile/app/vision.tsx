@@ -278,7 +278,7 @@ export default function VisionScreen() {
           let audioBase64: string;
           try {
             audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
-              encoding: FileSystem.EncodingType.Base64,
+              encoding: 'base64',
             });
           } catch {
             const resp = await fetch(audioUri);

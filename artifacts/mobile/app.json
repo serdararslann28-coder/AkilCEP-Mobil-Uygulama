@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.akilcep.ai",
+      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

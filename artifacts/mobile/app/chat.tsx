@@ -578,7 +578,7 @@ export default function ChatScreen() {
       if (!uri) return;
       let base64: string;
       try {
-        base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       } catch {
         const resp = await fetch(uri);
         const blob = await resp.blob();
@@ -644,7 +644,7 @@ export default function ChatScreen() {
       let base64: string;
       try {
         base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: 'base64',
         });
       } catch {
         // Fallback blob path
