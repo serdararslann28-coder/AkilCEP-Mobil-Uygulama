@@ -24,7 +24,6 @@
     },
     "android": {
       "package": "com.akilcep.ai",
-      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -53,6 +52,15 @@
           "cameraPermission": "AkılCEP AI, AI Vizyon Modu için kameranıza erişmek istiyor.",
           "microphonePermission": "AkılCEP AI, ses kaydı için mikrofonunuza erişmek istiyor.",
           "recordAudioAndroid": true
+        }
+      ],
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],
