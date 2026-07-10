@@ -2,3 +2,5 @@
 - [Metro shim strategy](metro-shim-strategy.md) — how to redirect unresolvable native modules in metro.config.js for Expo Go compatibility
 - [url-polyfill Expo SDK 54 crash](url-polyfill-expo54-crash.md) — `react-native-url-polyfill/auto` must NOT be imported in Expo SDK 50+; breaks Expo Router
 - [Metro blockList watcher scope](metro-blocklist-watcher.md) — blockList regex must not require trailing slash after _tmp_NNNN; bare pnpm temp dirs crash FallbackWatcher
+- [EAS Build SDK 54 expo-dev-client version](eas-sdk54-dev-client.md) — expo-dev-client@57.x causes Kotlin compile failure on SDK 54; correct version is ~6.0.21 via `pnpm exec expo install expo-dev-client`
+- [EAS CLI git lock in Replit main agent](eas-replit-git-lock.md) — main agent cannot write to .git/index.lock; submit EAS builds from clean committed git state (no EXPO_NO_GIT_STATUS_CHECK needed when state is clean)
