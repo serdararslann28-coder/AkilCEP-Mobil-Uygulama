@@ -1,3 +1,4 @@
-- [Expo Go shim pattern](expo-go-shim-pattern.md) — use `executionEnvironment === "storeClient"` (not deprecated `appOwnership`) for SDK 47+ Expo Go detection
+- [Expo Go shim pattern](expo-go-shim-pattern.md) — use `executionEnvironment === "storeClient"` (not deprecated `appOwnership`) for SDK 47+ Expo Go detection; `appOwnership` returns null on Android SDK 54
 - [Metro shim strategy](metro-shim-strategy.md) — how to redirect unresolvable native modules in metro.config.js for Expo Go compatibility
 - [url-polyfill Expo SDK 54 crash](url-polyfill-expo54-crash.md) — `react-native-url-polyfill/auto` must NOT be imported in Expo SDK 50+; breaks Expo Router
+- [Metro blockList watcher scope](metro-blocklist-watcher.md) — blockList regex must not require trailing slash after _tmp_NNNN; bare pnpm temp dirs crash FallbackWatcher

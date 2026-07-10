@@ -16,7 +16,14 @@
 let isExpoGo = false;
 try {
   const Constants = require("expo-constants").default;
-  isExpoGo = Constants.appOwnership === "expo";
+  // SDK 47+ canonical check (executionEnvironment === "storeClient" = Expo Go).
+  // appOwnership === "expo" kept as legacy fallback for pre-SDK-47 clients.
+  // NOTE: on Android Expo Go SDK 54, appOwnership returns null (deprecated).
+  //       Without the executionEnvironment check this shim would load the real
+  //       native module and crash because RNCWebView is not registered in Expo Go.
+  isExpoGo =
+    Constants.executionEnvironment === "storeClient" || // SDK 47+ (current)
+    Constants.appOwnership === "expo";                   // legacy fallback
 } catch (_) {}
 
 if (!isExpoGo) {

@@ -5,10 +5,12 @@ const config = getDefaultConfig(__dirname);
 
 // Block Metro's file watcher from trying to watch ephemeral native autolinking
 // temp directories that pnpm creates and removes during installation.
-// Without this Metro crashes with ENOENT when it tries to watch e.g.
-// expo-file-system_tmp_1029/android/src/main/java/expo right after pnpm install.
+// Pattern covers BOTH:
+//   .pnpm/expo-file-system@1.x/node_modules/expo-file-system_tmp_1029/...  (file inside)
+//   .pnpm/log-symbols@4.x/node_modules/log-symbols_tmp_1040               (directory itself)
+// The original regex required a trailing slash+content which missed bare directories.
 config.resolver.blockList = [
-  /node_modules\/\.pnpm\/.*_tmp_\d+\/.*/,
+  /node_modules\/\.pnpm\/.*_tmp_\d+.*/,
 ];
 
 const shimDir = path.join(__dirname, "shims");
