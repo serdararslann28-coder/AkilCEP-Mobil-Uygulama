@@ -1,13 +1,14 @@
 /**
- * Root index — redirects to the splash screen so the full startup flow runs.
+ * DIAGNOSTIC MODE — temporary bypass of startup flow.
  *
- * Expo Router v6 uses index.tsx as the true entry point on both web and native.
- * Stack initialRouteName="splash" does NOT override this; routing to /chat here
- * was skipping Splash → Welcome → Onboarding entirely.
+ * Skips splash / welcome / onboarding and lands directly on /chat.
+ * Restore href="/splash" to re-enable the full startup sequence.
+ *
+ * Original: <Redirect href="/splash" />
  */
 import { Redirect } from "expo-router";
 import React from "react";
 
 export default function Index() {
-  return <Redirect href="/splash" />;
+  return <Redirect href="/chat" />;
 }
