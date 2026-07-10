@@ -63,9 +63,10 @@ export default function SplashScreen() {
 
     // Navigate at 3300 ms
     const nav = setTimeout(async () => {
-      // In development, always show onboarding so the flow can be tested.
+      // In development (Expo Go is always __DEV__), start from welcome so the
+      // full Splash → Welcome → Onboarding flow is exercised during testing.
       if (__DEV__) {
-        router.replace("/onboarding");
+        router.replace("/welcome");
         return;
       }
 
