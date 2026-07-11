@@ -20,7 +20,8 @@
         "NSMicrophoneUsageDescription": "AkılCEP AI, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor.",
         "NSPhotoLibraryAddUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor.",
         "NSPhotoLibraryUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor."
-      }
+      },
+      "bundleIdentifier": "com.akilcep.ai"
     },
     "android": {
       "package": "com.akilcep.ai",
