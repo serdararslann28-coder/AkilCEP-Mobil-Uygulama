@@ -14,11 +14,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ErrorBoundary }    from "@/components/ErrorBoundary";
-import { AuthProvider }     from "@/context/AuthContext";
-import { ChatProvider }     from "@/context/ChatContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/context/AuthContext";
+import { ChatProvider } from "@/context/ChatContext";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { ThemeProvider }    from "@/context/ThemeContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,32 +27,99 @@ const queryClient = new QueryClient();
 // Splash is always the entry point — it resolves AsyncStorage + navigation itself.
 function RootLayoutNav() {
   return (
-    <Stack initialRouteName="splash">
+    <Stack>
       <Stack.Screen
         name="splash"
-        options={{ headerShown: false, animation: "none", gestureEnabled: false }}
+        options={{
+          headerShown: false,
+          animation: "none",
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen
         name="welcome"
-        options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
+        options={{
+          headerShown: false,
+          animation: "fade",
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen
         name="onboarding"
-        options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
+        options={{
+          headerShown: false,
+          animation: "fade",
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen
         name="auth"
-        options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
+        options={{
+          headerShown: false,
+          animation: "fade",
+          gestureEnabled: false,
+        }}
       />
-      <Stack.Screen name="register"  options={{ headerShown: false, animation: "slide_from_right", gestureEnabled: false }} />
-      <Stack.Screen name="login"     options={{ headerShown: false, animation: "slide_from_right", gestureEnabled: false }} />
-      <Stack.Screen name="interests" options={{ headerShown: false, animation: "fade",             gestureEnabled: false }} />
-      <Stack.Screen name="ready"     options={{ headerShown: false, animation: "fade",             gestureEnabled: false }} />
-      <Stack.Screen name="chat"      options={{ headerShown: false, animation: "none" }} />
-      <Stack.Screen name="voice"     options={{ headerShown: false, animation: "slide_from_bottom", presentation: "modal" }} />
-      <Stack.Screen name="vision"    options={{ headerShown: false, animation: "fade",               presentation: "fullScreenModal" }} />
-      <Stack.Screen name="profile"   options={{ headerShown: false, animation: "slide_from_bottom" }} />
-      <Stack.Screen name="language"  options={{ headerShown: false, animation: "slide_from_right" }} />
+      <Stack.Screen
+        name="register"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="login"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="interests"
+        options={{
+          headerShown: false,
+          animation: "fade",
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="ready"
+        options={{
+          headerShown: false,
+          animation: "fade",
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="chat"
+        options={{ headerShown: false, animation: "none" }}
+      />
+      <Stack.Screen
+        name="voice"
+        options={{
+          headerShown: false,
+          animation: "slide_from_bottom",
+          presentation: "modal",
+        }}
+      />
+      <Stack.Screen
+        name="vision"
+        options={{
+          headerShown: false,
+          animation: "fade",
+          presentation: "fullScreenModal",
+        }}
+      />
+      <Stack.Screen
+        name="profile"
+        options={{ headerShown: false, animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="language"
+        options={{ headerShown: false, animation: "slide_from_right" }}
+      />
     </Stack>
   );
 }

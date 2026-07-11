@@ -69,7 +69,7 @@ export default function SplashScreen() {
       // In development (Expo Go is always __DEV__), start from welcome so the
       // full Splash → Welcome → Onboarding flow is exercised during testing.
       if (__DEV__) {
-        router.replace("/onboarding");
+        router.replace("/welcome");
         return;
       }
       // In production: check for an active Supabase session first,
