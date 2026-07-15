@@ -8,21 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.26.1
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - run: pnpm install
+      - name: Install dependencies
+        run: pnpm install
 
-      - run: npx expo export
+      - name: Install Expo & EAS CLI
+        run: npm install -g expo-cli eas-cli
 
-      - run: npx eas build --platform android --profile production --non-interactive
+      - name: Build Android AAB
+        run: eas build --platform android --profile production --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
