@@ -16,6 +16,7 @@ import React, {
 } from "react";
 
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import * as WebBrowser from "expo-web-browser";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
