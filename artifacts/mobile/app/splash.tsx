@@ -16,7 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -32,8 +32,10 @@ import { ONBOARDING_KEY } from "@/app/onboarding";
 export const STARTUP_SOUND_KEY = "@akilcep_startup_sound";
 
 export default function SplashScreen() {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.97);
+  // Keep the initial frame visible in Expo's web preview even if Reanimated
+  // has not attached yet. Native still runs the full entrance animation.
+  const opacity = useSharedValue(Platform.OS === "web" ? 1 : 0);
+  const scale = useSharedValue(Platform.OS === "web" ? 1 : 0.97);
   const screenOp = useSharedValue(1);
 
   useEffect(() => {

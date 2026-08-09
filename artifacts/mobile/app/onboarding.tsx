@@ -9,7 +9,14 @@
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -25,11 +32,14 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
 
   // Staggered entrance
-  const logoOp  = useSharedValue(0);
-  const logoY   = useSharedValue(16);
-  const textOp  = useSharedValue(0);
-  const textY   = useSharedValue(12);
-  const btnOp   = useSharedValue(0);
+  // Reanimated can be unavailable while Expo's web preview is hydrating.
+  // Start visible there so a failed animation cannot turn the whole screen
+  // into a blank white page. Native keeps the intended entrance animation.
+  const logoOp  = useSharedValue(Platform.OS === "web" ? 1 : 0);
+  const logoY   = useSharedValue(Platform.OS === "web" ? 0 : 16);
+  const textOp  = useSharedValue(Platform.OS === "web" ? 1 : 0);
+  const textY   = useSharedValue(Platform.OS === "web" ? 0 : 12);
+  const btnOp   = useSharedValue(Platform.OS === "web" ? 1 : 0);
 
   useEffect(() => {
     logoOp.value = withDelay(80,  withTiming(1, { duration: 640, easing: Easing.out(Easing.ease) }));

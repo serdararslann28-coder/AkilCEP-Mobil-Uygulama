@@ -169,10 +169,18 @@ function ThemeFlash({ themeName }: { themeName: "PURE" | "VOID" }) {
   }, [themeName]);
 
   const flashColor = themeName === "VOID" ? "#000000" : "#FFFFFF";
+  const flashStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
   return (
     <Animated.View
       pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { backgroundColor: flashColor, zIndex: 9999, opacity: opacity as any }]}
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: flashColor, zIndex: 9999 },
+        flashStyle,
+      ]}
     />
   );
 }

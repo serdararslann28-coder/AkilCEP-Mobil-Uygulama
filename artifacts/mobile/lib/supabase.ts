@@ -15,13 +15,22 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL      ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
+// The URL must be a real HTTP(S) Supabase project URL. A malformed value must
+// never be passed to createClient: Expo Router imports this module during the
+// first render, so Supabase would otherwise crash the entire Expo Go app.
+const VALID_SUPABASE_URL = /^https?:\/\/[^/\s]+(?:\/.*)?$/i.test(SUPABASE_URL.trim())
+  ? SUPABASE_URL.trim()
+  : "";
+
 // True only when real project credentials are present
 export const isSupabaseConfigured =
-  SUPABASE_URL.startsWith("https://") && SUPABASE_ANON_KEY.length > 20;
+  VALID_SUPABASE_URL.startsWith("https://") && SUPABASE_ANON_KEY.length > 20;
 
-// Always create a client — calls fail gracefully when using placeholder values
+// Always create a client with a valid URL. When configuration is missing or
+// malformed, auth methods use isSupabaseConfigured and stay in local/guest mode
+// instead of crashing the app at module import time.
 export const supabase = createClient(
-  SUPABASE_URL      || "https://placeholder.supabase.co",
+  VALID_SUPABASE_URL || "https://placeholder.supabase.co",
   SUPABASE_ANON_KEY || "placeholder_anon_key_akilcep",
   {
     auth: {
