@@ -5,3 +5,4 @@
 - [EAS Build SDK 54 expo-dev-client version](eas-sdk54-dev-client.md) — expo-dev-client@57.x causes Kotlin compile failure on SDK 54; correct version is ~6.0.21 via `pnpm exec expo install expo-dev-client`
 - [EAS CLI git lock in Replit main agent](eas-replit-git-lock.md) — main agent cannot write to .git/index.lock; submit EAS builds from clean committed git state (no EXPO_NO_GIT_STATUS_CHECK needed when state is clean)
 - [Supabase startup guard](supabase-startup-guard.md) — validate EXPO_PUBLIC_SUPABASE_URL before createClient so malformed environment values cannot crash Expo Router during first render
+- [Expo SDK 54 patch alignment](expo-sdk54-patch-alignment.md) — Expo Go requires the project patch version to match its expected SDK patch; keep Expo at 54.0.36 here
