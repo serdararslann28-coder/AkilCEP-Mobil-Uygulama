@@ -1,7 +1,7 @@
 /**
  * ChatScreen — AkılCEP premium AI chat with inline Voice Mode.
  *
- * Voice flow (expo-av → Whisper → GPT → expo-speech):
+ * Voice flow (expo-audio → Whisper → GPT → expo-speech):
  *   idle → [mic tap] → listening → [tap / silence] → thinking
  *   → injectMessages() → speaking → idle
  *
@@ -9,7 +9,13 @@
  */
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Audio } from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type AudioRecorder,
+} from "expo-audio";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -138,14 +144,16 @@ export default function ChatScreen() {
 
   const flatListRef     = useRef<FlatList>(null);
   const voicePhaseRef   = useRef<VoicePhase>("idle");
-  const recordingRef    = useRef<Audio.Recording | null>(null);
+  const voiceRecorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const sttRecorder     = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingRef    = useRef<AudioRecorder | null>(null);
   const abortRef        = useRef<AbortController | null>(null);
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
 
   // ── STT — lightweight speech-to-text that fills the input field ─────────────
   const [sttListening,  setSttListening]  = useState(false);
-  const sttRecordingRef = useRef<Audio.Recording | null>(null);
+  const sttRecordingRef = useRef<AudioRecorder | null>(null);
   const sttAbortRef     = useRef<AbortController | null>(null);
 
   const applyVoice = (p: VoicePhase) => {
@@ -447,7 +455,7 @@ export default function ChatScreen() {
   const ensurePermission = async (): Promise<boolean> => {
     if (permGrantedRef.current === true) return true;
     try {
-      const { granted } = await Audio.requestPermissionsAsync();
+      const { granted } = await requestRecordingPermissionsAsync();
       permGrantedRef.current = granted;
       if (!granted) {
         Alert.alert(
@@ -485,7 +493,7 @@ export default function ChatScreen() {
     const rec = recordingRef.current;
     recordingRef.current = null;
     if (!rec) return;
-    try { await rec.stopAndUnloadAsync(); } catch {}
+    try { await rec.stop(); } catch {}
   };
 
   // ── Mic button handler ─────────────────────────────────────────────────────
@@ -512,9 +520,9 @@ export default function ChatScreen() {
       try { Speech.stop(); } catch {}
       await safeStopRecording();
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS:   true,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          allowsRecording:   true,
+          playsInSilentMode: true,
         });
       } catch {}
       applyVoice("idle");
@@ -544,11 +552,10 @@ export default function ChatScreen() {
     const ok = await ensurePermission();
     if (!ok) return;
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-      sttRecordingRef.current = recording;
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await sttRecorder.prepareToRecordAsync();
+      sttRecorder.record();
+      sttRecordingRef.current = sttRecorder;
       setSttListening(true);
       sttPulse.value = withRepeat(
         withSequence(
@@ -569,9 +576,9 @@ export default function ChatScreen() {
     sttPulse.value = withTiming(0, { duration: 280 });
     if (!rec) return;
     try {
-      await rec.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-      const uri = rec.getURI();
+      await rec.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      const uri = rec.uri;
       if (!uri) return;
       let base64: string;
       try {
@@ -601,17 +608,14 @@ export default function ChatScreen() {
   // ── Start recording ────────────────────────────────────────────────────────
   const startListening = async () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:   true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording:   true,
+        playsInSilentMode: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-        undefined,
-        100,
-      );
-      recordingRef.current = recording;
+      await voiceRecorder.prepareToRecordAsync();
+      voiceRecorder.record();
+      recordingRef.current = voiceRecorder;
       applyVoice("listening");
     } catch (err) {
       console.warn("[voice] startListening:", err);
@@ -627,14 +631,14 @@ export default function ChatScreen() {
     if (!rec) { applyVoice("idle"); return; }
 
     try {
-      await rec.stopAndUnloadAsync();
+      await rec.stop();
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:   false,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording:   false,
+        playsInSilentMode: true,
       });
 
-      const uri = rec.getURI();
+      const uri = rec.uri;
       if (!uri) { applyVoice("idle"); return; }
 
       // Read as base64 — reliable on Expo Go native
@@ -714,9 +718,9 @@ export default function ChatScreen() {
   // ── expo-speech TTS ────────────────────────────────────────────────────────
   const restoreRecordingMode = async () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:   true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording:   true,
+        playsInSilentMode: true,
       });
     } catch {}
   };

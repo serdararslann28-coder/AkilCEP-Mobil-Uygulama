@@ -1,17 +1,23 @@
 /**
  * Voice Mode — Conversational AI presence.
  *
- * Flow:  idle → [tap] → listening (expo-av record)
+ * Flow:  idle → [tap] → listening (expo-audio record)
  *        → [tap / auto-stop] → thinking (Whisper + GPT via backend)
  *        → speaking (expo-speech TTS)
  *        → idle
  *
- * Stack: expo-av (recording) · expo-file-system (base64) · expo-speech (TTS)
+ * Stack: expo-audio (recording) · expo-file-system (base64) · expo-speech (TTS)
  * No native SpeechRecognizer. No WebSockets. Fully Expo Go compatible.
  * Always dark #010108 — never adapts to global theme.
  */
 import { Feather } from "@expo/vector-icons";
-import { Audio } from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type AudioRecorder,
+} from "expo-audio";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -82,7 +88,11 @@ export default function VoiceScreen() {
   const [aiText, setAiText]         = useState("");
   const [convId, setConvId]         = useState<number>(0);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    isMeteringEnabled: true,
+  });
+  const recordingRef = useRef<AudioRecorder | null>(null);
   const abortRef     = useRef<AbortController | null>(null);
   const phaseRef     = useRef<Phase>("init");
 
@@ -199,14 +209,14 @@ export default function VoiceScreen() {
       return;
     }
     try {
-      const { granted } = await Audio.requestPermissionsAsync();
+      const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
         applyPhase("unavailable");
         return;
       }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:   true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording:   true,
+        playsInSilentMode: true,
       });
       // Create or reuse a conversation
       const id = await createConversation();
@@ -240,7 +250,7 @@ export default function VoiceScreen() {
     const rec = recordingRef.current;
     recordingRef.current = null;
     if (!rec) return;
-    try { await rec.stopAndUnloadAsync(); } catch {}
+    try { await rec.stop(); } catch {}
   };
 
   // ── Button handler ─────────────────────────────────────────────────────────
@@ -274,15 +284,9 @@ export default function VoiceScreen() {
       setUserText("");
       setAiText("");
 
-      const { recording } = await Audio.Recording.createAsync(
-        {
-          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
-          isMeteringEnabled: true,
-        },
-        undefined,
-        80
-      );
-      recordingRef.current = recording;
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      recordingRef.current = audioRecorder;
       applyPhase("listening");
     } catch (err) {
       console.warn("[voice] startListening:", err);
@@ -305,15 +309,15 @@ export default function VoiceScreen() {
     if (!rec) { applyPhase("idle"); return; }
 
     try {
-      await rec.stopAndUnloadAsync();
+      await rec.stop();
 
       // Restore audio mode for playback
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS:   false,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording:   false,
+        playsInSilentMode: true,
       });
 
-      const uri = rec.getURI();
+      const uri = rec.uri;
       if (!uri) { applyPhase("idle"); return; }
 
       // Read as base64 — most reliable on Expo Go native
@@ -392,9 +396,9 @@ export default function VoiceScreen() {
 
     const restoreRecordingMode = async () => {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS:   true,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          allowsRecording:   true,
+          playsInSilentMode: true,
         });
       } catch {}
     };

@@ -7,3 +7,4 @@
 - [Supabase startup guard](supabase-startup-guard.md) — validate EXPO_PUBLIC_SUPABASE_URL before createClient so malformed environment values cannot crash Expo Router during first render
 - [Expo Go SDK patch alignment](expo-sdk54-patch-alignment.md) — keep package, lockfile, proxy runtime metadata, and Expo Go SDK set aligned; verify public manifest and bundle
 - [Expo Go tunnel routing](expo-go-tunnel-routing.md) — physical devices must receive manifest and bundle from one public exp.direct host with no internal Content-Location
+- [Expo Audio SDK 57 migration](expo-audio-sdk57-migration.md) — replace ExponentAV with expo-audio’s recorder lifecycle and verify real module paths, not comments

@@ -7,12 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F7F7F7"
-    },
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
@@ -46,7 +40,6 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-av",
       [
         "expo-camera",
         {
@@ -65,7 +58,15 @@
         }
       ],
       "expo-audio",
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F7F7"
+        }
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true

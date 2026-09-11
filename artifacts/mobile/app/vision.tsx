@@ -13,7 +13,13 @@
  *                                → capture photo → Gemini Vision
  *                                → router.replace("/chat")
  */
-import { Audio }        from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type AudioRecorder,
+} from "expo-audio";
 import { BlurView }     from "expo-blur";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as FileSystem  from "expo-file-system";
@@ -95,7 +101,8 @@ export default function VisionScreen() {
   const { startVisionAnalysis } = useChat();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef       = useRef<CameraView>(null);
-  const askRecordingRef = useRef<Audio.Recording | null>(null);
+  const askRecorder     = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const askRecordingRef = useRef<AudioRecorder | null>(null);
 
   // Camera facing — persists for session lifetime
   const [facing,   setFacing]   = useState<"back" | "front">("back");
@@ -118,7 +125,7 @@ export default function VisionScreen() {
       const rec = askRecordingRef.current;
       if (rec) {
         askRecordingRef.current = null;
-        rec.stopAndUnloadAsync().catch(() => {});
+        rec.stop().catch(() => {});
       }
     };
   }, []);
@@ -202,7 +209,7 @@ export default function VisionScreen() {
     const rec = askRecordingRef.current;
     if (rec) {
       askRecordingRef.current = null;
-      rec.stopAndUnloadAsync().catch(() => {});
+      rec.stop().catch(() => {});
     }
     router.back();
   }, []);
@@ -268,9 +275,9 @@ export default function VisionScreen() {
 
       try {
         // 1. Stop mic
-        await rec?.stopAndUnloadAsync();
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-        const audioUri = rec?.getURI();
+        await rec?.stop();
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+        const audioUri = rec?.uri;
 
         // 2. Transcribe via Whisper
         let question = "";
@@ -343,7 +350,7 @@ export default function VisionScreen() {
       return;
     }
 
-    const { granted: micGranted } = await Audio.requestPermissionsAsync();
+    const { granted: micGranted } = await requestRecordingPermissionsAsync();
     if (!micGranted) {
       Alert.alert(t("vision.alert.micPerm"), t("vision.alert.micPermMsg"));
       return;
@@ -351,11 +358,10 @@ export default function VisionScreen() {
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-      askRecordingRef.current = recording;
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await askRecorder.prepareToRecordAsync();
+      askRecorder.record();
+      askRecordingRef.current = askRecorder;
       setAskState("listening");
     } catch {
       Alert.alert(t("vision.alert.micError"), t("vision.alert.micErrorMsg"));
