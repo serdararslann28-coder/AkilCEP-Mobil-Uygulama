@@ -8,3 +8,4 @@
 - [Expo Go SDK patch alignment](expo-sdk54-patch-alignment.md) — keep package, lockfile, proxy runtime metadata, and Expo Go SDK set aligned; verify public manifest and bundle
 - [Expo Go tunnel routing](expo-go-tunnel-routing.md) — physical devices must receive manifest and bundle from one public exp.direct host with no internal Content-Location
 - [Expo Audio SDK 57 migration](expo-audio-sdk57-migration.md) — replace ExponentAV with expo-audio’s recorder lifecycle and verify real module paths, not comments
+- [Expo SDK 57 Android edge-to-edge](expo-sdk57-edge-to-edge.md) — fill every root provider and place custom controls with safe-area insets; old status-bar overlay props are gone

@@ -20,6 +20,7 @@ import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as Speech from "expo-speech";
+import { StatusBar } from "expo-status-bar";
 import React, {
   useCallback,
   useEffect,
@@ -28,7 +29,6 @@ import React, {
 } from "react";
 import {
   Alert,
-  Dimensions,
   FlatList,
   Image,
   Modal,
@@ -38,6 +38,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
@@ -119,6 +120,7 @@ export default function ChatScreen() {
   const { theme: T }   = useTheme();
   const { t }          = useLanguage();
   const insets          = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const {
     currentMessages,
     currentConversation,
@@ -293,7 +295,6 @@ export default function ChatScreen() {
   // Flowing knowledge shimmer — thin light beam sweeps left→right while typing.
   // Almost invisible by design: 8% peak opacity, 2.4s per pass, linear.
   const BEAM_W    = 88;   // beam width in px
-  const SCREEN_W  = Dimensions.get("window").width;
   const shimmerX  = useSharedValue(-BEAM_W);
   const shimmerOp = useSharedValue(0);
   const shimmerStyle = useAnimatedStyle(() => ({
@@ -306,7 +307,7 @@ export default function ChatScreen() {
       shimmerOp.value = withTiming(1, { duration: 600 });
       shimmerX.value  = -BEAM_W;
       shimmerX.value  = withRepeat(
-        withTiming(SCREEN_W + BEAM_W, { duration: 2400, easing: Easing.linear }),
+        withTiming(windowWidth + BEAM_W, { duration: 2400, easing: Easing.linear }),
         -1,
         false,
       );
@@ -315,7 +316,7 @@ export default function ChatScreen() {
       shimmerOp.value = withTiming(0, { duration: 500 });
       cancelAnimation(shimmerX);
     }
-  }, [hasText]);
+  }, [hasText, windowWidth]);
 
   // Adaptive multiline: scrolls once past MAX_INPUT_H
   const [scrollEnabled, setScrollEnabled] = useState(false);
@@ -787,6 +788,9 @@ export default function ChatScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[ss.root, { backgroundColor: T.bg }]}>
+      <StatusBar
+        style={T.isDark ? "light" : "dark"}
+      />
       <MultimodalPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
@@ -854,7 +858,11 @@ export default function ChatScreen() {
       </TouchableOpacity>
 
       {/* ════ MESSAGES ════ */}
-      <KeyboardAvoidingView style={ss.flex} behavior="padding">
+      <KeyboardAvoidingView
+        style={ss.flex}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
         <FlatList
           ref={flatListRef}
           data={currentMessages}

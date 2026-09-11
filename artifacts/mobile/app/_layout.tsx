@@ -8,17 +8,21 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+} from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
 import { ChatProvider } from "@/context/ChatContext";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,8 +30,23 @@ const queryClient = new QueryClient();
 
 // Splash is always the entry point — it resolves AsyncStorage + navigation itself.
 function RootLayoutNav() {
+  const { theme } = useTheme();
+
   return (
-    <Stack>
+    <>
+      <StatusBar
+        animated
+        style={theme.isDark ? "light" : "dark"}
+      />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: {
+            flex: 1,
+            backgroundColor: theme.bg,
+          },
+        }}
+      >
       <Stack.Screen
         name="splash"
         options={{
@@ -120,7 +139,8 @@ function RootLayoutNav() {
         name="language"
         options={{ headerShown: false, animation: "slide_from_right" }}
       />
-    </Stack>
+      </Stack>
+    </>
   );
 }
 
@@ -152,10 +172,13 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider
+        initialMetrics={initialWindowMetrics}
+        style={styles.root}
+      >
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
             <KeyboardProvider>
               <LanguageProvider>
                 <AuthProvider>
@@ -167,9 +190,15 @@ export default function RootLayout() {
                 </AuthProvider>
               </LanguageProvider>
             </KeyboardProvider>
-          </GestureHandlerRootView>
-        </QueryClientProvider>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
