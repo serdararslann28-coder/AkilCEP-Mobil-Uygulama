@@ -63,7 +63,9 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true

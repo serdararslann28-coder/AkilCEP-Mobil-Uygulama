@@ -1387,23 +1387,31 @@ const ss = StyleSheet.create({
   // B — Input pill flex:1, height 42, radius 21
   dockPillShell: {
     flex:          1,
-    borderRadius:  21,
+    borderRadius:  0,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius:  8,
-    elevation:     2,
+    shadowOffset:  { width: 0, height: 0 }, height: 1 },
+    shadowOpacity: 0,
+    shadowRadius:  0,
+    elevation:     0,
+    backgroundColor: "transparent",
   },
   dockPillBody: {
     flex:            1,
     flexDirection:   "row",
     alignItems:      "center",
     minHeight:       42,
-    borderRadius:    21,
+    borderRadius:    0,
     overflow:        "hidden",
-    paddingLeft:     20,
-    paddingRight:    10,
+    paddingLeft:     0,
+    paddingRight:    0,
     paddingVertical: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   dockShimmer: {
     position: "absolute",
@@ -1411,6 +1419,7 @@ const ss = StyleSheet.create({
     bottom:   0,
     width:    72,
     left:     0,
+    opacity: 0,
   },
   // TextInput — grows with content; all spacing via parent paddingLeft/Right
   dockField: {
@@ -1423,11 +1432,13 @@ const ss = StyleSheet.create({
     paddingVertical:   0,
     paddingHorizontal: 0,
     textAlignVertical: "center",
+    paddingLeft: 0,
+    paddingRight: 10,
   },
   // Animated placeholder — fills parent content area (respects parent padding)
   dockPlaceholder: {
     position:          "absolute",
-    left:              20,
+    left:              0,
     top:               0,
     bottom:            0,
     right:             0,
@@ -1440,15 +1451,20 @@ const ss = StyleSheet.create({
   // Divider — 1×16 px, 12 px margin before mic
   dockDivider: {
     width:       1,
-    height:      16,
+    height:      1,
     marginRight: 12,
+    backgroundColor: T.isDark ? "rgba(255,255,255,0.18)" : "#E5E7EB",
   },
   // Mic touch target — 44×44 (minimum Apple HIG)
-  dockMicWrap: {
+dockMicWrap: {
     width:          44,
     height:         44,
     alignItems:     "center",
     justifyContent: "center",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 
   // C — AI voice button 46×46, radius 23
