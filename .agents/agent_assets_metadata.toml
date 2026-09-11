@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "x4yt2wyemg3RKVegWnI7i"
@@ -12,3 +11,17 @@ id = "oJKqI3jfn2c3zncReT8dt"
 uri = "file://artifacts/mobile/assets/images/avatar.png"
 type = "image"
 title = "premium headshot avatar"
+
+[[outputs]]
+id = "AbrSdAGLghF0IEgvtGJSX"
+uri = "file://artifacts/mobile/expo-go-tunnel-qr.png"
+type = "image"
+title = "AkılCEP Expo Go Tunnel QR"
+description = "Doğrulanmış public Expo tunnel bağlantısı: exp://afxqfcq-serdararslann28-18115.exp.direct"
+logical_id = "adeeaead-8c4a-4715-9e2c-2cf8771e546c"
+content_hash = "sha256:a71cc669e6b0c0ae716d648bf2e59faa6351cf3e3af0e488be37f64f10737a86"
+size = 5804
+mtime_ms = 1789169113790
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:6b195a2e-c87f-4826-a304-801ef9d75712/adeeaead-8c4a-4715-9e2c-2cf8771e546c/98f2daab-9fe2-454e-b1e3-764fd018009c"
+storage_version_token = "1789169128050853"
+content_type = "image/png"

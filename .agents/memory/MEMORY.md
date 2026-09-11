@@ -6,3 +6,4 @@
 - [EAS CLI git lock in Replit main agent](eas-replit-git-lock.md) — main agent cannot write to .git/index.lock; submit EAS builds from clean committed git state (no EXPO_NO_GIT_STATUS_CHECK needed when state is clean)
 - [Supabase startup guard](supabase-startup-guard.md) — validate EXPO_PUBLIC_SUPABASE_URL before createClient so malformed environment values cannot crash Expo Router during first render
 - [Expo Go SDK patch alignment](expo-sdk54-patch-alignment.md) — keep package, lockfile, proxy runtime metadata, and Expo Go SDK set aligned; verify public manifest and bundle
+- [Expo Go tunnel routing](expo-go-tunnel-routing.md) — physical devices must receive manifest and bundle from one public exp.direct host with no internal Content-Location

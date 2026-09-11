@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "METRO_PORT=$(($PORT+1)) EXPO_DEBUG=1 node server/metro-proxy.js & REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_EXPO_DEV_DOMAIN EXPO_DEBUG=1 pnpm exec expo start --go --clear --port $(($PORT+1))",
+    "dev": "EXPO_DEBUG=1 pnpm exec expo start --go --tunnel --clear --port $PORT",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
