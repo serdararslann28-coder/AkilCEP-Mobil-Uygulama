@@ -397,7 +397,7 @@ export default function SideMenu({ visible, onClose }: Props) {
 const ss = StyleSheet.create({
   // Backdrop
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 400,
   },
 

@@ -384,7 +384,7 @@ function prewarmAndDiagnose() {
               accept: "multipart/mixed,application/json",
               "expo-platform": "ios",
               "expo-api-version": "1",
-              "expo-runtime-version": "exposdk:54.0.0",
+              "expo-runtime-version": "exposdk:57.0.0",
             },
           },
           (res) => {

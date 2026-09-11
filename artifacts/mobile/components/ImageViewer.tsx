@@ -387,13 +387,13 @@ export default function ImageViewer({ visible, imageData, onClose, onEdit }: Pro
 const ss = StyleSheet.create({
   // Full-screen dark background
   bg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
   },
 
   // Centered image wrapper — transforms applied here
   imageWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems:     "center",
   },

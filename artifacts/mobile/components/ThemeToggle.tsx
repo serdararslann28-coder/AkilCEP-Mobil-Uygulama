@@ -113,7 +113,7 @@ const ss = StyleSheet.create({
     elevation:     3,
   },
   iconRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection:  "row",
     alignItems:     "center",
   },

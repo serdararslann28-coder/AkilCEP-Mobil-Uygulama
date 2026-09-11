@@ -191,7 +191,7 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
 }
 
 const ss = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 200 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 200 },
   sheet: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     zIndex: 201, borderTopLeftRadius: 32, borderTopRightRadius: 32,

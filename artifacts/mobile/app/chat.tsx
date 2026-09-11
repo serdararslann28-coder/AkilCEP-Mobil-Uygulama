@@ -8,7 +8,6 @@
  * No separate voice screen. Voice lives entirely inside the chat.
  */
 import { Feather } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -39,8 +38,6 @@ import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-
 import Animated, {
   cancelAnimation,
   Easing,
-  FadeIn,
-  FadeOut,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -1225,7 +1222,7 @@ const ss = StyleSheet.create({
 
   // Watermark
   logoFrame: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems:     "center",
     justifyContent: "center",
     pointerEvents:  "none",
@@ -1389,7 +1386,7 @@ const ss = StyleSheet.create({
     flex:          1,
     borderRadius:  0,
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 0 }, height: 1 },
+    shadowOffset:  { width: 0, height: 0 },
     shadowOpacity: 0,
     shadowRadius:  0,
     elevation:     0,
@@ -1453,7 +1450,7 @@ const ss = StyleSheet.create({
     width:       1,
     height:      1,
     marginRight: 12,
-    backgroundColor: T.isDark ? "rgba(255,255,255,0.18)" : "#E5E7EB",
+    backgroundColor: "#E5E7EB",
   },
   // Mic touch target — 44×44 (minimum Apple HIG)
 dockMicWrap: {

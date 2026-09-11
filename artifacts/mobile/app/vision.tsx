@@ -756,12 +756,12 @@ const ss = StyleSheet.create({
   },
 
   camera: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     transform: [{ scale: COVER_SCALE }],
   },
 
   camFallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#0a0a0c",
   },
 
@@ -782,7 +782,7 @@ const ss = StyleSheet.create({
 
   // ── Detection frame ─────────────────────────────────────────────────────────
   frameWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems:     "center",
     justifyContent: "center",
   },
@@ -1010,7 +1010,7 @@ const ss = StyleSheet.create({
 
   // ── Permission card ─────────────────────────────────────────────────────────
   permArea: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems:     "center",
     justifyContent: "center",
   },

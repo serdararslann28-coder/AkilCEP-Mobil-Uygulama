@@ -87,7 +87,7 @@ export default function PhotoCropModal({ uri, onDone, onCancel }: Props) {
   };
 
   return (
-    <GestureHandlerRootView style={StyleSheet.absoluteFillObject}>
+    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
       <View style={styles.root}>
 
         {/* ── Top bar ── */}
@@ -138,7 +138,7 @@ export default function PhotoCropModal({ uri, onDone, onCancel }: Props) {
             </Svg>
             {/* Circle border */}
             <Svg
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               width={W}
               height={W}
             >
@@ -200,7 +200,7 @@ export default function PhotoCropModal({ uri, onDone, onCancel }: Props) {
 const styles = StyleSheet.create({
 
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#111111",
     zIndex:          500,
     alignItems:      "center",
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   maskOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems:     "center",
     justifyContent: "center",
   },

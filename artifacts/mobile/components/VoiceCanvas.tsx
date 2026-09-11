@@ -354,6 +354,6 @@ export default function VoiceCanvas({ voiceState, onFormationDone }: Props) {
 }
 
 const s = StyleSheet.create({
-  fill: { ...StyleSheet.absoluteFillObject, backgroundColor: "#010108" },
+  fill: { ...StyleSheet.absoluteFill, backgroundColor: "#010108" },
   web:  { flex: 1, backgroundColor: "transparent" },
 });
