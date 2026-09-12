@@ -218,6 +218,22 @@ export default function ChatScreen() {
         - kbH.value,
     };
   });
+  const auraBottomInsetStyle = useAnimatedStyle(() => {
+    const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
+    const insetExtension = bottomPad * (1 - keyboardReveal);
+    return {
+      bottom: -34 - insetExtension,
+      height: 540 + insetExtension,
+    };
+  });
+  const sendWaveBottomInsetStyle = useAnimatedStyle(() => {
+    const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
+    const insetExtension = bottomPad * (1 - keyboardReveal);
+    return {
+      bottom: -28 - insetExtension,
+      height: 560 + insetExtension,
+    };
+  });
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
   const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
@@ -1019,7 +1035,7 @@ export default function ChatScreen() {
       >
         <Animated.View
           pointerEvents="none"
-          style={[ss.composerAura, auraStyle]}
+          style={[ss.composerAura, auraBottomInsetStyle, auraStyle]}
         >
           <Svg width="100%" height="100%" viewBox="0 0 400 540">
             <Defs>
@@ -1036,7 +1052,7 @@ export default function ChatScreen() {
         </Animated.View>
         <Animated.View
           pointerEvents="none"
-          style={[ss.sendLightWave, sendWaveStyle]}
+          style={[ss.sendLightWave, sendWaveBottomInsetStyle, sendWaveStyle]}
         >
           <Svg width="100%" height="100%" viewBox="0 0 400 560">
             <Defs>
