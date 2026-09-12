@@ -16,7 +16,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Lang, useLanguage } from "@/context/LanguageContext";
-import { useTheme }          from "@/context/ThemeContext";
+import colors                from "@/constants/colors";
+
+const C = colors.light;
 
 // ─── Language options ───────────────────────────────────────────────────────────
 const OPTIONS: { lang: Lang; flag: string; nativeName: string; englishName: string }[] = [
@@ -26,42 +28,40 @@ const OPTIONS: { lang: Lang; flag: string; nativeName: string; englishName: stri
 
 // ─── Screen ─────────────────────────────────────────────────────────────────────
 export default function LanguageScreen() {
-  const { theme: T }    = useTheme();
   const { lang, setLang, t } = useLanguage();
   const insets          = useSafeAreaInsets();
   const topPad          = Platform.OS === "web" ? 20 : insets.top;
   const btmPad          = Platform.OS === "web" ? 34 : insets.bottom;
-  const isDark          = T.isDark;
 
-  const divider    = isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.06)";
-  const cardBg     = isDark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.030)";
-  const cardBorder = isDark ? "rgba(255,255,255,0.09)"  : "rgba(0,0,0,0.07)";
-  const muted      = isDark ? "rgba(237,235,231,0.38)"  : "rgba(12,12,12,0.38)";
+  const divider    = C.border;
+  const cardBg     = C.primaryForeground;
+  const cardBorder = C.border;
+  const muted      = C.zinc400;
 
   async function handleSelect(selected: Lang) {
     await setLang(selected);
   }
 
   return (
-    <View style={[ss.root, { backgroundColor: T.bg }]}>
+    <View style={ss.root}>
 
       {/* ── Floating back button ────────────────────────────────────────────── */}
       <TouchableOpacity
         onPress={() => router.back()}
-        style={[ss.floatBack, { top: topPad + 10, backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)" }]}
-        hitSlop={14}
+        style={[ss.floatBack, { top: topPad + 8 }]}
+        hitSlop={12}
         activeOpacity={0.60}
       >
-        <Feather name="chevron-left" size={18} color={T.fg} />
+        <Feather name="chevron-left" size={16} color={C.foreground} />
       </TouchableOpacity>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: btmPad + 48, paddingTop: topPad + 52 }}
+        contentContainerStyle={{ paddingBottom: btmPad + 32, paddingTop: topPad + 46 }}
         showsVerticalScrollIndicator={false}
       >
 
         {/* ── Page title ─────────────────────────────────────────────────────── */}
-        <Text style={[ss.pageTitle, { color: T.fg }]}>{t("language.title")}</Text>
+        <Text style={ss.pageTitle}>{t("language.title")}</Text>
         <Text style={[ss.pageSubtitle, { color: muted }]}>{t("language.subtitle")}</Text>
 
         {/* ── Language list ──────────────────────────────────────────────────── */}
@@ -84,7 +84,7 @@ export default function LanguageScreen() {
 
                 {/* Names */}
                 <View style={ss.nameBlock}>
-                  <Text style={[ss.nativeName, { color: T.fg, fontFamily: selected ? "Inter_600SemiBold" : "Inter_400Regular" }]}>
+                  <Text style={[ss.nativeName, { fontFamily: selected ? "Inter_600SemiBold" : "Inter_400Regular" }]}>
                     {opt.nativeName}
                   </Text>
                   <Text style={[ss.englishName, { color: muted }]}>
@@ -94,7 +94,7 @@ export default function LanguageScreen() {
 
                 {/* Checkmark */}
                 {selected && (
-                  <Feather name="check" size={17} color={T.primary} />
+                  <Feather name="check" size={15} color={C.foreground} />
                 )}
               </TouchableOpacity>
             );
@@ -115,38 +115,43 @@ export default function LanguageScreen() {
 const ss = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: C.primaryForeground,
   },
 
   floatBack: {
     position:       "absolute",
-    left:           16,
+    left:           14,
     zIndex:         10,
-    width:          36,
-    height:         36,
-    borderRadius:   18,
+    width:          32,
+    height:         32,
+    borderRadius:   16,
     alignItems:     "center",
     justifyContent: "center",
+    backgroundColor: C.zinc100,
+    borderWidth:    StyleSheet.hairlineWidth,
+    borderColor:    C.border,
   },
 
   pageTitle: {
-    fontSize:          28,
+    color:             C.foreground,
+    fontSize:          24,
     fontFamily:        "Inter_700Bold",
     letterSpacing:     -0.6,
-    paddingHorizontal: 20,
-    paddingBottom:     4,
+    paddingHorizontal: 16,
+    paddingBottom:     3,
   },
 
   pageSubtitle: {
-    fontSize:          14,
+    fontSize:          12.5,
     fontFamily:        "Inter_400Regular",
-    paddingHorizontal: 20,
-    paddingBottom:     24,
+    paddingHorizontal: 16,
+    paddingBottom:     18,
     letterSpacing:     -0.1,
   },
 
   card: {
-    marginHorizontal: 16,
-    borderRadius:     16,
+    marginHorizontal: 12,
+    borderRadius:     14,
     borderWidth:      StyleSheet.hairlineWidth,
     overflow:         "hidden",
   },
@@ -154,14 +159,14 @@ const ss = StyleSheet.create({
   row: {
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 16,
-    paddingVertical:   16,
-    gap:               14,
+    paddingHorizontal: 14,
+    paddingVertical:   12,
+    gap:               11,
   },
 
   flag: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize:   22,
+    lineHeight: 28,
   },
 
   nameBlock: {
@@ -170,21 +175,22 @@ const ss = StyleSheet.create({
   },
 
   nativeName: {
-    fontSize:      16,
+    color:         C.foreground,
+    fontSize:      15,
     letterSpacing: -0.2,
   },
 
   englishName: {
-    fontSize:   13,
+    fontSize:   11.5,
     fontFamily: "Inter_400Regular",
   },
 
   note: {
-    fontSize:          12,
+    fontSize:          10.5,
     fontFamily:        "Inter_400Regular",
-    paddingHorizontal: 20,
-    paddingTop:        14,
+    paddingHorizontal: 16,
+    paddingTop:        11,
     letterSpacing:     0.1,
-    lineHeight:        18,
+    lineHeight:        15,
   },
 });
