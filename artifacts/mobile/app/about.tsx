@@ -17,18 +17,32 @@ const BACK_HIT_SIZE = 48;
 
 export default function AboutScreen() {
   const { width, height } = useWindowDimensions();
-  const scale = Math.min(width / SOURCE_WIDTH, height / SOURCE_HEIGHT);
+  const scale = Math.max(width / SOURCE_WIDTH, height / SOURCE_HEIGHT);
   const renderedWidth = SOURCE_WIDTH * scale;
   const renderedHeight = SOURCE_HEIGHT * scale;
   const offsetX = (width - renderedWidth) / 2;
   const offsetY = (height - renderedHeight) / 2;
+  const backLeft = Math.max(
+    0,
+    Math.min(
+      width - BACK_HIT_SIZE,
+      offsetX + BACK_CENTER_X * scale - BACK_HIT_SIZE / 2,
+    ),
+  );
+  const backTop = Math.max(
+    0,
+    Math.min(
+      height - BACK_HIT_SIZE,
+      offsetY + BACK_CENTER_Y * scale - BACK_HIT_SIZE / 2,
+    ),
+  );
 
   return (
     <View style={ss.root}>
       <Image
         source={aboutScreen}
         style={ss.image}
-        resizeMode="contain"
+        resizeMode="cover"
         accessibilityLabel="AkılCEP Hakkımızda"
       />
       <Pressable
@@ -36,8 +50,8 @@ export default function AboutScreen() {
         style={[
           ss.backHitArea,
           {
-            left: offsetX + BACK_CENTER_X * scale - BACK_HIT_SIZE / 2,
-            top: offsetY + BACK_CENTER_Y * scale - BACK_HIT_SIZE / 2,
+            left: backLeft,
+            top: backTop,
           },
         ]}
         hitSlop={8}
@@ -57,7 +71,7 @@ const ss = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     width: "100%",
     height: "100%",
-    objectFit: "contain",
+    objectFit: "cover",
   },
   backHitArea: {
     position: "absolute",
