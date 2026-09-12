@@ -514,6 +514,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               onPress={handleNewChat}
               activeOpacity={0.82}
             >
+              <View pointerEvents="none" style={ss.fabTail} />
               <Feather name="plus" size={17} color="#FFFFFF" />
               <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
             </TouchableOpacity>
@@ -908,14 +909,25 @@ const ss = StyleSheet.create({
     flexDirection:   "row",
     alignItems:      "center",
     justifyContent:  "center",
-    borderRadius:    999,
+    borderRadius:    18,
     gap:             8,
-    backgroundColor: "#111111",
+    backgroundColor: "#000000",
     shadowColor:     "#000",
-    shadowOffset:    { width: 0, height: 6 },
-    shadowOpacity:   0.16,
-    shadowRadius:    18,
-    elevation:       8,
+    shadowOffset:    { width: 0, height: 5 },
+    shadowOpacity:   0.14,
+    shadowRadius:    14,
+    elevation:       7,
+  },
+
+  fabTail: {
+    position:        "absolute",
+    left:            18,
+    bottom:          -5,
+    width:           13,
+    height:          13,
+    borderRadius:    3,
+    backgroundColor: "#000000",
+    transform:       [{ rotate: "45deg" }],
   },
 
   fabLabel: {
