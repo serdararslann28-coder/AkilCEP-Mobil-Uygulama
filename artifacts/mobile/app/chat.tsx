@@ -160,7 +160,6 @@ export default function ChatScreen() {
   const flatListRef     = useRef<FlatList>(null);
   const sideMenuRef     = useRef<SideMenuHandle>(null);
   const menuVisibleRef  = useRef(false);
-  const gestureStartXRef = useRef(Number.POSITIVE_INFINITY);
   const voicePhaseRef   = useRef<VoicePhase>("idle");
   const voiceRecorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const sttRecorder     = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -175,14 +174,9 @@ export default function ChatScreen() {
 
   const edgeSwipeResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponderCapture: (event) => {
-        gestureStartXRef.current = event.nativeEvent.pageX;
-        return false;
-      },
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         !menuVisibleRef.current &&
-        gestureStartXRef.current <= 24 &&
         dx > 10 &&
         Math.abs(dx) > Math.abs(dy) * 1.8,
       onPanResponderMove: (_, { dx }) => {

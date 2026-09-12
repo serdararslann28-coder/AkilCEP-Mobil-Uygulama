@@ -128,7 +128,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       backdropOp.value = progress / MENU_W;
     },
     finishOpeningGesture: (distance, velocity) => {
-      if (distance > MENU_W * 0.28 || velocity > 0.55) {
+      const openDistance = Math.min(MENU_W * 0.28, 32);
+      if (distance >= openDistance || velocity > 0.55) {
         onOpenRef.current();
       } else {
         translateX.value = withSpring(-MENU_W, { damping: 26, stiffness: 220 });
@@ -213,6 +214,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       <Animated.View
         style={[ss.backdrop, backdropAnim]}
         pointerEvents={visible ? "auto" : "none"}
+        {...panResponder.panHandlers}
       >
         <BlurView intensity={14} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.28)" }]} />
