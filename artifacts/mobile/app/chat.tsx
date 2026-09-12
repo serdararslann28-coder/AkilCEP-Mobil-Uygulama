@@ -8,7 +8,6 @@
  * No separate voice screen. Voice lives entirely inside the chat.
  */
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -38,12 +37,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
 import Animated, {
-  cancelAnimation,
   Easing,
   interpolate,
   useAnimatedStyle,
@@ -74,7 +71,7 @@ const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
 // ── Voice phase ────────────────────────────────────────────────────────────────
 type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
-const MIN_INPUT_H = 42;   // single-line floating pill
+const MIN_INPUT_H = 42;   // single-line underlined input
 const MAX_INPUT_H = 120;  // ~5 lines before scroll kicks in
 
 // ── Waveform bars — animated 4-bar equaliser inside the AI button ─────────────
@@ -120,7 +117,6 @@ export default function ChatScreen() {
   const { theme: T }   = useTheme();
   const { t }          = useLanguage();
   const insets          = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
   const {
     currentMessages,
     currentConversation,
@@ -264,69 +260,17 @@ export default function ChatScreen() {
   // ── Shared values — smart arrow button (send ↔ dark voice orb) ─────────────
   const voiceModeSV    = useSharedValue(0);  // 0 = send, 1 = voice-orb
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
-  const sttPulse       = useSharedValue(0);  // 0→1 during STT listening
   const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
   const inputFocused   = useSharedValue(0);             // 0 = rest, 1 = focused
-  const placeholderSV  = useSharedValue(1);             // 1 = visible, 0 = hidden (fades on focus/typing)
 
-  // Soft white glow on focus — luxurious, no bounce
   const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
-  // Pill shadow — 20% reduced from previous; gentle focus glow
-  const inputGlowStyle = useAnimatedStyle(() => ({
-    shadowColor:   T.isDark ? "#FFFFFF" : "#000000",
-    shadowOpacity: interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [0.06, 0.14] : [0.04, 0.08]),
-    shadowRadius:  interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [11,   21]   : [8,    14]),
-    shadowOffset:  { width: 0, height: T.isDark ? 0 : 2 },
-    elevation:     5,
+  const focusLineStyle = useAnimatedStyle(() => ({
+    opacity: inputFocused.value,
+    transform: [{ scaleX: interpolate(inputFocused.value, [0, 1], [0.78, 1]) }],
   }));
-  // Custom placeholder — fades out on focus or when text is present
-  const placeholderFadeStyle = useAnimatedStyle(() => ({
-    opacity: placeholderSV.value,
-  }));
-
-  // Glass overlay darkens pill surface; brightens subtly on focus
-  const inputOverlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(inputFocused.value, [0, 1],
-      T.isDark ? [0.56, 0.64] : [0.62, 0.76]),
-  }));
-
-  // Flowing knowledge shimmer — thin light beam sweeps left→right while typing.
-  // Almost invisible by design: 8% peak opacity, 2.4s per pass, linear.
-  const BEAM_W    = 88;   // beam width in px
-  const shimmerX  = useSharedValue(-BEAM_W);
-  const shimmerOp = useSharedValue(0);
-  const shimmerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shimmerX.value }],
-    opacity:   shimmerOp.value,
-  }));
-  useEffect(() => {
-    if (hasText) {
-      // Fade beam in, then loop sweep continuously
-      shimmerOp.value = withTiming(1, { duration: 600 });
-      shimmerX.value  = -BEAM_W;
-      shimmerX.value  = withRepeat(
-        withTiming(windowWidth + BEAM_W, { duration: 2400, easing: Easing.linear }),
-        -1,
-        false,
-      );
-    } else {
-      // Stop sweep, fade out
-      shimmerOp.value = withTiming(0, { duration: 500 });
-      cancelAnimation(shimmerX);
-    }
-  }, [hasText, windowWidth]);
 
   // Adaptive multiline: scrolls once past MAX_INPUT_H
   const [scrollEnabled, setScrollEnabled] = useState(false);
-
-  // Mic button glow pulse during listening
-  const micGlow = useSharedValue(0);
-  const micGlowStyle = useAnimatedStyle(() => ({
-    opacity:   micGlow.value,
-    transform: [{ scale: 1 + micGlow.value * 0.35 }],
-  }));
 
   // Arrow animated styles
   // Gentle scale pulse — only active in voice mode, no rings
@@ -347,24 +291,12 @@ export default function ChatScreen() {
   }));
 
   // STT mic — soft radial pulse ring while recording
-  const sttPulseStyle = useAnimatedStyle(() => ({
-    opacity:   sttPulse.value * 0.42,
-    transform: [{ scale: 1 + sttPulse.value * 0.55 }],
-  }));
-
-  // Monochrome press glow — scale-down + inner highlight bloom (works inside overflow:hidden)
+  // Minimal press feedback for mic and action button.
   const sendPressGlow = useSharedValue(0);
-  const micPressGlow  = useSharedValue(0);
   const PRESS_IN  = { duration: 80 } as const;
   const PRESS_OUT = { duration: 220, easing: Easing.out(Easing.ease) } as const;
-  const sendBtnScaleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(sendPressGlow.value, [0, 1], [1.0, 0.91]) }],
-  }));
   const sendPressHighlightStyle = useAnimatedStyle(() => ({
     opacity: sendPressGlow.value,
-  }));
-  const micPressHighlightStyle = useAnimatedStyle(() => ({
-    opacity: micPressGlow.value,
   }));
   // Mic scale press — 0.95 in 120ms
   const micScaleSV    = useSharedValue(1);
@@ -374,7 +306,7 @@ export default function ChatScreen() {
 
   // + button press — scale 1.0 → 0.97
   const plusScaleSV = useSharedValue(0);
-  const plusCircleScaleStyle = useAnimatedStyle(() => ({
+  const plusPressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(plusScaleSV.value, [0, 1], [1.0, 0.97]) }],
   }));
 
@@ -405,20 +337,6 @@ export default function ChatScreen() {
   const inputFieldAnim = useAnimatedStyle(() => ({
     height: inputHeightSV.value,
   }));
-
-  useEffect(() => {
-    if (isListening) {
-      micGlow.value = withRepeat(
-        withSequence(
-          withTiming(0.60, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.20, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, true
-      );
-    } else {
-      micGlow.value = withTiming(0, { duration: 350 });
-    }
-  }, [isListening]);
 
   // ── Arrow morphs: text present → send / empty → dark voice orb ─────────────
   useEffect(() => {
@@ -558,13 +476,6 @@ export default function ChatScreen() {
       sttRecorder.record();
       sttRecordingRef.current = sttRecorder;
       setSttListening(true);
-      sttPulse.value = withRepeat(
-        withSequence(
-          withTiming(1,    { duration: 650, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.28, { duration: 650, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, true,
-      );
     } catch {
       Alert.alert(t("chat.alert.voiceInput"), t("chat.alert.micStartFail"));
     }
@@ -574,7 +485,6 @@ export default function ChatScreen() {
     const rec = sttRecordingRef.current;
     sttRecordingRef.current = null;
     setSttListening(false);
-    sttPulse.value = withTiming(0, { duration: 280 });
     if (!rec) return;
     try {
       await rec.stop();
@@ -756,32 +666,7 @@ export default function ChatScreen() {
 
   // ── Colour tokens ──────────────────────────────────────────────────────────
 
-  const inputBg      = T.isDark ? "rgba(255,255,255,0.055)" : "#F1F1EE";
-  const sendBtnBg    = T.isDark ? "rgba(255,255,255,0.12)"  : "#E5E5E1";
-  const inputTextClr = T.isDark ? T.fg                      : "#5C5C5C";
-  const inputPlhClr  = T.isDark ? T.muted                   : "#9A9A9A";
-  const attachClr    = T.isDark ? "rgba(255,255,255,0.55)"  : "#222222";
   const logoTint     = T.isDark ? "#888888"                 : "#5A5A5A";
-
-  // Mic button colors per phase
-  const micBg = useCallback((): string => {
-    if (voicePhase === "listening") return T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.07)";
-    if (voicePhase === "speaking")  return T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)";
-    return "transparent";
-  }, [voicePhase, T.isDark]);
-
-  const micIconColor = (): string => {
-    if (voicePhase === "listening") return T.isDark ? "rgba(255,255,255,0.90)" : "rgba(0,0,0,0.70)";
-    if (voicePhase === "speaking")  return T.isDark ? "rgba(255,255,255,0.70)" : "rgba(0,0,0,0.50)";
-    if (voicePhase === "thinking")  return T.isDark ? "rgba(255,255,255,0.50)" : "rgba(0,0,0,0.35)";
-    return attachClr;
-  };
-
-  const micIconName = (): React.ComponentProps<typeof Feather>["name"] => {
-    if (voicePhase === "listening") return "square";
-    if (voicePhase === "speaking")  return "volume-2";
-    return "mic";
-  };
 
   const voiceActive = voicePhase !== "idle";
 
@@ -794,6 +679,11 @@ export default function ChatScreen() {
       <MultimodalPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        onNote={() => setExpandedOpen(true)}
+        onLocationPicked={({ latitude, longitude }) => {
+          const locationUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+          setInputText((current) => current ? `${current}\n${locationUrl}` : locationUrl);
+        }}
         bottomOffset={bottomPad + 80}
       />
       <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
@@ -900,8 +790,8 @@ export default function ChatScreen() {
       <Animated.View style={[ss.inputOuter, dockKbStyle]}>
         <View style={ss.dock}>
 
-          {/* A — circular + button, 42×42, white, soft shadow */}
-          <Animated.View style={[ss.dockPlus, plusCircleScaleStyle]}>
+          {/* A — minimal plus action, no card or capsule */}
+          <Animated.View style={[ss.dockPlus, plusPressStyle]}>
             <Pressable
               style={ss.dockPlusInner}
               onPressIn={() => {
@@ -913,104 +803,78 @@ export default function ChatScreen() {
               hitSlop={4}
             >
               <Animated.View style={plusRotAnim}>
-                <Feather name="plus" size={20} color="#000000" />
+                <Feather name="plus" size={21} color={T.isDark ? "#EDEBE7" : "#222222"} />
               </Animated.View>
             </Pressable>
           </Animated.View>
 
-          {/* B — white pill, flex:1 */}
-          <Animated.View style={[ss.dockPillShell, inputGlowStyle, inputFieldAnim]}>
-            <View style={[ss.dockPillBody, { backgroundColor: T.isDark ? "#1C1C1E" : "#FFFFFF" }]}>
-
-              {/* Shimmer sweep while typing */}
-              <Animated.View style={[ss.dockShimmer, shimmerStyle]} pointerEvents="none">
-                <LinearGradient
-                  colors={["transparent", T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.025)", "transparent"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
-
-              {/* Custom animated placeholder */}
-              {!voiceActive && (
-                <Animated.Text
-                  style={[ss.dockPlaceholder, { color: T.isDark ? "rgba(255,255,255,0.36)" : "#B8B8B8" }, placeholderFadeStyle]}
-                  pointerEvents="none"
-                  numberOfLines={1}
-                >
-                  {t("chat.placeholder")}
-                </Animated.Text>
-              )}
-
-              {/* Text field */}
+          {/* B — open input surface with a single underline */}
+          <Animated.View style={[ss.underlineInput, inputFieldAnim]}>
+            <View style={ss.underlineInputRow}>
               <TextInput
                 style={[
                   ss.dockField,
-                  { color: T.isDark ? "rgba(255,255,255,0.92)" : "#1A1A1A", opacity: voiceActive ? 0.45 : 1 },
+                  {
+                    color: T.isDark ? "#F2F0EC" : "#111111",
+                    opacity: voiceActive ? 0.45 : 1,
+                  },
                 ]}
-                placeholder=""
+                placeholder={sttListening ? t("chat.listening") : t("chat.placeholder")}
+                placeholderTextColor={sttListening
+                  ? (T.isDark ? "#76AEEA" : "#5B9AD9")
+                  : (T.isDark ? "rgba(255,255,255,0.36)" : "#A7ABB2")}
                 multiline
                 scrollEnabled={scrollEnabled}
                 value={inputText}
                 onContentSizeChange={onContentSizeChange}
-                onChangeText={(t) => {
-                  setInputText(t);
-                  if (t.length > 0) {
-                    placeholderSV.value = withTiming(0, { duration: 100 });
-                  } else if (inputFocused.value < 0.5) {
-                    placeholderSV.value = withTiming(1, { duration: 150 });
-                  }
-                }}
+                onChangeText={setInputText}
                 maxLength={2000}
                 returnKeyType="send"
                 onSubmitEditing={() => { if (hasText) handleSend(); }}
-                editable={!voiceActive}
+                editable={!voiceActive && !sttListening}
                 onFocus={() => {
-                  inputFocused.value  = withTiming(1, FOCUS_DUR);
-                  placeholderSV.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
+                  inputFocused.value = withTiming(1, FOCUS_DUR);
                 }}
                 onBlur={() => {
                   inputFocused.value = withTiming(0, FOCUS_DUR);
-                  if (inputText.length === 0) {
-                    placeholderSV.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.ease) });
-                  }
                 }}
-              />
-
-              {/* Divider */}
-              <View
-                style={[ss.dockDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.11)" }]}
-                pointerEvents="none"
               />
 
               {/* Mic */}
               <Animated.View style={[ss.dockMicWrap, micScaleStyle]}>
-                <Animated.View
-                  style={[StyleSheet.absoluteFill, { borderRadius: 22, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)" }, micPressHighlightStyle]}
-                  pointerEvents="none"
-                />
                 <AkilMic
                   listening={sttListening}
                   size={20}
                   color={sttListening
-                    ? (T.isDark ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.82)")
+                    ? (T.isDark ? "#76AEEA" : "#5B9AD9")
                     : (T.isDark ? "rgba(255,255,255,0.60)" : "#2E2E2E")}
                   onPressIn={() => {
-                    micPressGlow.value = withTiming(1, PRESS_IN);
                     micScaleSV.value   = withTiming(0.95, { duration: 120 });
                     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   onPressOut={() => {
-                    micPressGlow.value = withTiming(0, PRESS_OUT);
                     micScaleSV.value   = withTiming(1.0, { duration: 120 });
                   }}
                   onPress={handleSttPress}
                   hitSlop={8}
                 />
               </Animated.View>
-
             </View>
+            <View
+              style={[
+                ss.inputUnderline,
+                { backgroundColor: T.isDark ? "rgba(255,255,255,0.16)" : "#E5E7EB" },
+              ]}
+              pointerEvents="none"
+            />
+            <Animated.View
+              style={[
+                ss.inputFocusLine,
+                { backgroundColor: T.isDark ? "#76AEEA" : "#5B9AD9" },
+                focusLineStyle,
+              ]}
+              pointerEvents="none"
+            />
           </Animated.View>
 
           {/* C — black AI voice button */}
@@ -1372,63 +1236,29 @@ const ss = StyleSheet.create({
     width:         "92%",
   },
 
-  // A — Plus button 42×42, radius 21
+  // A — Plus icon with a generous touch target, no visual container
   dockPlus: {
-    width:         42,
-    height:        42,
-    borderRadius:  21,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius:  3,
-    elevation:     2,
+    width:  44,
+    height: 44,
   },
   dockPlusInner: {
-    width:           42,
-    height:          42,
-    borderRadius:    21,
-    backgroundColor: "#FFFFFF",
+    width:           44,
+    height:          44,
+    backgroundColor: "transparent",
     alignItems:      "center",
     justifyContent:  "center",
-    overflow:        "hidden",
   },
 
-  // B — Input pill flex:1, height 42, radius 21
-  dockPillShell: {
-    flex:          1,
-    borderRadius:  0,
-    shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius:  0,
-    elevation:     0,
-    backgroundColor: "transparent",
+  // B — Spacious input with a single understated underline
+  underlineInput: {
+    flex:      1,
+    minHeight: 42,
   },
-  dockPillBody: {
+  underlineInputRow: {
     flex:            1,
     flexDirection:   "row",
     alignItems:      "center",
-    minHeight:       42,
-    borderRadius:    0,
-    overflow:        "hidden",
-    paddingLeft:     0,
-    paddingRight:    0,
-    paddingVertical: 0,
-    borderWidth: 0,
-    borderColor: "transparent",
-    backgroundColor: "transparent",
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
-  },
-  dockShimmer: {
-    position: "absolute",
-    top:      0,
-    bottom:   0,
-    width:    72,
-    left:     0,
-    opacity: 0,
+    minHeight:       40,
   },
   // TextInput — grows with content; all spacing via parent paddingLeft/Right
   dockField: {
@@ -1442,32 +1272,26 @@ const ss = StyleSheet.create({
     paddingHorizontal: 0,
     textAlignVertical: "center",
     paddingLeft: 0,
-    paddingRight: 10,
+    paddingRight:      8,
   },
-  // Animated placeholder — fills parent content area (respects parent padding)
-  dockPlaceholder: {
-    position:          "absolute",
-    left:              0,
-    top:               0,
-    bottom:            0,
-    right:             0,
-    fontSize:          16,
-    fontFamily:        "Inter_400Regular",
-    letterSpacing:     -0.3,
-    textAlignVertical: "center",
-    lineHeight:        42,
+  inputUnderline: {
+    position: "absolute",
+    left:     0,
+    right:    0,
+    bottom:   0,
+    height:   StyleSheet.hairlineWidth,
   },
-  // Divider — 1×16 px, 12 px margin before mic
-  dockDivider: {
-    width:       1,
-    height:      1,
-    marginRight: 12,
-    backgroundColor: "#E5E7EB",
+  inputFocusLine: {
+    position: "absolute",
+    left:     0,
+    right:    0,
+    bottom:   0,
+    height:   1,
   },
   // Mic touch target — 44×44 (minimum Apple HIG)
 dockMicWrap: {
-    width:          44,
-    height:         44,
+    width:          40,
+    height:         40,
     alignItems:     "center",
     justifyContent: "center",
     backgroundColor: "transparent",

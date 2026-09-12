@@ -47,7 +47,8 @@
     "note": "Dil değişikliği tüm ekranlara anında uygulanır."
   },
   "chat": {
-    "placeholder": "Yaz…",
+    "placeholder": "Bugün aklında ne var?",
+    "listening": "Dinliyorum...",
     "secretBadge": "Gizli",
     "visionPending": "Fotoğraf analiz ediliyor…",
     "expandTitle": "Uzun Mesaj",
@@ -226,6 +227,15 @@
     "takePhoto": { "label": "Fotoğraf Çek", "sub": "Kamerayı aç" },
     "gallery": { "label": "Galeriden Seç", "sub": "Mevcut görsel yükle" },
     "file": { "label": "Dosya Ekle", "sub": "PDF, Word, Excel ve diğer dosyalar" },
-    "audio": { "label": "Ses Kaydı", "sub": "Sesini analiz et" }
+    "note": { "label": "Not", "sub": "Geniş yazma alanını aç" },
+    "location": {
+      "label": "Konum",
+      "sub": "Mevcut konumunu ekle",
+      "permissionTitle": "Konum İzni",
+      "permissionMessage": "Konum eklemek için konum izni gerekiyor.",
+      "errorTitle": "Konum Alınamadı",
+      "errorMessage": "Mevcut konum alınamadı. Tekrar deneyin.",
+      "mobileOnly": "Konum özelliği mobil cihazda kullanılabilir."
+    }
   }
 }

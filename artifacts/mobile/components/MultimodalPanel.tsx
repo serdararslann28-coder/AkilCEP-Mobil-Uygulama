@@ -1,7 +1,7 @@
 /**
  * MultimodalPanel — premium Apple-inspired attachment sheet.
  *
- * Layout: 2×2 grid — two rows of two equal-width cards.
+ * Layout: two paired rows plus one centered action.
  *         Icon (52px circle) centered at top, title + subtitle centered below.
  *
  * Glass surface:
@@ -20,12 +20,14 @@
 import { BlurView }           from "expo-blur";
 import * as Haptics           from "expo-haptics";
 import * as ImagePicker       from "expo-image-picker";
+import * as Location          from "expo-location";
 import { router }             from "expo-router";
 import { Feather }            from "@expo/vector-icons";
 import { useKeyboardContext } from "react-native-keyboard-controller";
 import React, { useCallback, useEffect } from "react";
 import {
   Dimensions,
+  Alert,
   Platform,
   Pressable,
   StyleSheet,
@@ -61,7 +63,7 @@ const EASE_SNAP = Easing.out(Easing.ease);
 const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Action IDs ───────────────────────────────────────────────────────────────
-type ActionId = "camera" | "photos" | "files" | "audio";
+type ActionId = "photos" | "camera" | "files" | "note" | "location";
 
 // ─── ActionCard ───────────────────────────────────────────────────────────────
 function ActionCard({
@@ -140,6 +142,8 @@ interface Props {
   open:           boolean;
   onClose:        () => void;
   onImagePicked?: (uri: string) => void;
+  onNote?:        () => void;
+  onLocationPicked?: (location: { latitude: number; longitude: number }) => void;
   bottomOffset:   number;
 }
 
@@ -148,16 +152,19 @@ export default function MultimodalPanel({
   open,
   onClose,
   onImagePicked,
+  onNote,
+  onLocationPicked,
   bottomOffset,
 }: Props) {
   const { theme: T } = useTheme();
   const { t } = useLanguage();
 
   const ACTIONS: { id: ActionId; icon: React.ComponentProps<typeof Feather>["name"]; label: string; sub: string }[] = [
-    { id: "camera", icon: "camera",    label: t("multimodal.takePhoto.label"), sub: t("multimodal.takePhoto.sub")  },
     { id: "photos", icon: "image",     label: t("multimodal.gallery.label"),   sub: t("multimodal.gallery.sub")    },
+    { id: "camera", icon: "camera",    label: t("multimodal.takePhoto.label"), sub: t("multimodal.takePhoto.sub")  },
     { id: "files",  icon: "paperclip", label: t("multimodal.file.label"),      sub: t("multimodal.file.sub")       },
-    { id: "audio",  icon: "mic",       label: t("multimodal.audio.label"),     sub: t("multimodal.audio.sub")      },
+    { id: "note",   icon: "edit-3",    label: t("multimodal.note.label"),      sub: t("multimodal.note.sub")       },
+    { id: "location", icon: "map-pin", label: t("multimodal.location.label"),  sub: t("multimodal.location.sub")   },
   ];
   const { reanimated } = useKeyboardContext();
   const kbH = reanimated.height;
@@ -222,16 +229,44 @@ export default function MultimodalPanel({
     onClose();
   }, [onClose]);
 
-  const handleAudio = useCallback(() => {
+  const handleNote = useCallback(() => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
     onClose();
-  }, [onClose]);
+    setTimeout(() => onNote?.(), 180);
+  }, [onClose, onNote]);
+
+  const handleLocation = useCallback(async () => {
+    if (Platform.OS === "web") {
+      Alert.alert(t("multimodal.location.errorTitle"), t("multimodal.location.mobileOnly"));
+      return;
+    }
+    Haptics.selectionAsync();
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("multimodal.location.permissionTitle"), t("multimodal.location.permissionMessage"));
+      return;
+    }
+    try {
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      onLocationPicked?.({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      onClose();
+    } catch (error) {
+      console.warn("[multimodal] location:", error);
+      Alert.alert(t("multimodal.location.errorTitle"), t("multimodal.location.errorMessage"));
+    }
+  }, [onClose, onLocationPicked, t]);
 
   const handlers: Record<ActionId, () => void> = {
     camera: handleCamera,
     photos: handlePhotos,
     files:  handleFiles,
-    audio:  handleAudio,
+    note: handleNote,
+    location: handleLocation,
   };
 
   return (
@@ -298,6 +333,24 @@ export default function MultimodalPanel({
             ))}
           </View>
 
+          <View style={{ height: CARD_GAP }} />
+
+          {/* Row 3 — centered location action */}
+          <View style={ss.gridSingleRow}>
+            {ACTIONS.slice(4, 5).map((a, i) => (
+              <ActionCard
+                key={a.id}
+                icon={a.icon}
+                label={a.label}
+                sub={a.sub}
+                index={i + 4}
+                open={open}
+                isDark={T.isDark}
+                onPress={handlers[a.id]}
+              />
+            ))}
+          </View>
+
         </View>
       </Animated.View>
     </>
@@ -351,6 +404,10 @@ const ss = StyleSheet.create({
     flexDirection:  "row",
     gap:            CARD_GAP,
     alignItems:     "stretch",  // equal height within each row
+  },
+  gridSingleRow: {
+    flexDirection:  "row",
+    justifyContent: "center",
   },
 
   // Card — fixed width (~45% of panel), centered content

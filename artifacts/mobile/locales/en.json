@@ -47,7 +47,8 @@
     "note": "Language change applies instantly across all screens."
   },
   "chat": {
-    "placeholder": "Type…",
+    "placeholder": "What's on your mind today?",
+    "listening": "Listening...",
     "secretBadge": "Secret",
     "visionPending": "Analyzing photo…",
     "expandTitle": "Long Message",
@@ -226,6 +227,15 @@
     "takePhoto": { "label": "Take Photo", "sub": "Open camera" },
     "gallery": { "label": "Choose from Gallery", "sub": "Upload existing image" },
     "file": { "label": "Attach File", "sub": "PDF, Word, Excel and other files" },
-    "audio": { "label": "Voice Recording", "sub": "Analyze your voice" }
+    "note": { "label": "Note", "sub": "Open the expanded writing area" },
+    "location": {
+      "label": "Location",
+      "sub": "Add your current location",
+      "permissionTitle": "Location Permission",
+      "permissionMessage": "Location permission is required to add your location.",
+      "errorTitle": "Location Unavailable",
+      "errorMessage": "Your current location could not be retrieved. Try again.",
+      "mobileOnly": "Location is available on mobile devices."
+    }
   }
 }
