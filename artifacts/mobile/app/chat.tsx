@@ -500,10 +500,10 @@ export default function ChatScreen() {
 
   const auraStyle = useAnimatedStyle(() => ({
     opacity:
-      0.13
-      + auraLevel.value * 0.46
-      + aiAuraPulse.value * 0.10
-      + inputFocused.value * 0.08,
+      0.17
+      + auraLevel.value * 0.56
+      + aiAuraPulse.value * 0.12
+      + inputFocused.value * 0.10,
     transform: [
       { translateX: interpolate(auraDrift.value, [0, 1], [-10, 10]) },
       {
@@ -1016,10 +1016,10 @@ export default function ChatScreen() {
           <Svg width="100%" height="100%" viewBox="0 0 400 540">
             <Defs>
               <RadialGradient id="composerAura" cx="50%" cy="98%" rx="68%" ry="100%">
-                <Stop offset="0%" stopColor={T.isDark ? "#76AEEA" : "#5B9AD9"} stopOpacity="0.72" />
-                <Stop offset="18%" stopColor={T.isDark ? "#68A7E4" : "#69A9E5"} stopOpacity="0.46" />
-                <Stop offset="44%" stopColor={T.isDark ? "#5B9AD9" : "#8AC0EF"} stopOpacity="0.20" />
-                <Stop offset="72%" stopColor={T.isDark ? "#5B9AD9" : "#B9DAF6"} stopOpacity="0.065" />
+                <Stop offset="0%" stopColor={T.isDark ? "#76AEEA" : "#5B9AD9"} stopOpacity="0.80" />
+                <Stop offset="18%" stopColor={T.isDark ? "#68A7E4" : "#69A9E5"} stopOpacity="0.54" />
+                <Stop offset="44%" stopColor={T.isDark ? "#5B9AD9" : "#8AC0EF"} stopOpacity="0.25" />
+                <Stop offset="72%" stopColor={T.isDark ? "#5B9AD9" : "#B9DAF6"} stopOpacity="0.085" />
                 <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
               </RadialGradient>
             </Defs>
@@ -1033,10 +1033,10 @@ export default function ChatScreen() {
           <Svg width="100%" height="100%" viewBox="0 0 400 560">
             <Defs>
               <RadialGradient id="sendWave" cx="50%" cy="102%" rx="62%" ry="104%">
-                <Stop offset="0%" stopColor={T.isDark ? "#8FC5F4" : "#5B9AD9"} stopOpacity="0.76" />
-                <Stop offset="24%" stopColor="#78B4ED" stopOpacity="0.38" />
-                <Stop offset="58%" stopColor="#9CCBF2" stopOpacity="0.12" />
-                <Stop offset="82%" stopColor="#CBE3F8" stopOpacity="0.035" />
+                <Stop offset="0%" stopColor={T.isDark ? "#8FC5F4" : "#5B9AD9"} stopOpacity="0.84" />
+                <Stop offset="24%" stopColor="#78B4ED" stopOpacity="0.46" />
+                <Stop offset="58%" stopColor="#9CCBF2" stopOpacity="0.15" />
+                <Stop offset="82%" stopColor="#CBE3F8" stopOpacity="0.045" />
                 <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
               </RadialGradient>
             </Defs>
