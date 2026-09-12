@@ -25,6 +25,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ── Reusable field ────────────────────────────────────────────────────────────
 interface FieldProps {
@@ -84,6 +85,7 @@ function Field({
 export default function RegisterScreen() {
   const insets                        = useSafeAreaInsets();
   const { signUpWithEmail, updateAvatar } = useAuth();
+  const { t }                         = useLanguage();
 
   const [avatar,          setAvatar]          = useState<string | null>(null);
   const [fullName,        setFullName]        = useState("");
@@ -104,7 +106,7 @@ export default function RegisterScreen() {
   const pickAvatar = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("İzin Gerekli", "Fotoğraf seçmek için galeri iznine ihtiyaç var.");
+      Alert.alert(t("auth.permissionRequired"), t("auth.galleryPermission"));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -119,17 +121,17 @@ export default function RegisterScreen() {
   };
 
   const validate = (): string | null => {
-    if (!fullName.trim())                                                        return "Ad Soyad gerekli.";
-    if (username.trim().length > 0 && username.trim().length < 3)               return "Kullanıcı adı en az 3 karakter olmalı.";
-    if (!/^\S+@\S+\.\S+$/.test(email.trim()))                                   return "Geçerli bir e-posta adresi girin.";
-    if (password.length < 6)                                                     return "Şifre en az 6 karakter olmalı.";
-    if (password !== confirmPassword)                                            return "Şifreler eşleşmiyor.";
+    if (!fullName.trim())                                                        return t("auth.fullNameRequired");
+    if (username.trim().length > 0 && username.trim().length < 3)               return t("auth.usernameTooShort");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()))                                   return t("auth.validEmailRequired");
+    if (password.length < 6)                                                     return t("auth.passwordTooShort");
+    if (password !== confirmPassword)                                            return t("auth.passwordsMismatch");
     return null;
   };
 
   const handleSubmit = async () => {
     const err = validate();
-    if (err) { Alert.alert("Hata", err); return; }
+    if (err) { Alert.alert(t("common.error"), err); return; }
 
     if (Platform.OS !== "web") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -145,7 +147,7 @@ export default function RegisterScreen() {
       if (avatar) await updateAvatar(avatar);
       router.replace("/ready");
     } catch (e: unknown) {
-      Alert.alert("Kayıt Hatası", e instanceof Error ? e.message : "Bir hata oluştu.");
+      Alert.alert(t("auth.registerError"), e instanceof Error ? e.message : t("auth.genericError"));
     } finally {
       setLoading(false);
     }
@@ -171,7 +173,7 @@ export default function RegisterScreen() {
           <Feather name="arrow-left" size={24} color="#000000" />
         </TouchableOpacity>
 
-        <Text style={ss.pageTitle}>Hesap Oluştur</Text>
+        <Text style={ss.pageTitle}>{t("auth.createAccount")}</Text>
 
         {/* Avatar picker */}
         <TouchableOpacity style={ss.avatarWrap} onPress={pickAvatar} activeOpacity={0.8}>
@@ -186,47 +188,47 @@ export default function RegisterScreen() {
             <Feather name="plus" size={13} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
-        <Text style={ss.avatarHint}>Fotoğraf ekle (isteğe bağlı)</Text>
+        <Text style={ss.avatarHint}>{t("auth.addPhotoOptional")}</Text>
 
         {/* Form */}
         <View style={ss.form}>
           <Field
-            label="Ad Soyad"
+            label={t("auth.fullName")}
             value={fullName}
             onChange={setFullName}
-            placeholder="Adınız Soyadınız"
+            placeholder={t("auth.fullNamePlaceholder")}
             autoCapitalize="words"
             onSubmitEditing={() => refUsername.current?.focus()}
           />
           <View>
             <Field
-              label="Kullanıcı Adı (İsteğe Bağlı)"
+              label={t("auth.usernameOptional")}
               value={username}
               onChange={setUsername}
-              placeholder="kullanici_adi"
+              placeholder={t("auth.usernamePlaceholder")}
               autoCapitalize="none"
               inputRef={refUsername}
               onSubmitEditing={() => refEmail.current?.focus()}
             />
             <Text style={ss.helperText}>
-              Kullanıcı adı isteğe bağlıdır. Daha sonra profil ayarlarından ekleyebilir veya değiştirebilirsin.
+              {t("auth.usernameHint")}
             </Text>
           </View>
           <Field
-            label="E-posta"
+            label={t("auth.email")}
             value={email}
             onChange={setEmail}
-            placeholder="ornek@email.com"
+            placeholder={t("auth.emailPlaceholder")}
             keyboardType="email-address"
             autoCapitalize="none"
             inputRef={refEmail}
             onSubmitEditing={() => refPass.current?.focus()}
           />
           <Field
-            label="Şifre"
+            label={t("auth.password")}
             value={password}
             onChange={setPassword}
-            placeholder="En az 6 karakter"
+            placeholder={t("auth.passwordMinPlaceholder")}
             secure
             showingSecure={showPass}
             onToggleSecure={() => setShowPass(v => !v)}
@@ -234,10 +236,10 @@ export default function RegisterScreen() {
             onSubmitEditing={() => refConfirm.current?.focus()}
           />
           <Field
-            label="Şifre Tekrar"
+            label={t("auth.confirmPassword")}
             value={confirmPassword}
             onChange={setConfirmPassword}
-            placeholder="Şifreyi tekrar girin"
+            placeholder={t("auth.confirmPasswordPlaceholder")}
             secure
             showingSecure={showConfirm}
             onToggleSecure={() => setShowConfirm(v => !v)}
@@ -255,7 +257,7 @@ export default function RegisterScreen() {
           activeOpacity={0.85}
         >
           <Text style={ss.btnText}>
-            {loading ? "Hesap Oluşturuluyor..." : "Hesap Oluştur"}
+            {loading ? t("auth.creatingAccount") : t("auth.createAccount")}
           </Text>
         </TouchableOpacity>
 
@@ -265,8 +267,8 @@ export default function RegisterScreen() {
           style={ss.link}
         >
           <Text style={ss.linkText}>
-            {"Zaten hesabın var mı? "}
-            <Text style={ss.linkBold}>Giriş yap</Text>
+            {t("auth.haveAccount")}{" "}
+            <Text style={ss.linkBold}>{t("auth.signInShort")}</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>

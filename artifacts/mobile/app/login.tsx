@@ -23,10 +23,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function LoginScreen() {
   const insets                           = useSafeAreaInsets();
   const { signInWithEmail, resetPassword } = useAuth();
+  const { t }                            = useLanguage();
 
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
@@ -36,8 +38,8 @@ export default function LoginScreen() {
   const refPassword = useRef<TextInput | null>(null);
 
   const handleLogin = async () => {
-    if (!email.trim())    { Alert.alert("Hata", "E-posta adresi gerekli."); return; }
-    if (!password.trim()) { Alert.alert("Hata", "Şifre gerekli."); return; }
+    if (!email.trim())    { Alert.alert(t("common.error"), t("auth.emailRequired")); return; }
+    if (!password.trim()) { Alert.alert(t("common.error"), t("auth.passwordRequired")); return; }
 
     if (Platform.OS !== "web") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -47,7 +49,7 @@ export default function LoginScreen() {
       await signInWithEmail(email.trim(), password);
       router.replace("/chat");
     } catch (e: unknown) {
-      Alert.alert("Giriş Hatası", e instanceof Error ? e.message : "Bir hata oluştu.");
+      Alert.alert(t("auth.loginError"), e instanceof Error ? e.message : t("auth.genericError"));
     } finally {
       setLoading(false);
     }
@@ -55,17 +57,17 @@ export default function LoginScreen() {
 
   const handleForgot = async () => {
     if (!email.trim()) {
-      Alert.alert("Şifremi Unuttum", "Lütfen önce e-posta adresinizi girin.");
+      Alert.alert(t("auth.forgotPassword"), t("auth.emailFirst"));
       return;
     }
     try {
       await resetPassword(email.trim());
       Alert.alert(
-        "E-posta Gönderildi",
-        "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.",
+        t("auth.emailSent"),
+        t("auth.resetEmailSent"),
       );
     } catch (e: unknown) {
-      Alert.alert("Hata", e instanceof Error ? e.message : "Bir hata oluştu.");
+      Alert.alert(t("common.error"), e instanceof Error ? e.message : t("auth.genericError"));
     }
   };
 
@@ -89,17 +91,17 @@ export default function LoginScreen() {
           <Feather name="arrow-left" size={24} color="#000000" />
         </TouchableOpacity>
 
-        <Text style={ss.pageTitle}>Giriş Yap</Text>
-        <Text style={ss.pageSub}>Hesabınıza devam edin.</Text>
+        <Text style={ss.pageTitle}>{t("auth.signIn")}</Text>
+        <Text style={ss.pageSub}>{t("auth.signInSubtitle")}</Text>
 
         {/* E-posta */}
         <View style={ss.fieldWrap}>
-          <Text style={ss.label}>E-posta</Text>
+          <Text style={ss.label}>{t("auth.email")}</Text>
           <TextInput
             style={ss.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="ornek@email.com"
+            placeholder={t("auth.emailPlaceholder")}
             placeholderTextColor="#C4C4C4"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -112,9 +114,9 @@ export default function LoginScreen() {
         {/* Şifre */}
         <View style={ss.fieldWrap}>
           <View style={ss.labelRow}>
-            <Text style={ss.label}>Şifre</Text>
+            <Text style={ss.label}>{t("auth.password")}</Text>
             <TouchableOpacity onPress={handleForgot} hitSlop={8}>
-              <Text style={ss.forgotText}>Şifremi unuttum</Text>
+              <Text style={ss.forgotText}>{t("auth.forgotPassword")}</Text>
             </TouchableOpacity>
           </View>
           <View style={ss.passRow}>
@@ -123,7 +125,7 @@ export default function LoginScreen() {
               style={ss.passInput}
               value={password}
               onChangeText={setPassword}
-              placeholder="Şifreniz"
+               placeholder={t("auth.passwordPlaceholder")}
               placeholderTextColor="#C4C4C4"
               secureTextEntry={!showPass}
               autoCorrect={false}
@@ -152,7 +154,7 @@ export default function LoginScreen() {
           activeOpacity={0.85}
         >
           <Text style={ss.btnText}>
-            {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
+            {loading ? t("auth.signingIn") : t("auth.signIn")}
           </Text>
         </TouchableOpacity>
 
@@ -162,8 +164,8 @@ export default function LoginScreen() {
           style={ss.link}
         >
           <Text style={ss.linkText}>
-            {"Hesabın yok mu? "}
-            <Text style={ss.linkBold}>Kayıt ol</Text>
+            {t("auth.noAccount")}{" "}
+            <Text style={ss.linkBold}>{t("auth.createAccountShort")}</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>

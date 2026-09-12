@@ -6,18 +6,79 @@
     "heroDesc": "Türkçe konuşan yapay zeka asistanı.",
     "welcomeGreeting": "HOŞ GELDİN"
   },
+  "core": {
+    "appName": "Cebindeki Akıl",
+    "welcome": "Hoş geldin"
+  },
   "common": {
     "cancel": "İptal",
     "ok": "Tamam",
     "retry": "Tekrar Dene",
-    "close": "Kapat"
+    "close": "Kapat",
+    "continue": "Devam Et",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor",
+    "error": "Hata",
+    "back": "Geri"
+  },
+  "navigation": {
+    "home": "Ana Sayfa",
+    "chat": "Sohbet",
+    "settings": "Ayarlar",
+    "profile": "Profil",
+    "back": "Geri"
   },
   "auth": {
+    "welcomeTitle": "AkılCEP'e\nHoş Geldin",
+    "chooseMethod": "Devam etmek için bir yöntem seç.",
     "signInOrCreate": "Giriş yap veya hesap oluştur",
     "continueWithApple": "Apple ile Devam Et",
     "continueWithGoogle": "Google ile Devam Et",
+    "continueWithEmail": "E-posta ile Devam Et",
+    "continueAsGuest": "Misafir Olarak Devam Et",
+    "guestLoading": "Yükleniyor...",
+    "appleTitle": "Apple ile Giriş",
+    "googleTitle": "Google ile Giriş",
+    "comingSoon": "Bu özellik yakında kullanıma açılacak.",
     "signInWithEmail": "E-posta ile Giriş",
+    "signIn": "Giriş Yap",
+    "signInShort": "Giriş yap",
+    "signInSubtitle": "Hesabınıza devam edin.",
+    "signingIn": "Giriş Yapılıyor...",
+    "email": "E-posta",
+    "emailPlaceholder": "ornek@email.com",
+    "password": "Şifre",
+    "passwordPlaceholder": "Şifreniz",
+    "forgotPassword": "Şifremi unuttum",
+    "emailRequired": "E-posta adresi gerekli.",
+    "passwordRequired": "Şifre gerekli.",
+    "loginError": "Giriş Hatası",
+    "genericError": "Bir hata oluştu.",
+    "emailFirst": "Lütfen önce e-posta adresinizi girin.",
+    "emailSent": "E-posta Gönderildi",
+    "resetEmailSent": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.",
+    "noAccount": "Hesabın yok mu?",
     "createAccount": "Hesap Oluştur",
+    "createAccountShort": "Kayıt ol",
+    "creatingAccount": "Hesap Oluşturuluyor...",
+    "registerError": "Kayıt Hatası",
+    "permissionRequired": "İzin Gerekli",
+    "galleryPermission": "Fotoğraf seçmek için galeri iznine ihtiyaç var.",
+    "addPhotoOptional": "Fotoğraf ekle (isteğe bağlı)",
+    "fullName": "Ad Soyad",
+    "fullNamePlaceholder": "Adınız Soyadınız",
+    "usernameOptional": "Kullanıcı Adı (İsteğe Bağlı)",
+    "usernamePlaceholder": "kullanici_adi",
+    "usernameHint": "Kullanıcı adı isteğe bağlıdır. Daha sonra profil ayarlarından ekleyebilir veya değiştirebilirsin.",
+    "passwordMinPlaceholder": "En az 6 karakter",
+    "confirmPassword": "Şifre Tekrar",
+    "confirmPasswordPlaceholder": "Şifreyi tekrar girin",
+    "haveAccount": "Zaten hesabın var mı?",
+    "fullNameRequired": "Ad Soyad gerekli.",
+    "usernameTooShort": "Kullanıcı adı en az 3 karakter olmalı.",
+    "validEmailRequired": "Geçerli bir e-posta adresi girin.",
+    "passwordTooShort": "Şifre en az 6 karakter olmalı.",
+    "passwordsMismatch": "Şifreler eşleşmiyor.",
     "terms": "Kullanım Şartları",
     "privacy": "Gizlilik Politikası",
     "legalPrefix": "Devam ederek",
@@ -43,6 +104,7 @@
     "account": "Hesap",
     "profile": "Profil",
     "privacyItem": "Gizlilik",
+    "privacy": "Gizlilik",
     "support": "Destek",
     "logout": "Çıkış Yap",
     "logoutConfirm": "Hesabınızdan çıkmak istediğinizden emin misiniz?"
@@ -50,11 +112,52 @@
   "language": {
     "title": "Uygulama Dili",
     "subtitle": "Tercih ettiğiniz dili seçin",
-    "note": "Dil değişikliği tüm ekranlara anında uygulanır."
+    "note": "Dil değişikliği tüm ekranlara anında uygulanır.",
+    "search": "Dillerde ara"
+  },
+  "profileScreen": {
+    "guest": "Misafir",
+    "usernamePlaceholder": "kullanıcı_adı",
+    "accountSubtitle": "Kişisel AkılCEP hesabın",
+    "profileInfo": "Profil Bilgileri",
+    "account": "Hesap",
+    "preferences": "Tercihler",
+    "support": "Destek",
+    "fullName": "Ad Soyad",
+    "username": "Kullanıcı Adı",
+    "membershipDate": "Üyelik Tarihi",
+    "accountSecurity": "Hesap Güvenliği",
+    "about": "Hakkımızda",
+    "privacyPolicy": "Gizlilik Politikası",
+    "terms": "Kullanım Koşulları",
+    "nameRequired": "Ad Soyad boş bırakılamaz.",
+    "saveFailed": "Kaydedilemedi.",
+    "comingSoon": "Bu ayar yakında kullanıma sunulacak."
+  },
+  "privacyScreen": {
+    "title": "Gizlilik",
+    "policy": "Gizlilik Politikası",
+    "dataMemory": "Verilerim ve Hafıza",
+    "locationPermissions": "Konum İzinleri",
+    "mediaPermissions": "Kamera ve Mikrofon İzinleri",
+    "dataUsage": "Veri Kullanımı",
+    "deleteData": "Hesabımı ve Verilerimi Sil"
+  },
+  "supportScreen": {
+    "title": "Destek",
+    "helpCenter": "Yardım Merkezi",
+    "faq": "Sık Sorulan Sorular",
+    "contact": "Bize Ulaşın",
+    "reportProblem": "Sorun Bildir",
+    "feedback": "Geri Bildirim Gönder",
+    "about": "AkılCEP Hakkında"
   },
   "chat": {
     "placeholder": "AkılCEP’e yanıt ver…",
     "listening": "Dinliyorum...",
+    "newChat": "Yeni Sohbet",
+    "send": "Gönder",
+    "voiceConversationTitle": "Sesli Sohbet",
     "attachmentLimit": {
       "title": "Bazı Ekler Eklenmedi",
       "message": "En fazla 10 ek, dosya başına 8 MB ve toplam 24 MB ekleyebilirsiniz."
@@ -93,6 +196,10 @@
     }
   },
   "profile": {
+    "name": "Ad",
+    "email": "E-posta",
+    "freePlan": "Ücretsiz Plan",
+    "upgrade": "Premium'a Geç",
     "takePhoto": "Fotoğraf Çek",
     "chooseFromLibrary": "Galeriden Seç",
     "defaultAvatars": "Varsayılan Avatarlar",
@@ -179,6 +286,8 @@
     }
   },
   "onboarding": {
+    "welcomeDescription": "Sor, üret, keşfet ve öğren.\nYapay zekâ artık her an yanında.",
+    "welcomeStart": "Başlayalım",
     "s1": { "subtitle": "Cebindeki akıl." },
     "s2": { "title": "Düşün.", "subtitle": "Her soruya daha akıllı yaklaş." },
     "s3": { "title": "Anla.", "subtitle": "Web, belgeler ve görseller tek yerde." },
@@ -188,6 +297,26 @@
     "next": "Devam",
     "start": "Başla",
     "skip": "Atla"
+  },
+  "interests": {
+    "title": "Nelerle ilgileniyorsun?",
+    "subtitle": "AkılCEP sana daha iyi yardımcı olabilmek için\nbirkaç konu seç.",
+    "business": "İş",
+    "finance": "Finans",
+    "travel": "Seyahat",
+    "health": "Sağlık",
+    "education": "Eğitim",
+    "ai": "Yapay Zeka",
+    "technology": "Teknoloji",
+    "productivity": "Verimlilik",
+    "continuing": "Devam Ediliyor...",
+    "skip": "Şimdilik geç"
+  },
+  "ready": {
+    "greeting": "Hoş geldin,",
+    "subtitle": "AkılCEP seni tanımaya hazır.",
+    "opening": "Açılıyor...",
+    "open": "AkılCEP'i Aç"
   },
   "sidebar": {
     "tagline": "Cebindeki Akıl",

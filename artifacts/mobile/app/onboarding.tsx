@@ -26,10 +26,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 export const ONBOARDING_KEY = "@akilcep_onboarding_done";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   // Staggered entrance
   // Reanimated can be unavailable while Expo's web preview is hydrating.
@@ -80,10 +83,8 @@ export default function WelcomeScreen() {
       {/* Text block */}
       <Animated.View style={[ss.textSection, textStyle]}>
         <Text style={ss.title}>AkılCEP</Text>
-        <Text style={ss.subtitle}>Cebindeki Akıl</Text>
-        <Text style={ss.description}>
-          {"Sor, üret, keşfet ve öğren.\nYapay zekâ artık her an yanında."}
-        </Text>
+        <Text style={ss.subtitle}>{t("brand.tagline")}</Text>
+        <Text style={ss.description}>{t("onboarding.welcomeDescription")}</Text>
       </Animated.View>
 
       {/* Button */}
@@ -93,7 +94,7 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/auth")}
           activeOpacity={0.85}
         >
-          <Text style={ss.btnText}>Başlayalım</Text>
+          <Text style={ss.btnText}>{t("onboarding.welcomeStart")}</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>

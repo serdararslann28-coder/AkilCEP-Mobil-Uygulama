@@ -87,7 +87,7 @@ function EditableRow({
           returnKeyType={last ? "done" : "next"}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
-          placeholder={label === "Ad Soyad" ? "Misafir" : "kullanıcı_adı"}
+          placeholder={label}
           placeholderTextColor={C.zinc400}
           style={ss.editInput}
         />
@@ -212,7 +212,7 @@ export default function PremiumProfileScreen() {
 
   const handleSave = async () => {
     if (!fullName.trim()) {
-      Alert.alert("Hata", "Ad Soyad boş bırakılamaz.");
+      Alert.alert(t("common.error"), t("profileScreen.nameRequired"));
       return;
     }
     if (Platform.OS !== "web") {
@@ -226,16 +226,16 @@ export default function PremiumProfileScreen() {
       });
       router.back();
     } catch (error: unknown) {
-      Alert.alert("Hata", error instanceof Error ? error.message : "Kaydedilemedi.");
+      Alert.alert(t("common.error"), error instanceof Error ? error.message : t("profileScreen.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const unavailable = (title: string) =>
-    Alert.alert(title, "Bu ayar yakında kullanıma sunulacak.");
+    Alert.alert(title, t("profileScreen.comingSoon"));
 
-  const displayName = fullName.trim() || user?.fullName || "Misafir";
+  const displayName = fullName.trim() || user?.fullName || t("profileScreen.guest");
   const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 28 : insets.bottom;
   const avatarSource = avatarUri ? { uri: avatarUri } : defaultAvatar;
@@ -259,7 +259,7 @@ export default function PremiumProfileScreen() {
           style={[ss.saveButton, saving && ss.disabled]}
           activeOpacity={0.76}
         >
-          <Text style={ss.saveText}>{saving ? "Kaydediliyor" : "Kaydet"}</Text>
+          <Text style={ss.saveText}>{saving ? t("common.saving") : t("common.save")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -285,19 +285,19 @@ export default function PremiumProfileScreen() {
             </View>
           </TouchableOpacity>
           <Text style={ss.name}>{displayName}</Text>
-          <Text style={ss.subtitle}>Kişisel AkılCEP hesabın</Text>
+          <Text style={ss.subtitle}>{t("profileScreen.accountSubtitle")}</Text>
         </View>
 
-        <Section title="Profil Bilgileri">
+        <Section title={t("profileScreen.profileInfo")}>
           <EditableRow
-            label="Ad Soyad"
+            label={t("profileScreen.fullName")}
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
             onSubmitEditing={() => usernameRef.current?.focus()}
           />
           <EditableRow
-            label="Kullanıcı Adı"
+            label={t("profileScreen.username")}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -307,34 +307,34 @@ export default function PremiumProfileScreen() {
           />
         </Section>
 
-        <Section title="Hesap">
+        <Section title={t("profileScreen.account")}>
           <MenuRow
             icon="calendar"
-            label="Üyelik Tarihi"
+            label={t("profileScreen.membershipDate")}
             value={formatMemberDate(user?.memberSince)}
           />
           <MenuRow
             icon="lock"
-            label="Hesap Güvenliği"
-            onPress={() => unavailable("Hesap Güvenliği")}
+            label={t("profileScreen.accountSecurity")}
+            onPress={() => unavailable(t("profileScreen.accountSecurity"))}
             last
           />
         </Section>
 
-        <Section title="Tercihler">
-          <MenuRow icon="bell" label="Bildirimler" onPress={() => router.push("/settings")} />
-          <MenuRow icon="sun" label="Görünüm" onPress={() => router.push("/settings")} />
-          <MenuRow icon="globe" label="Dil" onPress={() => router.push("/language")} last />
+        <Section title={t("profileScreen.preferences")}>
+          <MenuRow icon="bell" label={t("settings.notifications")} onPress={() => router.push("/settings")} />
+          <MenuRow icon="sun" label={t("settings.appearance")} onPress={() => router.push("/settings")} />
+          <MenuRow icon="globe" label={t("settings.language")} onPress={() => router.push("/language")} last />
         </Section>
 
-        <Section title="Destek">
-          <MenuRow icon="info" label="Hakkımızda" onPress={() => router.push("/about")} />
-          <MenuRow icon="message-circle" label="Destek" onPress={() => router.push("/support")} />
-          <MenuRow icon="shield" label="Gizlilik Politikası" onPress={() => router.push("/privacy")} />
+        <Section title={t("profileScreen.support")}>
+          <MenuRow icon="info" label={t("profileScreen.about")} onPress={() => router.push("/about")} />
+          <MenuRow icon="message-circle" label={t("settings.support")} onPress={() => router.push("/support")} />
+          <MenuRow icon="shield" label={t("profileScreen.privacyPolicy")} onPress={() => router.push("/privacy")} />
           <MenuRow
             icon="file-text"
-            label="Kullanım Koşulları"
-            onPress={() => unavailable("Kullanım Koşulları")}
+            label={t("profileScreen.terms")}
+            onPress={() => unavailable(t("profileScreen.terms"))}
             last
           />
         </Section>

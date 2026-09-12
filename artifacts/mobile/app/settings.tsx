@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useChat }            from "@/context/ChatContext";
 import { useLanguage }        from "@/context/LanguageContext";
 import { ThemeMode, useTheme } from "@/context/ThemeContext";
+import { LANGUAGE_REGISTRY }  from "@/constants/locales";
 
 // ─── Theme options ─────────────────────────────────────────────────────────────
 const THEME_OPTIONS: {
@@ -101,6 +102,7 @@ export default function SettingsScreen() {
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 16 : insets.bottom;
   const isDark = T.isDark;
+  const selectedLanguage = LANGUAGE_REGISTRY.find((option) => option.code === lang);
 
   const [notifications, setNotifications] = useState(true);
   const [deleteAllPromptOpen, setDeleteAllPromptOpen] = useState(false);
@@ -188,7 +190,7 @@ export default function SettingsScreen() {
           <Row
             icon="globe"
             label={t("settings.appLanguage")}
-            value={lang === "tr" ? "🇹🇷  Türkçe" : "🇬🇧  English"}
+            value={selectedLanguage?.nativeName ?? lang}
             onPress={() => router.push("/language")}
             divider={divider}
             fg={T.fg}

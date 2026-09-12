@@ -6,18 +6,79 @@
     "heroDesc": "Your AI assistant in Turkish.",
     "welcomeGreeting": "WELCOME"
   },
+  "core": {
+    "appName": "Intelligence in Your Pocket",
+    "welcome": "Welcome"
+  },
   "common": {
     "cancel": "Cancel",
     "ok": "OK",
     "retry": "Try Again",
-    "close": "Close"
+    "close": "Close",
+    "continue": "Continue",
+    "save": "Save",
+    "saving": "Saving",
+    "error": "Error",
+    "back": "Back"
+  },
+  "navigation": {
+    "home": "Home",
+    "chat": "Chat",
+    "settings": "Settings",
+    "profile": "Profile",
+    "back": "Back"
   },
   "auth": {
+    "welcomeTitle": "Welcome to AkılCEP",
+    "chooseMethod": "Choose a way to continue.",
     "signInOrCreate": "Sign in or create an account",
     "continueWithApple": "Continue with Apple",
     "continueWithGoogle": "Continue with Google",
+    "continueWithEmail": "Continue with Email",
+    "continueAsGuest": "Continue as Guest",
+    "guestLoading": "Loading...",
+    "appleTitle": "Sign in with Apple",
+    "googleTitle": "Sign in with Google",
+    "comingSoon": "This feature will be available soon.",
     "signInWithEmail": "Sign in with Email",
+    "signIn": "Sign In",
+    "signInShort": "Sign in",
+    "signInSubtitle": "Continue to your account.",
+    "signingIn": "Signing In...",
+    "email": "Email",
+    "emailPlaceholder": "name@email.com",
+    "password": "Password",
+    "passwordPlaceholder": "Your password",
+    "forgotPassword": "Forgot password",
+    "emailRequired": "Email address is required.",
+    "passwordRequired": "Password is required.",
+    "loginError": "Sign-in Error",
+    "genericError": "Something went wrong.",
+    "emailFirst": "Please enter your email address first.",
+    "emailSent": "Email Sent",
+    "resetEmailSent": "A password reset link was sent to your email address.",
+    "noAccount": "Don't have an account?",
     "createAccount": "Create Account",
+    "createAccountShort": "Sign up",
+    "creatingAccount": "Creating Account...",
+    "registerError": "Registration Error",
+    "permissionRequired": "Permission Required",
+    "galleryPermission": "Gallery permission is required to choose a photo.",
+    "addPhotoOptional": "Add a photo (optional)",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Your full name",
+    "usernameOptional": "Username (Optional)",
+    "usernamePlaceholder": "username",
+    "usernameHint": "A username is optional. You can add or change it later in profile settings.",
+    "passwordMinPlaceholder": "At least 6 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Enter your password again",
+    "haveAccount": "Already have an account?",
+    "fullNameRequired": "Full name is required.",
+    "usernameTooShort": "Username must be at least 3 characters.",
+    "validEmailRequired": "Enter a valid email address.",
+    "passwordTooShort": "Password must be at least 6 characters.",
+    "passwordsMismatch": "Passwords do not match.",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "legalPrefix": "By continuing, you agree to our",
@@ -43,6 +104,7 @@
     "account": "Account",
     "profile": "Profile",
     "privacyItem": "Privacy",
+    "privacy": "Privacy",
     "support": "Support",
     "logout": "Sign Out",
     "logoutConfirm": "Are you sure you want to sign out?"
@@ -50,11 +112,52 @@
   "language": {
     "title": "App Language",
     "subtitle": "Choose your preferred language",
-    "note": "Language change applies instantly across all screens."
+    "note": "Language change applies instantly across all screens.",
+    "search": "Search languages"
+  },
+  "profileScreen": {
+    "guest": "Guest",
+    "usernamePlaceholder": "username",
+    "accountSubtitle": "Your personal AkılCEP account",
+    "profileInfo": "Profile Information",
+    "account": "Account",
+    "preferences": "Preferences",
+    "support": "Support",
+    "fullName": "Full Name",
+    "username": "Username",
+    "membershipDate": "Membership Date",
+    "accountSecurity": "Account Security",
+    "about": "About",
+    "privacyPolicy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "nameRequired": "Full name cannot be empty.",
+    "saveFailed": "Could not save.",
+    "comingSoon": "This setting will be available soon."
+  },
+  "privacyScreen": {
+    "title": "Privacy",
+    "policy": "Privacy Policy",
+    "dataMemory": "My Data and Memory",
+    "locationPermissions": "Location Permissions",
+    "mediaPermissions": "Camera and Microphone Permissions",
+    "dataUsage": "Data Usage",
+    "deleteData": "Delete My Account and Data"
+  },
+  "supportScreen": {
+    "title": "Support",
+    "helpCenter": "Help Center",
+    "faq": "Frequently Asked Questions",
+    "contact": "Contact Us",
+    "reportProblem": "Report a Problem",
+    "feedback": "Send Feedback",
+    "about": "About AkılCEP"
   },
   "chat": {
     "placeholder": "AkılCEP’e yanıt ver…",
     "listening": "Listening...",
+    "newChat": "New Chat",
+    "send": "Send",
+    "voiceConversationTitle": "Voice Chat",
     "attachmentLimit": {
       "title": "Some Attachments Were Not Added",
       "message": "You can add up to 10 attachments, 8 MB per file and 24 MB in total."
@@ -93,6 +196,10 @@
     }
   },
   "profile": {
+    "name": "Name",
+    "email": "Email",
+    "freePlan": "Free Plan",
+    "upgrade": "Upgrade to Premium",
     "takePhoto": "Take Photo",
     "chooseFromLibrary": "Choose from Library",
     "defaultAvatars": "Default Avatars",
@@ -179,6 +286,8 @@
     }
   },
   "onboarding": {
+    "welcomeDescription": "Ask, create, explore, and learn.\nAI is always by your side.",
+    "welcomeStart": "Let's Begin",
     "s1": { "subtitle": "Intelligence in your pocket." },
     "s2": { "title": "Think.", "subtitle": "Approach every question smarter." },
     "s3": { "title": "Understand.", "subtitle": "Web, docs, and images in one place." },
@@ -188,6 +297,26 @@
     "next": "Next",
     "start": "Start",
     "skip": "Skip"
+  },
+  "interests": {
+    "title": "What are you interested in?",
+    "subtitle": "Choose a few topics so AkılCEP\ncan help you better.",
+    "business": "Business",
+    "finance": "Finance",
+    "travel": "Travel",
+    "health": "Health",
+    "education": "Education",
+    "ai": "Artificial Intelligence",
+    "technology": "Technology",
+    "productivity": "Productivity",
+    "continuing": "Continuing...",
+    "skip": "Skip for now"
+  },
+  "ready": {
+    "greeting": "Welcome,",
+    "subtitle": "AkılCEP is ready to get to know you.",
+    "opening": "Opening...",
+    "open": "Open AkılCEP"
   },
   "sidebar": {
     "tagline": "Intelligence in Your Pocket",

@@ -14,22 +14,21 @@ import { useLanguage } from "@/context/LanguageContext";
 
 type SupportItem = {
   icon: React.ComponentProps<typeof Feather>["name"];
-  tr: string;
-  en: string;
+  key: string;
   route?: "/about";
 };
 
 const ITEMS: SupportItem[] = [
-  { icon: "help-circle", tr: "Yardım Merkezi", en: "Help Center" },
-  { icon: "message-circle", tr: "Sık Sorulan Sorular", en: "Frequently Asked Questions" },
-  { icon: "mail", tr: "Bize Ulaşın", en: "Contact Us" },
-  { icon: "alert-triangle", tr: "Sorun Bildir", en: "Report a Problem" },
-  { icon: "message-square", tr: "Geri Bildirim Gönder", en: "Send Feedback" },
-  { icon: "info", tr: "AkılCEP Hakkında", en: "About AkılCEP", route: "/about" },
+  { icon: "help-circle", key: "supportScreen.helpCenter" },
+  { icon: "message-circle", key: "supportScreen.faq" },
+  { icon: "mail", key: "supportScreen.contact" },
+  { icon: "alert-triangle", key: "supportScreen.reportProblem" },
+  { icon: "message-square", key: "supportScreen.feedback" },
+  { icon: "info", key: "supportScreen.about", route: "/about" },
 ];
 
 export default function SupportScreen() {
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const top = Platform.OS === "web" ? 20 : insets.top;
 
@@ -41,21 +40,21 @@ export default function SupportScreen() {
         hitSlop={12}
         activeOpacity={0.6}
         accessibilityRole="button"
-        accessibilityLabel={lang === "tr" ? "Geri" : "Back"}
+        accessibilityLabel={t("common.back")}
       >
         <Feather name="chevron-left" size={20} color="#111111" />
       </TouchableOpacity>
-      <Text style={ss.title}>{lang === "tr" ? "Destek" : "Support"}</Text>
+      <Text style={ss.title}>{t("supportScreen.title")}</Text>
       <View style={ss.list}>
         {ITEMS.map((item, index) => (
           <TouchableOpacity
-            key={item.tr}
+            key={item.key}
             style={[ss.row, index < ITEMS.length - 1 && ss.divider]}
             onPress={() => item.route && router.push(item.route)}
             activeOpacity={0.58}
           >
             <Feather name={item.icon} size={17} color="#555A60" />
-            <Text style={ss.label}>{lang === "tr" ? item.tr : item.en}</Text>
+            <Text style={ss.label}>{t(item.key)}</Text>
             <Feather name="chevron-right" size={16} color="#B7BBC0" />
           </TouchableOpacity>
         ))}

@@ -35,6 +35,7 @@ import { Path, Svg } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ── Google "G" mark ───────────────────────────────────────────────────────────
 function GoogleIcon({ size = 20 }: { size?: number }) {
@@ -64,6 +65,7 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
 export default function AuthScreen() {
   const insets              = useSafeAreaInsets();
   const { continueAsGuest } = useAuth();
+  const { t }              = useLanguage();
   const [guestLoading, setGuestLoading] = useState(false);
 
   // Staggered entrance
@@ -95,18 +97,18 @@ export default function AuthScreen() {
   const handleApple = async () => {
     await haptic();
     Alert.alert(
-      "Apple ile Giriş",
-      "Bu özellik yakında kullanıma açılacak.",
-      [{ text: "Tamam" }],
+      t("auth.appleTitle"),
+      t("auth.comingSoon"),
+      [{ text: t("common.ok") }],
     );
   };
 
   const handleGoogle = async () => {
     await haptic();
     Alert.alert(
-      "Google ile Giriş",
-      "Bu özellik yakında kullanıma açılacak.",
-      [{ text: "Tamam" }],
+      t("auth.googleTitle"),
+      t("auth.comingSoon"),
+      [{ text: t("common.ok") }],
     );
   };
 
@@ -145,8 +147,8 @@ export default function AuthScreen() {
           style={ss.logo}
           resizeMode="contain"
         />
-        <Text style={ss.title}>{"AkılCEP'e\nHoş Geldin"}</Text>
-        <Text style={ss.subtitle}>Devam etmek için bir yöntem seç.</Text>
+        <Text style={ss.title}>{t("auth.welcomeTitle")}</Text>
+        <Text style={ss.subtitle}>{t("auth.chooseMethod")}</Text>
       </Animated.View>
 
       {/* Button stack */}
@@ -157,7 +159,7 @@ export default function AuthScreen() {
           <View style={ss.iconWrap}>
             <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
           </View>
-          <Text style={ss.labelWhite}>Apple ile Devam Et</Text>
+          <Text style={ss.labelWhite}>{t("auth.continueWithApple")}</Text>
           <View style={ss.iconWrap} />
         </TouchableOpacity>
 
@@ -166,7 +168,7 @@ export default function AuthScreen() {
           <View style={ss.iconWrap}>
             <GoogleIcon size={20} />
           </View>
-          <Text style={ss.labelBlack}>Google ile Devam Et</Text>
+          <Text style={ss.labelBlack}>{t("auth.continueWithGoogle")}</Text>
           <View style={ss.iconWrap} />
         </TouchableOpacity>
 
@@ -178,7 +180,7 @@ export default function AuthScreen() {
           <View style={ss.iconWrap}>
             <Feather name="mail" size={20} color="#000000" />
           </View>
-          <Text style={ss.labelBlack}>E-posta ile Devam Et</Text>
+          <Text style={ss.labelBlack}>{t("auth.continueWithEmail")}</Text>
           <View style={ss.iconWrap} />
         </TouchableOpacity>
 
@@ -193,7 +195,7 @@ export default function AuthScreen() {
             <Feather name="user" size={20} color="#000000" />
           </View>
           <Text style={ss.labelBlack}>
-            {guestLoading ? "Yükleniyor..." : "Misafir Olarak Devam Et"}
+            {guestLoading ? t("auth.guestLoading") : t("auth.continueAsGuest")}
           </Text>
           <View style={ss.iconWrap} />
         </TouchableOpacity>
@@ -202,11 +204,11 @@ export default function AuthScreen() {
       {/* Legal */}
       <Animated.View style={[ss.legalWrap, legalStyle]}>
         <Text style={ss.legal}>
-          Devam ederek{" "}
-          <Text style={ss.legalLink}>Kullanım Koşulları</Text>
-          {" "}ve{" "}
-          <Text style={ss.legalLink}>Gizlilik Politikası</Text>
-          {"'nı"} kabul etmiş olursunuz.
+          {t("auth.legalPrefix")}{" "}
+          <Text style={ss.legalLink}>{t("auth.terms")}</Text>
+          {" "}{t("auth.legalConjunction")}{" "}
+          <Text style={ss.legalLink}>{t("auth.privacy")}</Text>
+          {t("auth.legalSuffix")}
         </Text>
       </Animated.View>
     </View>

@@ -1,23 +1,21 @@
 /**
- * LanguageContext — persists the user's language choice (tr | en).
+ * LanguageContext — persists the user's language choice.
  *
  * Default language: Turkish ("tr").
  * - First launch (no AsyncStorage entry): always Turkish.
- * - Stored value of "en": switch to English.
- * - Any other stored value, null, or AsyncStorage error: stay Turkish.
- * - Missing key in current language: fall back to Turkish translation.
- * - Missing key in Turkish too: return key name as last resort.
+ * - Any registered locale can be selected and is persisted.
+ * - Missing key falls back to English, then Turkish, then the key itself.
  *
  * t("section.key") and t("section.nested.key") both work.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import en from "@/locales/en.json";
 import tr from "@/locales/tr.json";
+import { CORE_LOCALES, LANGUAGE_REGISTRY, type Lang, type LocaleTree } from "@/constants/locales";
 
-// ─── Types ──────────────────────────────────────────────────────────────────────
-export type Lang = "tr" | "en";
+export type { Lang };
 
 interface LanguageContextValue {
   lang:    Lang;
@@ -38,10 +36,13 @@ function flatten(obj: Record<string, unknown>, prefix = ""): Record<string, stri
   }, {});
 }
 
-const FLAT: Record<Lang, Record<string, string>> = {
-  tr: flatten(tr as Record<string, unknown>),
-  en: flatten(en as Record<string, unknown>),
-};
+const FLAT: Record<Lang, Record<string, string>> = Object.fromEntries([
+  ["tr", flatten(tr as Record<string, unknown>)],
+  ["en", flatten(en as Record<string, unknown>)],
+  ...LANGUAGE_REGISTRY
+    .filter(({ code }) => code !== "tr" && code !== "en")
+    .map(({ code }) => [code, flatten((CORE_LOCALES[code] ?? {}) as LocaleTree)]),
+]) as Record<Lang, Record<string, string>>;
 
 // ─── Storage key ────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "@akilcep_language";
@@ -60,15 +61,14 @@ const LanguageContext = createContext<LanguageContextValue>({
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Always start with Turkish — AsyncStorage read happens asynchronously after.
   const [lang, setLangState] = useState<Lang>("tr");
+  const hasUserSelection = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
-        // Only accept exactly "tr" or "en"; everything else (null, corrupt) → Turkish.
-        if (stored === "en") {
-          setLangState("en");
-        } else {
-          setLangState("tr");
+        // Ignore corrupt/old values. Turkish remains the safe first-launch default.
+        if (!hasUserSelection.current && stored && LANGUAGE_REGISTRY.some(({ code }) => code === stored)) {
+          setLangState(stored as Lang);
         }
       })
       .catch(() => {
@@ -78,13 +78,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setLang = useCallback(async (l: Lang) => {
+    hasUserSelection.current = true;
     setLangState(l);
     await AsyncStorage.setItem(STORAGE_KEY, l);
   }, []);
 
   const t = useCallback(
-    // Resolution order: selected language → Turkish fallback → key name.
-    (key: string): string => FLAT[lang][key] ?? FLAT["tr"][key] ?? key,
+    // Resolution order: selected language → English → Turkish → key name.
+    (key: string): string => FLAT[lang][key] ?? FLAT["en"][key] ?? FLAT["tr"][key] ?? key,
     [lang],
   );
 

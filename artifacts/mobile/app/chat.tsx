@@ -634,7 +634,7 @@ export default function ChatScreen() {
       const res = await fetch(`${API_BASE}/openai/conversations`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ title: "Sesli Sohbet" }),
+        body:    JSON.stringify({ title: t("chat.voiceConversationTitle") }),
       });
       if (res.ok) {
         const data = await res.json() as { id: number };

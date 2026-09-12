@@ -14,22 +14,21 @@ import { useLanguage } from "@/context/LanguageContext";
 
 type PrivacyItem = {
   icon: React.ComponentProps<typeof Feather>["name"];
-  tr: string;
-  en: string;
+  key: string;
   destructive?: boolean;
 };
 
 const ITEMS: PrivacyItem[] = [
-  { icon: "lock", tr: "Gizlilik Politikası", en: "Privacy Policy" },
-  { icon: "cpu", tr: "Verilerim ve Hafıza", en: "My Data and Memory" },
-  { icon: "map-pin", tr: "Konum İzinleri", en: "Location Permissions" },
-  { icon: "camera", tr: "Kamera ve Mikrofon İzinleri", en: "Camera and Microphone Permissions" },
-  { icon: "bar-chart-2", tr: "Veri Kullanımı", en: "Data Usage" },
-  { icon: "trash-2", tr: "Hesabımı ve Verilerimi Sil", en: "Delete My Account and Data", destructive: true },
+  { icon: "lock", key: "privacyScreen.policy" },
+  { icon: "cpu", key: "privacyScreen.dataMemory" },
+  { icon: "map-pin", key: "privacyScreen.locationPermissions" },
+  { icon: "camera", key: "privacyScreen.mediaPermissions" },
+  { icon: "bar-chart-2", key: "privacyScreen.dataUsage" },
+  { icon: "trash-2", key: "privacyScreen.deleteData", destructive: true },
 ];
 
 export default function PrivacyScreen() {
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const top = Platform.OS === "web" ? 20 : insets.top;
 
@@ -41,15 +40,15 @@ export default function PrivacyScreen() {
         hitSlop={12}
         activeOpacity={0.6}
         accessibilityRole="button"
-        accessibilityLabel={lang === "tr" ? "Geri" : "Back"}
+        accessibilityLabel={t("common.back")}
       >
         <Feather name="chevron-left" size={20} color="#111111" />
       </TouchableOpacity>
-      <Text style={ss.title}>{lang === "tr" ? "Gizlilik" : "Privacy"}</Text>
+      <Text style={ss.title}>{t("privacyScreen.title")}</Text>
       <View style={ss.list}>
         {ITEMS.map((item, index) => (
           <TouchableOpacity
-            key={item.tr}
+            key={item.key}
             style={[ss.row, index < ITEMS.length - 1 && ss.divider]}
             activeOpacity={0.58}
           >
@@ -59,7 +58,7 @@ export default function PrivacyScreen() {
               color={item.destructive ? "#C83E3E" : "#555A60"}
             />
             <Text style={[ss.label, item.destructive && ss.destructive]}>
-              {lang === "tr" ? item.tr : item.en}
+              {t(item.key)}
             </Text>
             <Feather name="chevron-right" size={16} color="#B7BBC0" />
           </TouchableOpacity>

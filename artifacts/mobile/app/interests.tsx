@@ -20,17 +20,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ── Interest catalogue ────────────────────────────────────────────────────────
 const INTERESTS = [
-  { id: "business",     label: "İş" },
-  { id: "finance",      label: "Finans" },
-  { id: "travel",       label: "Seyahat" },
-  { id: "health",       label: "Sağlık" },
-  { id: "education",    label: "Eğitim" },
-  { id: "ai",           label: "Yapay Zeka" },
-  { id: "technology",   label: "Teknoloji" },
-  { id: "productivity", label: "Verimlilik" },
+  { id: "business",     key: "business" },
+  { id: "finance",      key: "finance" },
+  { id: "travel",       key: "travel" },
+  { id: "health",       key: "health" },
+  { id: "education",    key: "education" },
+  { id: "ai",           key: "ai" },
+  { id: "technology",   key: "technology" },
+  { id: "productivity", key: "productivity" },
 ] as const;
 
 type InterestId = (typeof INTERESTS)[number]["id"];
@@ -38,6 +39,7 @@ type InterestId = (typeof INTERESTS)[number]["id"];
 export default function InterestsScreen() {
   const insets              = useSafeAreaInsets();
   const { updateInterests } = useAuth();
+  const { t }               = useLanguage();
 
   const [selected, setSelected] = useState<InterestId[]>([]);
   const [loading,  setLoading]  = useState(false);
@@ -73,10 +75,8 @@ export default function InterestsScreen() {
 
       {/* Header */}
       <View style={ss.header}>
-        <Text style={ss.title}>Nelerle ilgileniyorsun?</Text>
-        <Text style={ss.subtitle}>
-          AkılCEP sana daha iyi yardımcı olabilmek için{"\n"}birkaç konu seç.
-        </Text>
+        <Text style={ss.title}>{t("interests.title")}</Text>
+        <Text style={ss.subtitle}>{t("interests.subtitle")}</Text>
       </View>
 
       {/* Chip grid */}
@@ -95,7 +95,7 @@ export default function InterestsScreen() {
               activeOpacity={0.72}
             >
               <Text style={[ss.chipText, active && ss.chipTextOn]}>
-                {item.label}
+                {t(`interests.${item.key}`)}
               </Text>
             </TouchableOpacity>
           );
@@ -111,7 +111,7 @@ export default function InterestsScreen() {
           activeOpacity={0.85}
         >
           <Text style={ss.btnText}>
-            {loading ? "Devam Ediliyor..." : "Devam Et"}
+            {loading ? t("interests.continuing") : t("common.continue")}
           </Text>
         </TouchableOpacity>
 
@@ -120,7 +120,7 @@ export default function InterestsScreen() {
           disabled={loading}
           style={ss.skipBtn}
         >
-          <Text style={ss.skipText}>Şimdilik geç</Text>
+          <Text style={ss.skipText}>{t("interests.skip")}</Text>
         </TouchableOpacity>
       </View>
     </View>

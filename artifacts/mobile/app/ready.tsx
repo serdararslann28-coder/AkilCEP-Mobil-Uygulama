@@ -26,11 +26,13 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { ONBOARDING_KEY } from "@/app/onboarding";
 
 export default function ReadyScreen() {
   const insets    = useSafeAreaInsets();
   const { user }  = useAuth();
+  const { t }      = useLanguage();
   const [loading, setLoading] = useState(false);
 
   // Derive display first name
@@ -91,13 +93,13 @@ export default function ReadyScreen() {
 
       <View style={ss.content}>
         <Animated.Text style={[ss.greeting, greetStyle]}>
-          Hoş geldin,
+          {t("ready.greeting")}
         </Animated.Text>
         <Animated.Text style={[ss.name, nameStyle]}>
           {displayName}{"!"}
         </Animated.Text>
         <Animated.Text style={[ss.subtitle, subStyle]}>
-          AkılCEP seni tanımaya hazır.
+          {t("ready.subtitle")}
         </Animated.Text>
       </View>
 
@@ -109,7 +111,7 @@ export default function ReadyScreen() {
           activeOpacity={0.85}
         >
           <Text style={ss.btnText}>
-            {loading ? "Açılıyor..." : "AkılCEP'i Aç"}
+            {loading ? t("ready.opening") : t("ready.open")}
           </Text>
         </TouchableOpacity>
       </Animated.View>
