@@ -44,6 +44,7 @@ import {
 import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
+  Extrapolation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -54,6 +55,12 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, {
+  Defs,
+  RadialGradient,
+  Rect,
+  Stop,
+} from "react-native-svg";
 
 import SideMenu         from "@/components/SideMenu";
 import MultimodalPanel  from "@/components/MultimodalPanel";
@@ -250,6 +257,11 @@ export default function ChatScreen() {
     sendScale.value = withSpring(0.80, { duration: 70 }, () => {
       sendScale.value = withSpring(1, { damping: 12, stiffness: 200 });
     });
+    sendWave.value = 0;
+    sendWave.value = withTiming(1, {
+      duration: 720,
+      easing: Easing.out(Easing.cubic),
+    });
     sendMessage(inputText.trim(), verifiedAttachments);
     setInputText("");
     setPendingAttachments([]);
@@ -333,6 +345,12 @@ export default function ChatScreen() {
   const arrowGlowPulse = useSharedValue(0);  // ambient pulse 0→1 in voice mode
   const inputHeightSV  = useSharedValue(MIN_INPUT_H);  // animated input height
   const inputFocused   = useSharedValue(0);             // 0 = rest, 1 = focused
+  const auraLevel      = useSharedValue(0.12);
+  const auraBreath     = useSharedValue(0);
+  const auraDrift      = useSharedValue(0);
+  const aiAuraPulse    = useSharedValue(0);
+  const sendWave       = useSharedValue(0);
+  const typingIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const FOCUS_DUR = { duration: 250, easing: Easing.out(Easing.ease) } as const;
   const focusLineStyle = useAnimatedStyle(() => ({
@@ -407,6 +425,100 @@ export default function ChatScreen() {
   // Adaptive input wrapper — springs up/down as content grows
   const inputFieldAnim = useAnimatedStyle(() => ({
     height: inputHeightSV.value,
+  }));
+
+  // Soft composer aura. All continuous motion stays on Reanimated's UI thread.
+  useEffect(() => {
+    auraBreath.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2100, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 2100, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+    auraDrift.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (typingIdleTimerRef.current) clearTimeout(typingIdleTimerRef.current);
+
+    if (inputText.length > 0) {
+      auraLevel.value = withTiming(0.92, {
+        duration: 520,
+        easing: Easing.out(Easing.cubic),
+      });
+      typingIdleTimerRef.current = setTimeout(() => {
+        auraLevel.value = withTiming(0.30, {
+          duration: 950,
+          easing: Easing.out(Easing.ease),
+        });
+      }, 720);
+    } else if (!isTyping) {
+      auraLevel.value = withTiming(0.12, {
+        duration: 900,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+
+    return () => {
+      if (typingIdleTimerRef.current) clearTimeout(typingIdleTimerRef.current);
+    };
+  }, [inputText, isTyping]);
+
+  useEffect(() => {
+    if (isTyping) {
+      auraLevel.value = withTiming(0.38, {
+        duration: 700,
+        easing: Easing.out(Easing.ease),
+      });
+      aiAuraPulse.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0, { duration: 1900, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      aiAuraPulse.value = withTiming(0, { duration: 650 });
+      if (inputText.length === 0) {
+        auraLevel.value = withTiming(0.12, {
+          duration: 850,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+    }
+  }, [isTyping]);
+
+  const auraStyle = useAnimatedStyle(() => ({
+    opacity: 0.13 + auraLevel.value * 0.46 + aiAuraPulse.value * 0.10,
+    transform: [
+      { translateX: interpolate(auraDrift.value, [0, 1], [-8, 8]) },
+      { scaleX: 1 + auraBreath.value * (0.025 + auraLevel.value * 0.025) },
+      { scaleY: 1 + auraBreath.value * 0.06 },
+    ],
+  }));
+
+  const sendWaveStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      sendWave.value,
+      [0, 0.16, 0.58, 1],
+      [0, 0.58, 0.22, 0],
+      Extrapolation.CLAMP,
+    ),
+    transform: [
+      { translateY: interpolate(sendWave.value, [0, 1], [22, -54]) },
+      { scaleX: interpolate(sendWave.value, [0, 1], [0.72, 1.12]) },
+      { scaleY: interpolate(sendWave.value, [0, 1], [0.72, 1.18]) },
+    ],
   }));
 
   // ── Arrow morphs: text present → send / empty → dark voice orb ─────────────
@@ -888,6 +1000,36 @@ export default function ChatScreen() {
         style={[ss.inputOuter, dockKbStyle]}
         onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
       >
+        <Animated.View
+          pointerEvents="none"
+          style={[ss.composerAura, auraStyle]}
+        >
+          <Svg width="100%" height="100%" viewBox="0 0 400 130">
+            <Defs>
+              <RadialGradient id="composerAura" cx="50%" cy="72%" rx="58%" ry="68%">
+                <Stop offset="0%" stopColor={T.isDark ? "#76AEEA" : "#5B9AD9"} stopOpacity="0.68" />
+                <Stop offset="42%" stopColor={T.isDark ? "#5B9AD9" : "#78B4ED"} stopOpacity="0.26" />
+                <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            <Rect width="400" height="130" fill="url(#composerAura)" />
+          </Svg>
+        </Animated.View>
+        <Animated.View
+          pointerEvents="none"
+          style={[ss.sendLightWave, sendWaveStyle]}
+        >
+          <Svg width="100%" height="100%" viewBox="0 0 400 150">
+            <Defs>
+              <RadialGradient id="sendWave" cx="50%" cy="94%" rx="52%" ry="72%">
+                <Stop offset="0%" stopColor={T.isDark ? "#8FC5F4" : "#5B9AD9"} stopOpacity="0.72" />
+                <Stop offset="48%" stopColor="#78B4ED" stopOpacity="0.20" />
+                <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            <Rect width="400" height="150" fill="url(#sendWave)" />
+          </Svg>
+        </Animated.View>
         <View style={ss.dock}>
           {pendingAttachments.length > 0 && (
             <ScrollView
@@ -1373,6 +1515,20 @@ const ss = StyleSheet.create({
     right:             0,
     paddingTop:        4,
     alignItems:        "center",
+  },
+  composerAura: {
+    position: "absolute",
+    left: "-4%",
+    right: "-4%",
+    bottom: -28,
+    height: 124,
+  },
+  sendLightWave: {
+    position: "absolute",
+    left: "-4%",
+    right: "-4%",
+    bottom: -16,
+    height: 142,
   },
 
 
