@@ -47,7 +47,7 @@
     "note": "Language change applies instantly across all screens."
   },
   "chat": {
-    "placeholder": "AkılCEP’e bir mesaj yaz…",
+    "placeholder": "AkılCEP’e yanıt ver…",
     "listening": "Listening...",
     "attachmentLimit": {
       "title": "Some Attachments Were Not Added",
@@ -60,7 +60,7 @@
     "secretBadge": "Secret",
     "visionPending": "Analyzing photo…",
     "expandTitle": "Long Message",
-    "expandPlaceholder": "AkılCEP’e bir mesaj yaz…",
+    "expandPlaceholder": "AkılCEP’e yanıt ver…",
     "secretModal": {
       "title": "Secret Chat",
       "desc": "This conversation won't be saved to history.",

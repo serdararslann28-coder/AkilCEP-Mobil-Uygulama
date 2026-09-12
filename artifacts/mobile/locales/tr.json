@@ -47,7 +47,7 @@
     "note": "Dil değişikliği tüm ekranlara anında uygulanır."
   },
   "chat": {
-    "placeholder": "AkılCEP’e bir mesaj yaz…",
+    "placeholder": "AkılCEP’e yanıt ver…",
     "listening": "Dinliyorum...",
     "attachmentLimit": {
       "title": "Bazı Ekler Eklenmedi",
@@ -60,7 +60,7 @@
     "secretBadge": "Gizli",
     "visionPending": "Fotoğraf analiz ediliyor…",
     "expandTitle": "Uzun Mesaj",
-    "expandPlaceholder": "AkılCEP’e bir mesaj yaz…",
+    "expandPlaceholder": "AkılCEP’e yanıt ver…",
     "secretModal": {
       "title": "Gizli Sohbet",
       "desc": "Bu sohbet geçmişe kaydedilmez.",
