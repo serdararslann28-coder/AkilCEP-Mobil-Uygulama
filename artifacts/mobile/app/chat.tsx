@@ -208,7 +208,12 @@ export default function ChatScreen() {
   const { reanimated: kbReanimated } = useKeyboardContext();
   const kbH = kbReanimated.height;
   const dockKbStyle = useAnimatedStyle(() => ({
-    bottom: 12 + bottomPad * (1 - kbReanimated.progress.value) - kbH.value,
+    // Closed: sit above the real system navigation inset.
+    // Open: remove both the inset and the decorative gap so the composer
+    // meets the keyboard without creating a second empty strip.
+    bottom:
+      (bottomPad + 8) * (1 - kbReanimated.progress.value)
+      - kbH.value,
   }));
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
