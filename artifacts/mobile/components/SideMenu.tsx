@@ -49,6 +49,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useChat }     from "@/context/ChatContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme }    from "@/context/ThemeContext";
+import ProfileMenu     from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -201,6 +202,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletePrompt, setDeletePrompt] = useState<DeletePrompt>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const panelPointerStartRef = useRef({ x: 0, y: 0 });
   const panelPointerSwipingRef = useRef(false);
 
@@ -350,8 +352,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
   const rowActiveBg   = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
-  const profileBg     = isDark ? "rgba(255,255,255,0.05)"   : "rgba(0,0,0,0.032)";
-  const profileBorder = isDark ? "rgba(255,255,255,0.09)"   : "rgba(0,0,0,0.07)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
   const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
@@ -460,22 +460,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           )}
         </View>
 
-        {/* ═══ PROFILE CARD ════════════════════════════════════════════════════ */}
-        <TouchableOpacity
-          style={[ss.profileCard, { backgroundColor: profileBg, borderColor: profileBorder }]}
-          onPress={() => go("/profile")}
-          activeOpacity={0.72}
-        >
-          <Image source={defaultAvatar} style={ss.profileAvatar} resizeMode="cover" />
-          <View style={ss.profileInfo}>
-            <Text style={[ss.profileName, { color: T.fg }]}>SERDAR</Text>
-          </View>
-          <Feather name="chevron-right" size={16} color={muted} style={{ opacity: 0.60 }} />
-        </TouchableOpacity>
-
-        {/* Divider after profile */}
-        <View style={[ss.fullDivider, { backgroundColor: divider }]} />
-
         {/* ═══ CHAT HISTORY — scrollable ═══════════════════════════════════════ */}
         <ScrollView
           style={ss.scroll}
@@ -524,39 +508,25 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           {...panelPointerHandlers}
           {...panResponder.panHandlers}
         >
-          {/* ── Bottom nav items ────────────────────────────────────────────── */}
-          <TouchableOpacity
-            style={ss.bottomNavRow}
-            onPress={() => go("/settings")}
-            activeOpacity={0.68}
-          >
-            <Feather name="settings" size={16} color={T.fg} style={{ opacity: 0.55 }} />
-            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>{t("sidebar.settings")}</Text>
-            <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={ss.bottomNavRow}
-            onPress={() => go("/about")}
-            activeOpacity={0.68}
-          >
-            <Feather name="info" size={16} color={T.fg} style={{ opacity: 0.55 }} />
-            <Text style={[ss.bottomNavLabel, { color: T.fg }]}>{t("sidebar.about")}</Text>
-            <Feather name="chevron-right" size={14} color={T.fg} style={{ opacity: 0.28 }} />
-          </TouchableOpacity>
-
-          {/* Thin divider */}
-          <View style={[ss.bottomDivider, { backgroundColor: divider }]} />
-
-          {/* ── New Chat FAB ─────────────────────────────────────────────────── */}
-          <TouchableOpacity
-            style={[ss.fab, { backgroundColor: T.primary }]}
-            onPress={handleNewChat}
-            activeOpacity={0.82}
-          >
-            <Feather name="plus" size={16} color={T.primaryForeground} />
-            <Text style={[ss.fabLabel, { color: T.primaryForeground }]}>{t("sidebar.newChat")}</Text>
-          </TouchableOpacity>
+          <View style={ss.bottomActions}>
+            <TouchableOpacity
+              style={ss.fab}
+              onPress={handleNewChat}
+              activeOpacity={0.82}
+            >
+              <Feather name="plus" size={17} color="#FFFFFF" />
+              <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ss.avatarButton}
+              onPress={() => setProfileMenuOpen(true)}
+              activeOpacity={0.76}
+              accessibilityRole="button"
+              accessibilityLabel={t("profileMenu.profile")}
+            >
+              <Image source={defaultAvatar} style={ss.bottomAvatar} resizeMode="cover" />
+            </TouchableOpacity>
+          </View>
         </View>
 
       </Animated.View>
@@ -610,6 +580,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           </View>
         </View>
       </Modal>
+      <ProfileMenu
+        visible={profileMenuOpen}
+        onClose={() => setProfileMenuOpen(false)}
+      />
     </>
   );
 });
@@ -914,42 +888,29 @@ const ss = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  // ── Bottom area (nav items + FAB) ────────────────────────────────────────────
+  // ── Bottom area ───────────────────────────────────────────────────────────────
   bottomArea: {
     paddingHorizontal: 16,
-    paddingTop:        8,
+    paddingTop:        12,
     borderTopWidth:    StyleSheet.hairlineWidth,
     zIndex:            2,
   },
 
-  bottomNavRow: {
+  bottomActions: {
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 4,
-    paddingVertical:   12,
     gap:               12,
   },
 
-  bottomNavLabel: {
-    flex:          1,
-    fontSize:      14,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-    opacity:       0.72,
-  },
-
-  bottomDivider: {
-    height:        StyleSheet.hairlineWidth,
-    marginVertical: 8,
-  },
-
   fab: {
+    flex:            1,
+    height:          52,
     flexDirection:   "row",
     alignItems:      "center",
     justifyContent:  "center",
     borderRadius:    999,
-    paddingVertical: 16,
     gap:             8,
+    backgroundColor: "#111111",
     shadowColor:     "#000",
     shadowOffset:    { width: 0, height: 6 },
     shadowOpacity:   0.16,
@@ -958,9 +919,29 @@ const ss = StyleSheet.create({
   },
 
   fabLabel: {
+    color:         "#FFFFFF",
     fontSize:      15,
     fontFamily:    "Inter_600SemiBold",
     letterSpacing: -0.3,
+  },
+
+  avatarButton: {
+    width:          52,
+    height:         52,
+    borderRadius:   26,
+    padding:        2,
+    backgroundColor: "#FFFFFF",
+    shadowColor:    "#000",
+    shadowOffset:   { width: 0, height: 3 },
+    shadowOpacity:  0.10,
+    shadowRadius:   8,
+    elevation:      4,
+  },
+
+  bottomAvatar: {
+    width:        "100%",
+    height:       "100%",
+    borderRadius: 24,
   },
 
 });

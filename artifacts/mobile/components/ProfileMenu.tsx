@@ -52,7 +52,9 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
     ],
     [
       { icon: "star",     label: t("profileMenu.premium"),  action: "" },
-      { icon: "settings", label: t("profileMenu.settings"), action: "" },
+      { icon: "settings", label: t("profileMenu.settings"), action: "settings" },
+      { icon: "shield",   label: t("settings.privacyItem"), action: "privacy" },
+      { icon: "info",     label: t("sidebar.about"),        action: "about" },
     ],
   ];
 
@@ -83,6 +85,9 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
     onClose();
     if (action === "voice")   setTimeout(() => router.push("/voice"),   300);
     if (action === "profile") setTimeout(() => router.push("/profile"), 300);
+    if (action === "settings") setTimeout(() => router.push("/settings"), 300);
+    if (action === "privacy")  setTimeout(() => router.push("/privacy"),  300);
+    if (action === "about")    setTimeout(() => router.push("/about"),    300);
   };
 
   const sheetBg    = T.isDark ? "#0E0E0E" : "#F5F5F7";
@@ -191,10 +196,10 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
 }
 
 const ss = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFill, zIndex: 200 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 1000 },
   sheet: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    zIndex: 201, borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    zIndex: 1001, borderTopLeftRadius: 32, borderTopRightRadius: 32,
     maxHeight: "90%",
     borderTopWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000", shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.08, shadowRadius: 32, elevation: 24,
