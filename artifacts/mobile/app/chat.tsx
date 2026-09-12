@@ -28,10 +28,12 @@ import React, {
 } from "react";
 import {
   Alert,
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -63,6 +65,7 @@ import Svg, {
 } from "react-native-svg";
 
 import SideMenu         from "@/components/SideMenu";
+import type { SideMenuHandle } from "@/components/SideMenu";
 import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import ImageGenCard     from "@/components/ImageGenCard";
@@ -155,6 +158,9 @@ export default function ChatScreen() {
   const isSecretChat = !!currentConversation?.isPrivate;
 
   const flatListRef     = useRef<FlatList>(null);
+  const sideMenuRef     = useRef<SideMenuHandle>(null);
+  const menuVisibleRef  = useRef(false);
+  const gestureStartXRef = useRef(Number.POSITIVE_INFINITY);
   const voicePhaseRef   = useRef<VoicePhase>("idle");
   const voiceRecorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const sttRecorder     = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -162,6 +168,44 @@ export default function ChatScreen() {
   const abortRef        = useRef<AbortController | null>(null);
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
+
+  useEffect(() => {
+    menuVisibleRef.current = menuVisible;
+  }, [menuVisible]);
+
+  const edgeSwipeResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: (event) => {
+        gestureStartXRef.current = event.nativeEvent.pageX;
+        return false;
+      },
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        !menuVisibleRef.current &&
+        gestureStartXRef.current <= 24 &&
+        dx > 10 &&
+        Math.abs(dx) > Math.abs(dy) * 1.8,
+      onPanResponderMove: (_, { dx }) => {
+        if (dx > 0) sideMenuRef.current?.updateOpeningGesture(dx);
+      },
+      onPanResponderRelease: (_, { dx, vx }) => {
+        sideMenuRef.current?.finishOpeningGesture(dx, vx);
+      },
+      onPanResponderTerminate: (_, { dx, vx }) => {
+        sideMenuRef.current?.finishOpeningGesture(dx, vx);
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!menuVisible) return false;
+      setMenuVisible(false);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [menuVisible]);
 
   // ── STT — lightweight speech-to-text that fills the input field ─────────────
   const [sttListening,  setSttListening]  = useState(false);
@@ -877,7 +921,10 @@ export default function ChatScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <View style={[ss.root, { backgroundColor: T.bg }]}>
+    <View
+      style={[ss.root, { backgroundColor: T.bg }]}
+      {...edgeSwipeResponder.panHandlers}
+    >
       <StatusBar
         style={T.isDark ? "light" : "dark"}
       />
@@ -951,7 +998,12 @@ export default function ChatScreen() {
         }}
         bottomOffset={bottomPad + 80}
       />
-      <SideMenu visible={menuVisible} onClose={() => setMenuVisible(false)} />
+      <SideMenu
+        ref={sideMenuRef}
+        visible={menuVisible}
+        onOpen={() => setMenuVisible(true)}
+        onClose={() => setMenuVisible(false)}
+      />
 
       {/* ════ WATERMARK LOGO ════ */}
       <View style={ss.logoFrame} pointerEvents="none">

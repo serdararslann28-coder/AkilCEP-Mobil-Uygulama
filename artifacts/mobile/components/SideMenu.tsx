@@ -16,7 +16,9 @@ import { Feather }   from "@expo/vector-icons";
 import * as Haptics  from "expo-haptics";
 import { router }    from "expo-router";
 import React, {
+  forwardRef,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -71,9 +73,17 @@ function getDateGroup(ts: number, t: (k: string) => string): string {
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
-interface Props { visible: boolean; onClose: () => void; }
+interface Props { visible: boolean; onClose: () => void; onOpen: () => void; }
 
-export default function SideMenu({ visible, onClose }: Props) {
+export interface SideMenuHandle {
+  updateOpeningGesture: (distance: number) => void;
+  finishOpeningGesture: (distance: number, velocity: number) => void;
+}
+
+const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
+  { visible, onClose, onOpen },
+  ref,
+) {
   const { theme: T, toggle } = useTheme();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -108,6 +118,25 @@ export default function SideMenu({ visible, onClose }: Props) {
   const panelAnim    = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
   const backdropAnim = useAnimatedStyle(() => ({ opacity: backdropOp.value }));
 
+  const onOpenRef = useRef(onOpen);
+  useEffect(() => { onOpenRef.current = onOpen; }, [onOpen]);
+
+  useImperativeHandle(ref, () => ({
+    updateOpeningGesture: (distance) => {
+      const progress = Math.min(Math.max(distance, 0), MENU_W);
+      translateX.value = -MENU_W + progress;
+      backdropOp.value = progress / MENU_W;
+    },
+    finishOpeningGesture: (distance, velocity) => {
+      if (distance > MENU_W * 0.28 || velocity > 0.55) {
+        onOpenRef.current();
+      } else {
+        translateX.value = withSpring(-MENU_W, { damping: 26, stiffness: 220 });
+        backdropOp.value = withTiming(0, { duration: 180 });
+      }
+    },
+  }), []);
+
   // ── Swipe-left-to-close gesture ───────────────────────────────────────────────
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
@@ -118,13 +147,17 @@ export default function SideMenu({ visible, onClose }: Props) {
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.8,
       onPanResponderMove: (_, { dx }) => {
-        if (dx < 0) translateX.value = dx;
+        if (dx < 0) {
+          translateX.value = Math.max(dx, -MENU_W);
+          backdropOp.value = 1 - Math.min(Math.abs(dx) / MENU_W, 1);
+        }
       },
       onPanResponderRelease: (_, { dx, vx }) => {
         if (dx < -(MENU_W * 0.28) || vx < -0.55) {
           onCloseRef.current();
         } else {
           translateX.value = withSpring(0, { damping: 26, stiffness: 220 });
+          backdropOp.value = withTiming(1, { duration: 180 });
         }
       },
     })
@@ -390,7 +423,9 @@ export default function SideMenu({ visible, onClose }: Props) {
       </Animated.View>
     </>
   );
-}
+});
+
+export default SideMenu;
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
