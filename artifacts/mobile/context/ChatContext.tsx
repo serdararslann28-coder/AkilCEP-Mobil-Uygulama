@@ -159,6 +159,7 @@ interface ChatContextType {
   startSecretConversation: () => void;
   loadConversation:        (id: string) => void;
   deleteConversation:      (id: string) => void;
+  deleteAllConversations:  () => void;
   currentMessages:      Message[];
 }
 
@@ -249,13 +250,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const deleteConversation = useCallback(
     (id: string) => {
-      const updated = conversations.filter((c) => c.id !== id);
-      setConversations(updated);
-      void saveConversations(updated);
-      if (currentConversation?.id === id) setCurrentConversation(null);
+      setConversations((current) => {
+        const updated = current.filter((conversation) => conversation.id !== id);
+        void saveConversations(updated);
+        return updated;
+      });
+      setCurrentConversation((current) => {
+        if (current?.id !== id) return current;
+        abortRef.current?.abort();
+        abortRef.current = null;
+        setIsTyping(false);
+        return null;
+      });
     },
-    [conversations, currentConversation]
+    []
   );
+
+  const deleteAllConversations = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsTyping(false);
+    setVisionPending(false);
+    setImagePending(false);
+    setCurrentConversation(null);
+    setConversations([]);
+    void AsyncStorage.removeItem(STORAGE_KEY);
+  }, []);
 
   const persistConversation = useCallback(
     (finalConv: Conversation) => {
@@ -851,6 +871,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         startSecretConversation,
         loadConversation,
         deleteConversation,
+        deleteAllConversations,
         currentMessages,
       }}
     >

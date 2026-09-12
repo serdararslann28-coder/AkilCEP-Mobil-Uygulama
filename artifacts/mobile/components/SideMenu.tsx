@@ -26,6 +26,7 @@ import React, {
 import {
   Dimensions,
   Image,
+  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -72,8 +73,172 @@ function getDateGroup(ts: number, t: (k: string) => string): string {
   return t("sidebar.earlier");
 }
 
+interface SwipeConversationRowProps {
+  title: string;
+  isActive: boolean;
+  foreground: string;
+  rowBackground: string;
+  deleteLabel: string;
+  onSelect: () => void;
+  onRequestDelete: (close: () => void) => void;
+}
+
+function SwipeConversationRow({
+  title,
+  isActive,
+  foreground,
+  rowBackground,
+  deleteLabel,
+  onSelect,
+  onRequestDelete,
+}: SwipeConversationRowProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const translateX = useSharedValue(0);
+  const pointerStartRef = useRef({ x: 0, y: 0 });
+  const pointerSwipingRef = useRef(false);
+  const suppressSelectRef = useRef(false);
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const close = () => {
+    setIsOpen(false);
+    translateX.value = withSpring(0, { damping: 24, stiffness: 260 });
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6,
+      onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
+        dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6,
+      onPanResponderMove: (_, { dx }) => {
+        suppressSelectRef.current = true;
+        translateX.value = Math.max(-72, Math.min(0, dx));
+      },
+      onPanResponderRelease: (_, { dx, vx }) => {
+        const shouldOpen = dx < -34 || vx < -0.45;
+        setIsOpen(shouldOpen);
+        translateX.value = withSpring(shouldOpen ? -72 : 0, {
+          damping: 24,
+          stiffness: 260,
+        });
+      },
+      onPanResponderTerminate: close,
+    }),
+  ).current;
+
+  return (
+    <View
+      style={ss.swipeRow}
+      onPointerDownCapture={(event) => {
+        if (
+          Platform.OS === "web" &&
+          isOpen &&
+          event.nativeEvent.clientX >= MENU_W - 90
+        ) {
+          event.stopPropagation();
+          setTimeout(() => onRequestDelete(close), 0);
+        }
+      }}
+    >
+      <Animated.View
+        pointerEvents={isOpen ? "none" : "auto"}
+        style={[
+          ss.swipeRowForeground,
+          { backgroundColor: rowBackground },
+          rowStyle,
+        ]}
+        onPointerDownCapture={(event) => {
+          if (Platform.OS !== "web") return;
+          pointerStartRef.current = {
+            x: event.nativeEvent.clientX,
+            y: event.nativeEvent.clientY,
+          };
+          pointerSwipingRef.current = false;
+          suppressSelectRef.current = false;
+        }}
+        onPointerMoveCapture={(event) => {
+          if (Platform.OS !== "web") return;
+          const dx = event.nativeEvent.clientX - pointerStartRef.current.x;
+          const dy = event.nativeEvent.clientY - pointerStartRef.current.y;
+          if (dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+            pointerSwipingRef.current = true;
+            suppressSelectRef.current = true;
+            translateX.value = Math.max(-72, dx);
+          }
+        }}
+        onPointerUpCapture={(event) => {
+          if (Platform.OS !== "web" || !pointerSwipingRef.current) return;
+          const dx = event.nativeEvent.clientX - pointerStartRef.current.x;
+          const shouldOpen = dx < -34;
+          setIsOpen(shouldOpen);
+          translateX.value = withSpring(shouldOpen ? -72 : 0, {
+            damping: 24,
+            stiffness: 260,
+          });
+          pointerSwipingRef.current = false;
+        }}
+        {...responder.panHandlers}
+      >
+        <TouchableOpacity
+          style={ss.convRow}
+          onPress={() => {
+            if (isOpen) return;
+            if (suppressSelectRef.current) {
+              suppressSelectRef.current = false;
+              return;
+            }
+            onSelect();
+          }}
+          activeOpacity={0.68}
+        >
+          {isActive && (
+            <View style={[ss.activeBar, { backgroundColor: foreground }]} />
+          )}
+          <Feather
+            name="message-square"
+            size={12}
+            color={foreground}
+            style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
+          />
+          <Text
+            style={[
+              ss.convTitle,
+              { color: foreground, opacity: isActive ? 1 : 0.72 },
+            ]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
+      <View
+        style={[ss.deleteAction, isOpen && ss.deleteActionOpen]}
+        pointerEvents="none"
+      >
+        <Feather name="trash-2" size={14} color="#FFFFFF" />
+        <Text style={ss.deleteActionText}>{deleteLabel}</Text>
+      </View>
+      {isOpen && (
+        <Pressable
+          style={ss.openRowHitTarget}
+          onPress={() => onRequestDelete(close)}
+          accessibilityRole="button"
+          accessibilityLabel={deleteLabel}
+        />
+      )}
+    </View>
+  );
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; onOpen: () => void; }
+type DeletePrompt =
+  | { kind: "single"; id: string; closeRow: () => void }
+  | { kind: "all" }
+  | null;
 
 export interface SideMenuHandle {
   updateOpeningGesture: (distance: number) => void;
@@ -93,11 +258,21 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
   const GROUP_ORDER = [t("sidebar.today"), t("sidebar.yesterday"), t("sidebar.thisWeek"), t("sidebar.thisMonth"), t("sidebar.earlier")];
 
-  const { conversations, currentConversation, loadConversation, startNewConversation } = useChat();
+  const {
+    conversations,
+    currentConversation,
+    loadConversation,
+    startNewConversation,
+    deleteConversation,
+    deleteAllConversations,
+  } = useChat();
 
   // UI state
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletePrompt, setDeletePrompt] = useState<DeletePrompt>(null);
+  const panelPointerStartRef = useRef({ x: 0, y: 0 });
+  const panelPointerSwipingRef = useRef(false);
 
   // ── Slide-in animation ────────────────────────────────────────────────────────
   const translateX = useSharedValue(-MENU_W);
@@ -141,6 +316,36 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   // ── Swipe-left-to-close gesture ───────────────────────────────────────────────
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  const panelPointerHandlers = {
+    onPointerDownCapture: (event: {
+      nativeEvent: { clientX: number; clientY: number };
+    }) => {
+      if (Platform.OS !== "web") return;
+      panelPointerStartRef.current = {
+        x: event.nativeEvent.clientX,
+        y: event.nativeEvent.clientY,
+      };
+      panelPointerSwipingRef.current = false;
+    },
+    onPointerMoveCapture: (event: {
+      nativeEvent: { clientX: number; clientY: number };
+    }) => {
+      if (Platform.OS !== "web") return;
+      const dx = event.nativeEvent.clientX - panelPointerStartRef.current.x;
+      const dy = event.nativeEvent.clientY - panelPointerStartRef.current.y;
+      panelPointerSwipingRef.current =
+        dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.8;
+    },
+    onPointerUpCapture: (event: {
+      nativeEvent: { clientX: number };
+    }) => {
+      if (Platform.OS !== "web" || !panelPointerSwipingRef.current) return;
+      const dx = event.nativeEvent.clientX - panelPointerStartRef.current.x;
+      panelPointerSwipingRef.current = false;
+      if (dx < -20) onCloseRef.current();
+    },
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -196,6 +401,28 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     setTimeout(() => router.push("/chat"), 180);
   }
 
+  function confirmDeleteConversation(id: string, closeRow: () => void) {
+    setDeletePrompt({ kind: "single", id, closeRow });
+  }
+
+  function confirmDeleteAllConversations() {
+    setDeletePrompt({ kind: "all" });
+  }
+
+  function cancelDelete() {
+    if (deletePrompt?.kind === "single") deletePrompt.closeRow();
+    setDeletePrompt(null);
+  }
+
+  function applyDelete() {
+    if (deletePrompt?.kind === "single") {
+      deleteConversation(deletePrompt.id);
+    } else if (deletePrompt?.kind === "all") {
+      deleteAllConversations();
+    }
+    setDeletePrompt(null);
+  }
+
   // ── Derived color tokens ──────────────────────────────────────────────────────
   const panelOverlay  = isDark ? "rgba(8,8,10,0.82)"       : "rgba(253,253,251,0.88)";
   const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
@@ -224,8 +451,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       {/* ── Panel ─────────────────────────────────────────────────────────────── */}
       <Animated.View
         style={[ss.panel, { width: MENU_W }, panelAnim]}
-        pointerEvents={visible ? "box-none" : "none"}
-        {...panResponder.panHandlers}
+        pointerEvents={visible ? "auto" : "none"}
       >
         {/* Glassmorphism fill */}
         <BlurView
@@ -239,7 +465,11 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         <View style={[ss.edgeLine, { backgroundColor: divider }]} />
 
         {/* ═══ STICKY TOP — header + search bar ═══════════════════════════════ */}
-        <View style={[ss.stickyTop, { borderBottomColor: divider }]}>
+        <View
+          style={[ss.stickyTop, { borderBottomColor: divider }]}
+          {...panelPointerHandlers}
+          {...panResponder.panHandlers}
+        >
 
           {/* ── Header ────────────────────────────────────────────────────────── */}
           <View style={[ss.header, { paddingTop: topPad + 18 }]}>
@@ -345,47 +575,45 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 {items.map(conv => {
                   const isActive = conv.id === currentConversation?.id;
                   return (
-                    <TouchableOpacity
+                    <SwipeConversationRow
                       key={conv.id}
-                      style={[
-                        ss.convRow,
-                        isActive && { backgroundColor: rowActiveBg },
-                      ]}
-                      onPress={() => {
+                      title={conv.title}
+                      isActive={isActive}
+                      foreground={T.fg}
+                      rowBackground={isActive ? rowActiveBg : panelOverlay}
+                      deleteLabel={t("sidebar.delete")}
+                      onSelect={() => {
                         Haptics.selectionAsync();
                         loadConversation(conv.id);
                         onClose();
                         setTimeout(() => router.push("/chat"), 160);
                       }}
-                      activeOpacity={0.68}
-                    >
-                      {/* Active bar */}
-                      {isActive && (
-                        <View style={[ss.activeBar, { backgroundColor: T.fg }]} />
-                      )}
-                      <Feather
-                        name="message-square"
-                        size={12}
-                        color={T.fg}
-                        style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
-                      />
-                      <Text
-                        style={[ss.convTitle, { color: T.fg, opacity: isActive ? 1 : 0.72 }]}
-                        numberOfLines={1}
-                      >
-                        {conv.title}
-                      </Text>
-                    </TouchableOpacity>
+                      onRequestDelete={(closeRow) =>
+                        confirmDeleteConversation(conv.id, closeRow)
+                      }
+                    />
                   );
                 })}
               </View>
             ))
+          )}
+          {conversations.length > 0 && (
+            <TouchableOpacity
+              style={ss.deleteAllRow}
+              onPress={confirmDeleteAllConversations}
+              activeOpacity={0.62}
+            >
+              <Feather name="trash-2" size={13} color="#C83E3E" />
+              <Text style={ss.deleteAllLabel}>{t("sidebar.deleteAll")}</Text>
+            </TouchableOpacity>
           )}
         </ScrollView>
 
         {/* ═══ BOTTOM AREA — sticky ═════════════════════════════════════════════ */}
         <View
           style={[ss.bottomArea, { paddingBottom: btmPad + 18, borderTopColor: divider }]}
+          {...panelPointerHandlers}
+          {...panResponder.panHandlers}
         >
           {/* ── Bottom nav items ────────────────────────────────────────────── */}
           <TouchableOpacity
@@ -423,6 +651,62 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         </View>
 
       </Animated.View>
+
+      <Modal
+        visible={deletePrompt !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={cancelDelete}
+      >
+        <View style={ss.confirmOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={cancelDelete} />
+          <View
+            style={[
+              ss.confirmCard,
+              {
+                backgroundColor: isDark ? "#171719" : "#FFFFFF",
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.10)"
+                  : "rgba(0,0,0,0.08)",
+              },
+            ]}
+          >
+            <Text style={[ss.confirmTitle, { color: T.fg }]}>
+              {deletePrompt?.kind === "all"
+                ? t("sidebar.deleteAllTitle")
+                : t("sidebar.deleteConversationTitle")}
+            </Text>
+            <Text style={[ss.confirmMessage, { color: T.fgSoft }]}>
+              {deletePrompt?.kind === "all"
+                ? t("sidebar.deleteAllMessage")
+                : t("sidebar.deleteConversationMessage")}
+            </Text>
+            <View style={ss.confirmActions}>
+              <TouchableOpacity
+                style={ss.confirmCancel}
+                onPress={cancelDelete}
+                activeOpacity={0.65}
+              >
+                <Text style={[ss.confirmCancelText, { color: T.fg }]}>
+                  {t("sidebar.cancel")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={ss.confirmDelete}
+                onPress={applyDelete}
+                activeOpacity={0.78}
+              >
+                <Text style={ss.confirmDeleteText}>
+                  {deletePrompt?.kind === "all"
+                    ? t("sidebar.deleteAllConfirm")
+                    : t("sidebar.delete")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 });
@@ -618,6 +902,18 @@ const ss = StyleSheet.create({
   },
 
   // Conversation row
+  swipeRow: {
+    marginHorizontal: 8,
+    borderRadius: 10,
+    overflow: "hidden",
+    position: "relative",
+  },
+
+  swipeRowForeground: {
+    width: "100%",
+    zIndex: 1,
+  },
+
   convRow: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -625,8 +921,36 @@ const ss = StyleSheet.create({
     paddingVertical:   10,
     gap:               10,
     borderRadius:      10,
-    marginHorizontal:  8,
     position:          "relative",
+  },
+
+  deleteAction: {
+    position:       "absolute",
+    top:            0,
+    right:          0,
+    bottom:         0,
+    width:           72,
+    alignItems:      "center",
+    justifyContent:  "center",
+    flexDirection:   "row",
+    gap:             5,
+    backgroundColor: "#C83E3E",
+    zIndex:          0,
+  },
+
+  deleteActionOpen: {
+    zIndex: 2,
+  },
+
+  openRowHitTarget: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 3,
+  },
+
+  deleteActionText: {
+    color:      "#FFFFFF",
+    fontSize:   12,
+    fontFamily: "Inter_600SemiBold",
   },
 
   activeBar: {
@@ -654,6 +978,96 @@ const ss = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop:        24,
     fontStyle:         "italic",
+  },
+
+  deleteAllRow: {
+    alignSelf:        "flex-start",
+    flexDirection:    "row",
+    alignItems:       "center",
+    gap:              7,
+    marginLeft:       20,
+    marginTop:        12,
+    marginBottom:     8,
+    paddingVertical:  8,
+    paddingHorizontal: 2,
+  },
+
+  deleteAllLabel: {
+    color:         "#C83E3E",
+    fontSize:      12.5,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.1,
+  },
+
+  confirmOverlay: {
+    flex:            1,
+    alignItems:      "center",
+    justifyContent:  "center",
+    paddingHorizontal: 28,
+    backgroundColor: "rgba(0,0,0,0.34)",
+  },
+
+  confirmCard: {
+    width:           "100%",
+    maxWidth:        330,
+    borderRadius:    20,
+    borderWidth:     StyleSheet.hairlineWidth,
+    padding:         20,
+    shadowColor:     "#000",
+    shadowOffset:    { width: 0, height: 12 },
+    shadowOpacity:   0.18,
+    shadowRadius:    28,
+    elevation:       12,
+  },
+
+  confirmTitle: {
+    fontSize:      17,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.25,
+  },
+
+  confirmMessage: {
+    marginTop:     8,
+    fontSize:      13.5,
+    lineHeight:    20,
+    fontFamily:    "Inter_400Regular",
+  },
+
+  confirmActions: {
+    marginTop:      20,
+    flexDirection:  "row",
+    justifyContent: "flex-end",
+    gap:            10,
+  },
+
+  confirmCancel: {
+    minWidth:        82,
+    height:          42,
+    borderRadius:    12,
+    alignItems:      "center",
+    justifyContent:  "center",
+    paddingHorizontal: 14,
+  },
+
+  confirmCancelText: {
+    fontSize:   13.5,
+    fontFamily: "Inter_500Medium",
+  },
+
+  confirmDelete: {
+    minWidth:        82,
+    height:          42,
+    borderRadius:    12,
+    alignItems:      "center",
+    justifyContent:  "center",
+    paddingHorizontal: 14,
+    backgroundColor: "#C83E3E",
+  },
+
+  confirmDeleteText: {
+    color:      "#FFFFFF",
+    fontSize:   13.5,
+    fontFamily: "Inter_600SemiBold",
   },
 
   // ── Bottom area (nav items + FAB) ────────────────────────────────────────────
