@@ -17,7 +17,7 @@ import {
 } from "expo-audio";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
 import React, {
@@ -170,6 +170,22 @@ export default function ChatScreen() {
   const abortRef        = useRef<AbortController | null>(null);
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
+
+  const focusComposer = useCallback((delay = Platform.OS === "android" ? 220 : 80) => {
+    return setTimeout(() => textInputRef.current?.focus(), delay);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const focusTimer = focusComposer();
+      return () => clearTimeout(focusTimer);
+    }, [focusComposer]),
+  );
+
+  const beginNewConversation = useCallback(() => {
+    startNewConversation();
+    focusComposer();
+  }, [focusComposer, startNewConversation]);
 
   useEffect(() => {
     menuVisibleRef.current = menuVisible;
@@ -1018,7 +1034,7 @@ export default function ChatScreen() {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (isSecretChat)              { setExitModal(true); }
           else if (!hasMessages)         { setSecretModal(true); }
-          else                           { startNewConversation(); }
+          else                           { beginNewConversation(); }
         }}
         hitSlop={14} activeOpacity={0.55}
       >
@@ -1187,6 +1203,7 @@ export default function ChatScreen() {
             <View style={ss.underlineInputRow}>
               <TextInput
                 ref={textInputRef}
+                autoFocus
                 style={[
                   ss.dockField,
                   {
@@ -1396,7 +1413,7 @@ export default function ChatScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setExitModal(false);
-                startNewConversation();
+                beginNewConversation();
               }}
             >
               <Text style={[ss.modalBtnText, { color: T.isDark ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.62)" }]}>{t("chat.exitModal.end")}</Text>
