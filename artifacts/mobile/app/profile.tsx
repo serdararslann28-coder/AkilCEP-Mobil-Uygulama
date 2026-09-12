@@ -36,6 +36,8 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  FadeInUp,
+  ZoomIn,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -50,12 +52,46 @@ import { useTheme }           from "@/context/ThemeContext";
 import { STARTUP_SOUND_KEY }  from "@/app/splash";
 
 const defaultAvatar = require("@/assets/images/avatar.png");
+const AKILCEP_BLUE = "#5B9AD9";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleDateString("tr-TR", { year: "numeric", month: "long" });
+}
+
+function ScalePressable({
+  children,
+  onPress,
+  style,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  style: React.ComponentProps<typeof Pressable>["style"];
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        style={style}
+        onPress={onPress}
+        disabled={!onPress}
+        onPressIn={() => {
+          if (onPress) scale.value = withTiming(0.985, { duration: 150 });
+        }}
+        onPressOut={() => {
+          if (onPress) scale.value = withTiming(1, { duration: 200 });
+        }}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 // ── Settings row ──────────────────────────────────────────────────────────────
@@ -70,34 +106,34 @@ function SettingsRow({
   rightEl?: React.ReactNode;
 }) {
   const { theme: T } = useTheme();
-  const iconBg = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.045)";
-  const clr    = danger ? "#FF3B30" : T.fg;
+  const iconBg = T.isDark ? "rgba(91,154,217,0.14)" : "rgba(91,154,217,0.10)";
+  const clr    = danger ? "#FF3B30" : (T.isDark ? "#76AEEA" : AKILCEP_BLUE);
   const ibg    = danger ? "rgba(255,59,48,0.08)" : iconBg;
+  const labelColor = danger ? "#FF3B30" : T.fg;
 
   return (
-    <TouchableOpacity
+    <ScalePressable
       style={rs.row}
       onPress={onPress}
-      activeOpacity={onPress ? 0.6 : 1}
     >
       <View style={[rs.icon, { backgroundColor: ibg }]}>
-        <Feather name={icon as any} size={15} color={clr} />
+        <Feather name={icon as any} size={16} color={clr} />
       </View>
-      <Text style={[rs.label, { color: clr }]}>{label}</Text>
+      <Text style={[rs.label, { color: labelColor }]}>{label}</Text>
       {value !== undefined && (
         <Text style={[rs.value, { color: T.zinc }]} numberOfLines={1}>{value}</Text>
       )}
       {rightEl ?? (onPress && !danger && (
         <Feather name="chevron-right" size={14} color={T.zinc} />
       ))}
-    </TouchableOpacity>
+    </ScalePressable>
   );
 }
 
 const rs = StyleSheet.create({
-  row:   { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
+  row:   { flexDirection: "row", alignItems: "center", paddingVertical: 15, paddingHorizontal: 16, gap: 14, minHeight: 58 },
   icon:  { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  label: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+  label: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium", letterSpacing: -0.15 },
   value: { fontSize: 14, fontFamily: "Inter_400Regular", maxWidth: 140 },
 });
 
@@ -161,7 +197,7 @@ const pf = StyleSheet.create({
 export default function ProfileScreen() {
   const insets                                  = useSafeAreaInsets();
   const { theme: T }                            = useTheme();
-  const { t }                                   = useLanguage();
+  const { lang, t }                             = useLanguage();
   const { user, signOut, updateAvatar, updateProfile } = useAuth();
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
@@ -371,34 +407,48 @@ export default function ProfileScreen() {
         >
 
           {/* ── Avatar ─────────────────────────────────────────────────────── */}
-          <View style={ss.avatarSection}>
+          <Animated.View entering={ZoomIn.duration(220).delay(40)} style={ss.avatarSection}>
             <TouchableOpacity
               onPress={openSheet}
               activeOpacity={0.85}
               style={ss.avatarTouchable}
             >
-              <Image
-                source={avatarSource}
+              <View
                 style={[
-                  ss.avatarLarge,
-                  { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.9)" },
+                  ss.avatarHalo,
+                  {
+                    backgroundColor: T.isDark ? "rgba(91,154,217,0.08)" : "rgba(91,154,217,0.07)",
+                    shadowColor: AKILCEP_BLUE,
+                  },
                 ]}
-              />
-              <View style={[ss.cameraOverlay, { backgroundColor: T.fg, borderColor: T.bg }]}>
-                <Feather name="camera" size={14} color={T.isDark ? "#050505" : "#FFFFFF"} />
+              >
+                <Image
+                  source={avatarSource}
+                  style={[
+                    ss.avatarLarge,
+                    { borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "#FFFFFF" },
+                  ]}
+                />
+              </View>
+              <View style={[ss.cameraOverlay, { backgroundColor: AKILCEP_BLUE, borderColor: T.bg }]}>
+                <Feather name="camera" size={14} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
-            <Text style={[ss.avatarHint, { color: T.zinc }]}>Fotoğraf Değiştir</Text>
+            <Text style={[ss.profileName, { color: T.fg }]}>
+              {fullName.trim() || user?.fullName || username || "AkılCEP Kullanıcısı"}
+            </Text>
+            <Text style={[ss.profileSubtitle, { color: T.zinc }]}>Kişisel AkılCEP hesabın</Text>
 
             {user?.isGuest && (
               <View style={[ss.guestBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)" }]}>
                 <Text style={[ss.guestBadgeText, { color: T.zinc }]}>Misafir</Text>
               </View>
             )}
-          </View>
+            <Text style={[ss.avatarHint, { color: T.zinc }]}>Fotoğraf Değiştir</Text>
+          </Animated.View>
 
           {/* ── Profil Bilgileri (editable) ─────────────────────────────────── */}
-          <View style={ss.section}>
+          <Animated.View entering={FadeInUp.duration(220).delay(80)} style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Profil Bilgileri</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, padding: 16, gap: 16 }]}>
               <ProfileField
@@ -421,11 +471,11 @@ export default function ProfileScreen() {
                 returnKeyType="done"
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* ── Hesap Bilgileri (read-only) ──────────────────────────────────── */}
           {(user?.email || user?.memberSince) && (
-            <View style={ss.section}>
+            <Animated.View entering={FadeInUp.duration(220).delay(110)} style={ss.section}>
               <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap</Text>
               <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
                 {user?.email && (
@@ -440,17 +490,17 @@ export default function ProfileScreen() {
                   <SettingsRow icon="calendar" label="Üyelik Tarihi" value={formatDate(user.memberSince)} />
                 )}
               </View>
-            </View>
+            </Animated.View>
           )}
 
           {/* ── Tercihler ───────────────────────────────────────────────────── */}
-          <View style={ss.section}>
+          <Animated.View entering={FadeInUp.duration(220).delay(140)} style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Tercihler</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               <SettingsRow
                 icon="globe"
                 label="Dil"
-                value={t("language.current") ?? "Türkçe"}
+                value={lang === "tr" ? "Türkçe" : "English"}
                 onPress={() => router.push("/language")}
               />
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
@@ -465,10 +515,10 @@ export default function ProfileScreen() {
               <View style={[ss.divider, { backgroundColor: borderClr, marginLeft: 62 }]} />
               <SettingsRow icon="shield" label="Gizlilik"    onPress={() => {}} />
             </View>
-          </View>
+          </Animated.View>
 
           {/* ── Ses ─────────────────────────────────────────────────────────── */}
-          <View style={ss.section}>
+          <Animated.View entering={FadeInUp.duration(220).delay(170)} style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Ses</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               <SettingsRow
@@ -485,10 +535,10 @@ export default function ProfileScreen() {
                 }
               />
             </View>
-          </View>
+          </Animated.View>
 
           {/* ── Hesap işlemleri ─────────────────────────────────────────────── */}
-          <View style={ss.section}>
+          <Animated.View entering={FadeInUp.duration(220).delay(200)} style={ss.section}>
             <Text style={[ss.sectionLabel, { color: T.zinc }]}>Hesap İşlemleri</Text>
             <View style={[ss.card, { backgroundColor: cardBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
               <SettingsRow
@@ -504,7 +554,7 @@ export default function ProfileScreen() {
                 danger
               />
             </View>
-          </View>
+          </Animated.View>
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -610,8 +660,17 @@ const ss = StyleSheet.create({
   scroll: { paddingHorizontal: 20, gap: 24 },
 
   // Avatar
-  avatarSection:   { alignItems: "center", gap: 8, paddingTop: 4 },
+  avatarSection:   { alignItems: "center", gap: 7, paddingTop: 4 },
   avatarTouchable: { width: 96, height: 96, position: "relative" },
+  avatarHalo: {
+    width:         96,
+    height:        96,
+    borderRadius:  48,
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius:  18,
+    elevation:     7,
+  },
   avatarLarge: {
     width:        96,
     height:       96,
@@ -630,6 +689,17 @@ const ss = StyleSheet.create({
     borderWidth:    2,
   },
   avatarHint: {
+    fontFamily: "Inter_400Regular",
+    fontSize:   12,
+    marginTop:  2,
+  },
+  profileName: {
+    fontFamily:    "Inter_600SemiBold",
+    fontSize:      20,
+    letterSpacing: -0.4,
+    marginTop:     5,
+  },
+  profileSubtitle: {
     fontFamily: "Inter_400Regular",
     fontSize:   13,
   },
@@ -653,13 +723,13 @@ const ss = StyleSheet.create({
     paddingLeft:     4,
   },
   card: {
-    borderRadius:  18,
+    borderRadius:  20,
     overflow:      "hidden",
     shadowColor:   "#000",
-    shadowOffset:  { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius:  10,
-    elevation:     2,
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.035,
+    shadowRadius:  18,
+    elevation:     3,
   },
   divider: { height: StyleSheet.hairlineWidth },
 
