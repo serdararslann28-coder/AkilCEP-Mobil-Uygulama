@@ -218,22 +218,11 @@ export default function ChatScreen() {
         - kbH.value,
     };
   });
-  const auraBottomInsetStyle = useAnimatedStyle(() => {
-    const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
-    const insetExtension = bottomPad * (1 - keyboardReveal);
-    return {
-      bottom: -34 - insetExtension,
-      height: 540 + insetExtension,
-    };
-  });
-  const sendWaveBottomInsetStyle = useAnimatedStyle(() => {
-    const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
-    const insetExtension = bottomPad * (1 - keyboardReveal);
-    return {
-      bottom: -28 - insetExtension,
-      height: 560 + insetExtension,
-    };
-  });
+  const rootAuraPositionStyle = useAnimatedStyle(() => ({
+    // Root background reaches behind the system navigation area. When the IME
+    // opens, lift only the visual aura to the keyboard edge.
+    bottom: -kbH.value,
+  }));
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
   const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
@@ -892,6 +881,40 @@ export default function ChatScreen() {
       <StatusBar
         style={T.isDark ? "light" : "dark"}
       />
+      <Animated.View
+        pointerEvents="none"
+        style={[ss.composerAura, rootAuraPositionStyle, auraStyle]}
+      >
+        <Svg width="100%" height="100%" viewBox="0 0 400 540">
+          <Defs>
+            <RadialGradient id="composerAura" cx="50%" cy="98%" rx="68%" ry="100%">
+              <Stop offset="0%" stopColor={T.isDark ? "#76AEEA" : "#5B9AD9"} stopOpacity="0.80" />
+              <Stop offset="18%" stopColor={T.isDark ? "#68A7E4" : "#69A9E5"} stopOpacity="0.54" />
+              <Stop offset="44%" stopColor={T.isDark ? "#5B9AD9" : "#8AC0EF"} stopOpacity="0.25" />
+              <Stop offset="72%" stopColor={T.isDark ? "#5B9AD9" : "#B9DAF6"} stopOpacity="0.085" />
+              <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect width="400" height="540" fill="url(#composerAura)" />
+        </Svg>
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[ss.sendLightWave, rootAuraPositionStyle, sendWaveStyle]}
+      >
+        <Svg width="100%" height="100%" viewBox="0 0 400 560">
+          <Defs>
+            <RadialGradient id="sendWave" cx="50%" cy="102%" rx="62%" ry="104%">
+              <Stop offset="0%" stopColor={T.isDark ? "#8FC5F4" : "#5B9AD9"} stopOpacity="0.84" />
+              <Stop offset="24%" stopColor="#78B4ED" stopOpacity="0.46" />
+              <Stop offset="58%" stopColor="#9CCBF2" stopOpacity="0.15" />
+              <Stop offset="82%" stopColor="#CBE3F8" stopOpacity="0.045" />
+              <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Rect width="400" height="560" fill="url(#sendWave)" />
+        </Svg>
+      </Animated.View>
       <MultimodalPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
@@ -1033,40 +1056,6 @@ export default function ChatScreen() {
         style={[ss.inputOuter, dockKbStyle]}
         onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={[ss.composerAura, auraBottomInsetStyle, auraStyle]}
-        >
-          <Svg width="100%" height="100%" viewBox="0 0 400 540">
-            <Defs>
-              <RadialGradient id="composerAura" cx="50%" cy="98%" rx="68%" ry="100%">
-                <Stop offset="0%" stopColor={T.isDark ? "#76AEEA" : "#5B9AD9"} stopOpacity="0.80" />
-                <Stop offset="18%" stopColor={T.isDark ? "#68A7E4" : "#69A9E5"} stopOpacity="0.54" />
-                <Stop offset="44%" stopColor={T.isDark ? "#5B9AD9" : "#8AC0EF"} stopOpacity="0.25" />
-                <Stop offset="72%" stopColor={T.isDark ? "#5B9AD9" : "#B9DAF6"} stopOpacity="0.085" />
-                <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
-              </RadialGradient>
-            </Defs>
-            <Rect width="400" height="540" fill="url(#composerAura)" />
-          </Svg>
-        </Animated.View>
-        <Animated.View
-          pointerEvents="none"
-          style={[ss.sendLightWave, sendWaveBottomInsetStyle, sendWaveStyle]}
-        >
-          <Svg width="100%" height="100%" viewBox="0 0 400 560">
-            <Defs>
-              <RadialGradient id="sendWave" cx="50%" cy="102%" rx="62%" ry="104%">
-                <Stop offset="0%" stopColor={T.isDark ? "#8FC5F4" : "#5B9AD9"} stopOpacity="0.84" />
-                <Stop offset="24%" stopColor="#78B4ED" stopOpacity="0.46" />
-                <Stop offset="58%" stopColor="#9CCBF2" stopOpacity="0.15" />
-                <Stop offset="82%" stopColor="#CBE3F8" stopOpacity="0.045" />
-                <Stop offset="100%" stopColor="#5B9AD9" stopOpacity="0" />
-              </RadialGradient>
-            </Defs>
-            <Rect width="400" height="560" fill="url(#sendWave)" />
-          </Svg>
-        </Animated.View>
         <View style={ss.dock}>
           {pendingAttachments.length > 0 && (
             <ScrollView
@@ -1423,7 +1412,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-  root:  { flex: 1 },
+  root:  { flex: 1, width: "100%" },
   flex:  { flex: 1 },
 
   // Watermark
@@ -1557,14 +1546,14 @@ const ss = StyleSheet.create({
     position: "absolute",
     left: "-8%",
     right: "-8%",
-    bottom: -34,
+    bottom: 0,
     height: 540,
   },
   sendLightWave: {
     position: "absolute",
     left: "-8%",
     right: "-8%",
-    bottom: -28,
+    bottom: 0,
     height: 560,
   },
 
