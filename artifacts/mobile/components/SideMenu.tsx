@@ -218,7 +218,6 @@ export default function SideMenu({ visible, onClose }: Props) {
                 />
                 <Text style={[ss.brandName, { color: T.fg }]}>AkılCEP</Text>
               </View>
-              <Text style={[ss.brandSub, { color: muted }]}>{t("brand.tagline")}</Text>
             </View>
 
             {/* Action icons */}
