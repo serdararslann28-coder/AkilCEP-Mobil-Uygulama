@@ -33,6 +33,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -60,7 +61,7 @@ import ImageGenCard     from "@/components/ImageGenCard";
 import ThinkingCard     from "@/components/ThinkingCard";
 import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
 import { AkilMic }      from "@/components/AkilMic";
-import { useChat }      from "@/context/ChatContext";
+import { useChat, type ChatAttachment } from "@/context/ChatContext";
 import { useLanguage }  from "@/context/LanguageContext";
 import { useTheme }     from "@/context/ThemeContext";
 
@@ -73,6 +74,9 @@ type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
 const MIN_INPUT_H = 42;   // single-line underlined input
 const MAX_INPUT_H = 120;  // ~5 lines before scroll kicks in
+const MAX_ATTACHMENT_COUNT = 10;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 24 * 1024 * 1024;
 
 // ── Waveform bars — animated 4-bar equaliser inside the AI button ─────────────
 // Runs entirely on UI thread via Reanimated — zero JS-thread involvement at 60 FPS.
@@ -137,6 +141,8 @@ export default function ChatScreen() {
   const [exitSecretModal,  setExitModal]    = useState(false);
   const [expandedOpen,     setExpandedOpen] = useState(false);
   const [voicePhase,       setVoicePhase]   = useState<VoicePhase>("idle");
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [composerHeight, setComposerHeight] = useState(72);
 
   const isSecretChat = !!currentConversation?.isPrivate;
 
@@ -160,9 +166,34 @@ export default function ChatScreen() {
   };
 
   const hasText     = inputText.trim().length > 0;
+  const hasComposerContent = hasText || pendingAttachments.length > 0;
   const hasMessages = currentMessages.length > 0;
   const topPad      = Platform.OS === "web" ? 60 : insets.top;
   const bottomPad   = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const addPendingAttachments = (incoming: ChatAttachment[]) => {
+    setPendingAttachments((current) => {
+      const remainingSlots = Math.max(0, MAX_ATTACHMENT_COUNT - current.length);
+      const currentBytes = current.reduce((sum, attachment) => sum + (attachment.size ?? 0), 0);
+      let nextBytes = currentBytes;
+      const accepted: ChatAttachment[] = [];
+
+      for (const attachment of incoming) {
+        if (accepted.length >= remainingSlots) break;
+        const size = attachment.size ?? 0;
+        if (size > MAX_ATTACHMENT_BYTES || nextBytes + size > MAX_TOTAL_ATTACHMENT_BYTES) continue;
+        accepted.push(attachment);
+        nextBytes += size;
+      }
+
+      if (accepted.length !== incoming.length) {
+        setTimeout(() => {
+          Alert.alert(t("chat.attachmentLimit.title"), t("chat.attachmentLimit.message"));
+        }, 0);
+      }
+      return [...current, ...accepted];
+    });
+  };
   const isSpeaking  = voicePhase === "speaking";
 
   // Keyboard height tracking — dock floats above keyboard
@@ -197,14 +228,30 @@ export default function ChatScreen() {
   const sendScale = useSharedValue(1);
   const sendStyle = useAnimatedStyle(() => ({ transform: [{ scale: sendScale.value }] }));
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
+  const handleSend = async () => {
+    if (!hasComposerContent) return;
+    let verifiedAttachments = pendingAttachments;
+    try {
+      verifiedAttachments = pendingAttachments.map((attachment) => {
+        const file = new FileSystem.File(attachment.uri);
+        if (!file.exists) throw new Error("attachment_unreadable");
+        const actualSize = file.size;
+        if (actualSize > MAX_ATTACHMENT_BYTES) throw new Error("attachment_size");
+        return { ...attachment, size: actualSize };
+      });
+      const totalBytes = verifiedAttachments.reduce((sum, attachment) => sum + (attachment.size ?? 0), 0);
+      if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) throw new Error("attachment_total_size");
+    } catch {
+      Alert.alert(t("chat.attachmentError.title"), t("chat.attachmentError.message"));
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     sendScale.value = withSpring(0.80, { duration: 70 }, () => {
       sendScale.value = withSpring(1, { damping: 12, stiffness: 200 });
     });
-    sendMessage(inputText.trim());
+    sendMessage(inputText.trim(), verifiedAttachments);
     setInputText("");
+    setPendingAttachments([]);
     inputHeightSV.value = withTiming(MIN_INPUT_H, { duration: 160 });
     setScrollEnabled(false);
   };
@@ -340,11 +387,11 @@ export default function ChatScreen() {
 
   // ── Arrow morphs: text present → send / empty → dark voice orb ─────────────
   useEffect(() => {
-    voiceModeSV.value = withTiming(hasText ? 0 : 1, {
+    voiceModeSV.value = withTiming(hasComposerContent ? 0 : 1, {
       duration: 340,
       easing:   Easing.out(Easing.ease),
     });
-    if (!hasText) {
+    if (!hasComposerContent) {
       arrowGlowPulse.value = withDelay(
         180,
         withRepeat(
@@ -358,7 +405,7 @@ export default function ChatScreen() {
     } else {
       arrowGlowPulse.value = withTiming(0, { duration: 200 });
     }
-  }, [hasText]);
+  }, [hasComposerContent]);
 
   // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -679,6 +726,32 @@ export default function ChatScreen() {
       <MultimodalPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        onImagesPicked={(assets) => {
+          addPendingAttachments(
+            assets.map((asset, index) => ({
+              id: `${asset.assetId ?? asset.uri}-${Date.now()}`,
+              kind: "image" as const,
+              uri: asset.uri,
+              name: asset.fileName ?? undefined,
+              mimeType: asset.mimeType || "image/jpeg",
+              size: asset.fileSize,
+              width: asset.width,
+              height: asset.height,
+            })),
+          );
+        }}
+        onFilesPicked={(files) => {
+          addPendingAttachments(
+            files.map((file, index) => ({
+              id: `${file.uri}-${Date.now()}-${index}`,
+              kind: "file" as const,
+              uri: file.uri,
+              name: file.name,
+              mimeType: file.mimeType,
+              size: file.size,
+            })),
+          );
+        }}
         onNote={() => setExpandedOpen(true)}
         onLocationPicked={({ latitude, longitude }) => {
           const locationUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
@@ -766,7 +839,7 @@ export default function ChatScreen() {
           )}
           inverted
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[ss.msgList, { paddingTop: bottomPad + 72 }]}
+           contentContainerStyle={[ss.msgList, { paddingTop: bottomPad + composerHeight }]}
           ListHeaderComponent={isTyping ? (
             imagePending ? (
               <ImageGenCard />
@@ -787,8 +860,52 @@ export default function ChatScreen() {
       </KeyboardAvoidingView>
 
       {/* ════ FLOATING DOCK — absolute, floats over content, tracks keyboard ════ */}
-      <Animated.View style={[ss.inputOuter, dockKbStyle]}>
+      <Animated.View
+        style={[ss.inputOuter, dockKbStyle]}
+        onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
+      >
         <View style={ss.dock}>
+          {pendingAttachments.length > 0 && (
+            <ScrollView
+              horizontal
+              style={ss.attachmentScroller}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={ss.attachmentStrip}
+              keyboardShouldPersistTaps="handled"
+            >
+              {pendingAttachments.map((attachment) => (
+                <View key={attachment.id} style={[ss.attachmentCard, { backgroundColor: T.isDark ? "#242424" : "#F1F2F4" }]}>
+                  {attachment.kind === "image" ? (
+                    <Image source={{ uri: attachment.uri }} style={ss.attachmentImage} />
+                  ) : (
+                    <View style={[ss.fileIcon, { backgroundColor: T.isDark ? "#353535" : "#E2E4E8" }]}>
+                      <Feather name="file" size={16} color={T.fgSoft} />
+                    </View>
+                  )}
+                  <View style={ss.attachmentInfo}>
+                    <Text style={[ss.attachmentName, { color: T.fg }]} numberOfLines={1} ellipsizeMode="middle">
+                      {attachment.name || (attachment.kind === "image" ? "Görsel" : "Dosya")}
+                    </Text>
+                    <Text style={[ss.attachmentMeta, { color: T.muted }]} numberOfLines={1}>
+                      {attachment.mimeType || attachment.kind}
+                      {attachment.size ? ` · ${attachment.size >= 1048576
+                        ? `${(attachment.size / 1048576).toFixed(1)} MB`
+                        : `${Math.ceil(attachment.size / 1024)} KB`}` : ""}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={ss.attachmentRemove}
+                    hitSlop={8}
+                    onPress={() => setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id))}
+                  >
+                    <Feather name="x" size={13} color={T.fgSoft} />
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={ss.composerRow}>
 
           {/* A — minimal plus action, no card or capsule */}
           <Animated.View style={[ss.dockPlus, plusPressStyle]}>
@@ -828,9 +945,9 @@ export default function ChatScreen() {
                 value={inputText}
                 onContentSizeChange={onContentSizeChange}
                 onChangeText={setInputText}
-                maxLength={2000}
+                maxLength={4000}
                 returnKeyType="send"
-                onSubmitEditing={() => { if (hasText) handleSend(); }}
+                onSubmitEditing={() => { if (hasComposerContent) void handleSend(); }}
                 editable={!voiceActive && !sttListening}
                 onFocus={() => {
                   inputFocused.value = withTiming(1, FOCUS_DUR);
@@ -886,7 +1003,7 @@ export default function ChatScreen() {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }}
               onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
-              onPress={hasText ? handleSend : () => {
+              onPress={hasComposerContent ? () => { void handleSend(); } : () => {
                 if (Platform.OS === "web") {
                   Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.voiceMobileOnly"));
                   return;
@@ -909,6 +1026,7 @@ export default function ChatScreen() {
             </Pressable>
           </Animated.View>
 
+          </View>
         </View>
       </Animated.View>
 
@@ -983,12 +1101,12 @@ export default function ChatScreen() {
               {inputText.length} / 4000
             </Text>
             <TouchableOpacity
-              style={[ss.expandSendBtn, { backgroundColor: T.primary, opacity: hasText ? 1 : 0.38 }]}
-              disabled={!hasText}
+               style={[ss.expandSendBtn, { backgroundColor: T.primary, opacity: hasComposerContent ? 1 : 0.38 }]}
+               disabled={!hasComposerContent}
               activeOpacity={0.75}
               onPress={() => {
                 setExpandedOpen(false);
-                setTimeout(() => handleSend(), 80);
+                setTimeout(() => { void handleSend(); }, 80);
               }}
             >
               <Feather name="arrow-up" size={16} color={T.primaryForeground} />
@@ -1230,10 +1348,16 @@ const ss = StyleSheet.create({
 
   // Row container — 92% of screen width, centred by inputOuter
   dock: {
+    width:             "92%",
+    minWidth:          0,
+    paddingVertical:   4,
+  },
+  composerRow: {
     flexDirection: "row",
     alignItems:    "center",
     gap:           8,
-    width:         "92%",
+    width:         "100%",
+    minWidth:      0,
   },
 
   // A — Plus icon with a generous touch target, no visual container
@@ -1251,14 +1375,64 @@ const ss = StyleSheet.create({
 
   // B — Spacious input with a single understated underline
   underlineInput: {
-    flex:      1,
-    minHeight: 42,
+    flex:       1,
+    minWidth:   0,
+    minHeight:  42,
   },
   underlineInputRow: {
     flex:            1,
     flexDirection:   "row",
     alignItems:      "center",
     minHeight:       40,
+  },
+  attachmentStrip: {
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingBottom: 10,
+    paddingTop: 4,
+  },
+  attachmentScroller: {
+    width:    "100%",
+    flexGrow: 0,
+  },
+  attachmentCard: {
+    width: 150,
+    minHeight: 64,
+    borderRadius: 12,
+    padding: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  attachmentImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+  },
+  fileIcon: {
+    width: 34,
+    height: 42,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachmentInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  attachmentName: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+  },
+  attachmentMeta: {
+    fontSize: 9,
+    marginTop: 3,
+  },
+  attachmentRemove: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   // TextInput — grows with content; all spacing via parent paddingLeft/Right
   dockField: {

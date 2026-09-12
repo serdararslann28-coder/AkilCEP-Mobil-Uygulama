@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system/legacy";
 import React, {
   createContext,
   useCallback,
@@ -15,7 +16,37 @@ export interface Message {
   timestamp: number;
   imageUri?:  string;  // local photo URI for camera-captured messages
   imageData?: string;  // generated image as base64 data URI (data:image/png;base64,...)
+  attachments?: ChatAttachment[];
 }
+
+export interface ChatAttachment {
+  id: string;
+  kind: "image" | "file";
+  uri: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+}
+
+const MAX_ATTACHMENT_COUNT = 10;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 24 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+]);
+const OFFICE_ATTACHMENT_MIME_TYPES = new Set([
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 
 // ── Image generation detection ────────────────────────────────────────────────
 // Returns true when the user's message is asking to generate/create/draw an image.
@@ -118,7 +149,7 @@ interface ChatContextType {
   editImage:            (sourceImageData: string, instruction: string) => void;
   selectedModel:        string;
   setSelectedModel:     (model: string) => void;
-  sendMessage:          (content: string) => void;
+  sendMessage:          (content: string, attachments?: ChatAttachment[]) => void;
   /** Inject a real voice exchange (user + AI) directly — no API call. */
   injectMessages:       (userText: string, aiText: string) => void;
   /** Inject user photo message and call Gemini Vision in background.
@@ -244,8 +275,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!content.trim()) return;
+    (content: string, attachments: ChatAttachment[] = []) => {
+      if (!content.trim() && attachments.length === 0) return;
 
       // Cancel previous in-flight request
       abortRef.current?.abort();
@@ -257,6 +288,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         role:      "user",
         content:   content.trim(),
         timestamp: Date.now(),
+        attachments: attachments.length ? attachments : undefined,
       };
 
       // Build or continue conversation
@@ -293,7 +325,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       void (async () => {
         try {
           // ── Image generation fast-path ────────────────────────────────────────
-          if (isImageRequest(content.trim())) {
+          if (attachments.length === 0 && isImageRequest(content.trim())) {
             setImagePendingLabel("Görsel oluşturuluyor…");
             setImagePending(true);
             let aiMsg: Message;
@@ -372,13 +404,68 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
 
           // ── Regular Gemini chat ───────────────────────────────────────────────
+          const messageForApi = content.trim() || "Ekli içerikleri analiz et.";
+          if (attachments.length > MAX_ATTACHMENT_COUNT) {
+            throw new Error("attachment_count");
+          }
+          const inlineAttachments = (
+            await Promise.all(
+              attachments.map(async (attachment) => {
+                try {
+                  const mimeType = attachment.mimeType || (attachment.kind === "image" ? "image/jpeg" : "");
+                  if (!ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType)) {
+                    throw new Error("attachment_type");
+                  }
+                  if (OFFICE_ATTACHMENT_MIME_TYPES.has(mimeType)) {
+                    return {
+                      data: "",
+                      mimeType,
+                      name: attachment.name,
+                      decodedBytes: 0,
+                      metadataOnly: true,
+                    };
+                  }
+                  const data = await FileSystem.readAsStringAsync(attachment.uri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+                  const decodedBytes = Math.floor((data.length * 3) / 4);
+                  if (decodedBytes > MAX_ATTACHMENT_BYTES) {
+                    throw new Error("attachment_size");
+                  }
+                  return {
+                    data,
+                    mimeType,
+                    name: attachment.name,
+                    decodedBytes,
+                  };
+                } catch (error) {
+                  console.warn("[chat] attachment read failed:", attachment.name ?? attachment.uri, error);
+                  throw error;
+                }
+              }),
+            )
+          );
+          const totalAttachmentBytes = inlineAttachments.reduce(
+            (sum, attachment) => sum + attachment.decodedBytes,
+            0,
+          );
+          if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+            throw new Error("attachment_total_size");
+          }
+
           const res = await fetch(`${getApiBase()}/gemini/chat`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             signal:  abort.signal,
             body:    JSON.stringify({
-              message: content.trim(),
+              message: messageForApi,
               history: historyForApi,
+              attachments: inlineAttachments.map(({ data, mimeType, name, metadataOnly }) => ({
+                data,
+                mimeType,
+                name,
+                metadataOnly,
+              })),
             }),
           });
 
@@ -426,7 +513,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const aiMsg: Message = {
             id:        generateId(),
             role:      "assistant",
-            content:   "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+            content:   err instanceof Error && err.message.startsWith("attachment_")
+              ? "Eklerden biri okunamadı, desteklenmiyor veya boyut sınırını aşıyor. Eki kaldırıp tekrar deneyin."
+              : "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
             timestamp: Date.now(),
           };
 

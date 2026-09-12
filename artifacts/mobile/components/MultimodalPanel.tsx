@@ -21,6 +21,7 @@ import { BlurView }           from "expo-blur";
 import * as Haptics           from "expo-haptics";
 import * as ImagePicker       from "expo-image-picker";
 import * as Location          from "expo-location";
+import { File as ExpoFile }   from "expo-file-system";
 import { router }             from "expo-router";
 import { Feather }            from "@expo/vector-icons";
 import { useKeyboardContext } from "react-native-keyboard-controller";
@@ -64,6 +65,16 @@ const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
 
 // ─── Action IDs ───────────────────────────────────────────────────────────────
 type ActionId = "photos" | "camera" | "files" | "note" | "location";
+
+function inferFileMimeType(name: string, nativeType: string): string {
+  if (nativeType) return nativeType;
+  const extension = name.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return "application/pdf";
+  if (extension === "doc") return "application/msword";
+  if (extension === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (extension === "txt") return "text/plain";
+  return "application/octet-stream";
+}
 
 // ─── ActionCard ───────────────────────────────────────────────────────────────
 function ActionCard({
@@ -141,7 +152,8 @@ function ActionCard({
 interface Props {
   open:           boolean;
   onClose:        () => void;
-  onImagePicked?: (uri: string) => void;
+  onImagesPicked?: (assets: ImagePicker.ImagePickerAsset[]) => void;
+  onFilesPicked?: (files: { uri: string; name: string; mimeType?: string; size?: number }[]) => void;
   onNote?:        () => void;
   onLocationPicked?: (location: { latitude: number; longitude: number }) => void;
   bottomOffset:   number;
@@ -151,7 +163,8 @@ interface Props {
 export default function MultimodalPanel({
   open,
   onClose,
-  onImagePicked,
+  onImagesPicked,
+  onFilesPicked,
   onNote,
   onLocationPicked,
   bottomOffset,
@@ -217,17 +230,40 @@ export default function MultimodalPanel({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality:    0.88,
+      allowsMultipleSelection: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      onImagePicked?.(result.assets[0].uri);
+    if (!result.canceled && result.assets.length) {
+      onImagesPicked?.(result.assets);
       onClose();
     }
-  }, [onImagePicked, onClose]);
+  }, [onImagesPicked, onClose]);
 
-  const handleFiles = useCallback(() => {
+  const handleFiles = useCallback(async () => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
-    onClose();
-  }, [onClose]);
+    try {
+      const picked = await ExpoFile.pickFileAsync({
+        multipleFiles: true,
+        mimeTypes: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
+          "*/*",
+        ],
+      });
+      if (picked.canceled) return;
+      onFilesPicked?.(picked.result.map((file) => ({
+        uri: file.uri,
+        name: file.name,
+        mimeType: inferFileMimeType(file.name, file.type),
+        size: file.size,
+      })));
+      onClose();
+    } catch (error) {
+      console.warn("[multimodal] file picker:", error);
+      Alert.alert(t("multimodal.file.errorTitle"), t("multimodal.file.errorMessage"));
+    }
+  }, [onClose, onFilesPicked, t]);
 
   const handleNote = useCallback(() => {
     if (Platform.OS !== "web") Haptics.selectionAsync();

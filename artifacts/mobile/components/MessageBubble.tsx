@@ -42,6 +42,18 @@ import Animated, {
 import { Message } from "@/context/ChatContext";
 import { useTheme } from "@/context/ThemeContext";
 
+type MessageAttachment = {
+  uri?: string;
+  url?: string;
+  name?: string;
+  fileName?: string;
+  kind?: "image" | "file" | string;
+  type?: string;
+  mimeType?: string;
+  size?: number;
+  isImage?: boolean;
+};
+
 interface Props {
   message:       Message;
   isLatest?:     boolean;
@@ -50,6 +62,22 @@ interface Props {
 
 function fmt(ts: number) {
   return new Date(ts).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function attachmentUri(attachment: MessageAttachment) {
+  return attachment.uri || attachment.url || "";
+}
+
+function isImageAttachment(attachment: MessageAttachment) {
+  const kind = `${attachment.kind || ""} ${attachment.type || ""} ${attachment.mimeType || ""}`.toLowerCase();
+  return attachment.isImage || kind.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic)$/i.test(attachmentUri(attachment));
+}
+
+function fileSize(size?: number) {
+  if (!size || size < 1) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ─── Generic action button ─────────────────────────────────────────────────────
@@ -328,6 +356,61 @@ function ImageShimmer() {
   );
 }
 
+function UserAttachments({
+  attachments,
+  backgroundColor,
+  foregroundColor,
+}: {
+  attachments: MessageAttachment[];
+  backgroundColor: string;
+  foregroundColor: string;
+}) {
+  const images = attachments.filter(isImageAttachment).filter((item) => attachmentUri(item));
+  const files = attachments.filter((item) => !isImageAttachment(item));
+
+  return (
+    <View style={ss.attachments}>
+      {images.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={ss.imageAttachmentRow}
+        >
+          {images.map((item, index) => (
+            <Image
+              key={`${attachmentUri(item)}-${index}`}
+              source={{ uri: attachmentUri(item) }}
+              style={ss.attachmentThumb}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
+      )}
+      {files.map((item, index) => {
+        const name = item.name || item.fileName || "Dosya";
+        const details = [item.mimeType || item.type, fileSize(item.size)]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <View key={`${name}-${index}`} style={[ss.fileAttachment, { backgroundColor }]}>
+            <Feather name="file" size={16} color={foregroundColor} />
+            <View style={ss.fileAttachmentText}>
+              <Text numberOfLines={1} ellipsizeMode="middle" style={[ss.fileName, { color: foregroundColor }]}>
+                {name}
+              </Text>
+              {!!details && (
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[ss.fileMeta, { color: foregroundColor }]}>
+                  {details}
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function MessageBubble({ message, isLatest, onEditImage }: Props) {
   const { theme: T } = useTheme();
@@ -368,6 +451,8 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
   // ── USER BUBBLE ────────────────────────────────────────────────────────────
   if (isUser) {
     const bg = T.isDark ? "rgba(255,255,255,0.10)" : "rgba(70,70,70,0.10)";
+    const attachments = ((message as Message & { attachments?: MessageAttachment[] }).attachments || [])
+      .filter(Boolean);
 
     return (
       <Animated.View
@@ -385,6 +470,17 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
             <Text style={[ss.userText, ss.photoCaption, { color: T.fg }]}>
               {message.content}
             </Text>
+          </View>
+        ) : attachments.length > 0 ? (
+          <View style={[ss.userBubble, { backgroundColor: bg }]}>
+            <UserAttachments
+              attachments={attachments}
+              backgroundColor={bg}
+              foregroundColor={T.fg}
+            />
+            {!!message.content && (
+              <Text style={[ss.userText, { color: T.fg }]}>{message.content}</Text>
+            )}
           </View>
         ) : (
           <View style={[ss.userBubble, { backgroundColor: bg }]}>
@@ -414,22 +510,25 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
           onEdit={onEditImage ? (instr) => onEditImage(message.imageData!, instr) : undefined}
         />
       ) : (
-        shown === message.content
-          ? <MarkdownText text={shown} color={textClr} isDark={T.isDark} />
-          : <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>
+        <View style={ss.aiContent}>
+          {shown === message.content
+            ? <MarkdownText text={shown} color={textClr} isDark={T.isDark} />
+            : <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>}
+        </View>
       )}
 
       {/* Action row */}
       <View style={ss.actionRow}>
-        <ActionBtn
-          icon="copy"
-          onPress={() => Clipboard.setStringAsync(message.content)}
-        />
-        {!message.imageData && <ActionBtn icon="thumbs-up"   />}
-        {!message.imageData && <ActionBtn icon="thumbs-down" />}
-        {!message.imageData && <SpeakBtn  text={message.content} />}
-        <ActionBtn icon="share-2" />
-
+        <View style={ss.actionButtons}>
+          <ActionBtn
+            icon="copy"
+            onPress={() => Clipboard.setStringAsync(message.content)}
+          />
+          {!message.imageData && <ActionBtn icon="thumbs-up"   />}
+          {!message.imageData && <ActionBtn icon="thumbs-down" />}
+          {!message.imageData && <SpeakBtn  text={message.content} />}
+          <ActionBtn icon="share-2" />
+        </View>
         <Animated.Text style={[ss.aiTs, { color: T.zinc }, tsAnim]}>
           {fmt(message.timestamp)}
         </Animated.Text>
@@ -445,9 +544,14 @@ const ss = StyleSheet.create({
     alignItems:        "flex-end",
     marginBottom:      20,
     paddingHorizontal: 20,
+    minWidth:          0,
+    width:             "100%",
   },
   userBubble: {
-    maxWidth:                "76%",
+    alignSelf:               "flex-end",
+    maxWidth:                "85%",
+    minWidth:                0,
+    flexShrink:              1,
     borderRadius:            22,
     borderBottomRightRadius: 6,
     paddingHorizontal:       16,
@@ -500,7 +604,10 @@ const ss = StyleSheet.create({
 
   // Photo message bubble — image thumbnail above caption
   photoBubble: {
-    maxWidth:                "72%",
+    alignSelf:               "flex-end",
+    maxWidth:                "85%",
+    minWidth:                0,
+    flexShrink:              1,
     borderRadius:            18,
     borderBottomRightRadius: 4,
     overflow:                "hidden",
@@ -523,31 +630,91 @@ const ss = StyleSheet.create({
     fontSize:   15,
     fontFamily: "Inter_400Regular",
     lineHeight: 22,
+    flexShrink: 1,
+    minWidth:   0,
+  },
+  attachments: {
+    minWidth: 0,
+    width: "100%",
+    gap: 8,
+    marginBottom: 2,
+  },
+  imageAttachmentRow: {
+    gap: 8,
+  },
+  attachmentThumb: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+  },
+  fileAttachment: {
+    width: "100%",
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  fileAttachmentText: {
+    minWidth: 0,
+    flex: 1,
+  },
+  fileName: {
+    minWidth: 0,
+    flexShrink: 1,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  fileMeta: {
+    minWidth: 0,
+    flexShrink: 1,
+    marginTop: 2,
+    fontSize: 10,
+    opacity: 0.62,
+    fontFamily: "Inter_400Regular",
   },
 
   // AI — bare text
   aiWrap: {
     marginBottom:      26,
     paddingHorizontal: 24,
+    minWidth:          0,
+    width:             "100%",
   },
   aiText: {
     fontSize:      15.5,
     fontFamily:    "Inter_400Regular",
     lineHeight:    26,
     letterSpacing: -0.1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  aiContent: {
+    width: "100%",
+    minWidth: 0,
+    flexShrink: 1,
   },
 
   // Action icons
   actionRow: {
+    marginTop: 12,
+    minWidth: 0,
+    width: "100%",
+  },
+  actionButtons: {
     flexDirection: "row",
-    alignItems:    "center",
-    marginTop:     12,
-    gap:           20,
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 20,
+    minWidth: 0,
   },
   aiTs: {
-    marginLeft:    "auto" as any,
-    fontSize:      10,
-    fontFamily:    "Inter_400Regular",
+    alignSelf: "flex-end",
+    marginTop: 7,
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
     letterSpacing: 0.1,
   },
 

@@ -5,6 +5,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -26,9 +27,9 @@ app.use(
   }),
 );
 app.use(cors());
-// 15 MB limit — base64-encoded camera photos can easily exceed the 100 KB default
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+// Covers the validated 24 MB decoded attachment budget after base64 expansion.
+app.use(express.json({ limit: "34mb" }));
+app.use(express.urlencoded({ extended: true, limit: "34mb" }));
 
 app.use("/api", router);
 

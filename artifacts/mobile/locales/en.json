@@ -47,12 +47,20 @@
     "note": "Language change applies instantly across all screens."
   },
   "chat": {
-    "placeholder": "What's on your mind today?",
+    "placeholder": "AkılCEP’e bir mesaj yaz…",
     "listening": "Listening...",
+    "attachmentLimit": {
+      "title": "Some Attachments Were Not Added",
+      "message": "You can add up to 10 attachments, 8 MB per file and 24 MB in total."
+    },
+    "attachmentError": {
+      "title": "Attachment Unavailable",
+      "message": "An attachment is no longer readable or exceeds the size limit. Remove it and try again."
+    },
     "secretBadge": "Secret",
     "visionPending": "Analyzing photo…",
     "expandTitle": "Long Message",
-    "expandPlaceholder": "Write to AkılCEP…",
+    "expandPlaceholder": "AkılCEP’e bir mesaj yaz…",
     "secretModal": {
       "title": "Secret Chat",
       "desc": "This conversation won't be saved to history.",
@@ -226,7 +234,12 @@
   "multimodal": {
     "takePhoto": { "label": "Take Photo", "sub": "Open camera" },
     "gallery": { "label": "Choose from Gallery", "sub": "Upload existing image" },
-    "file": { "label": "Attach File", "sub": "PDF, Word, Excel and other files" },
+    "file": {
+      "label": "Attach File",
+      "sub": "PDF, Word, Excel and other files",
+      "errorTitle": "File Selection Failed",
+      "errorMessage": "The file picker could not be opened. Try again."
+    },
     "note": { "label": "Note", "sub": "Open the expanded writing area" },
     "location": {
       "label": "Location",

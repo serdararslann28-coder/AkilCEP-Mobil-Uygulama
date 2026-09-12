@@ -47,12 +47,20 @@
     "note": "Dil değişikliği tüm ekranlara anında uygulanır."
   },
   "chat": {
-    "placeholder": "Bugün aklında ne var?",
+    "placeholder": "AkılCEP’e bir mesaj yaz…",
     "listening": "Dinliyorum...",
+    "attachmentLimit": {
+      "title": "Bazı Ekler Eklenmedi",
+      "message": "En fazla 10 ek, dosya başına 8 MB ve toplam 24 MB ekleyebilirsiniz."
+    },
+    "attachmentError": {
+      "title": "Ek Okunamadı",
+      "message": "Eklerden biri artık erişilebilir değil veya boyut sınırını aşıyor. Eki kaldırıp tekrar deneyin."
+    },
     "secretBadge": "Gizli",
     "visionPending": "Fotoğraf analiz ediliyor…",
     "expandTitle": "Uzun Mesaj",
-    "expandPlaceholder": "AkılCEP'e yaz…",
+    "expandPlaceholder": "AkılCEP’e bir mesaj yaz…",
     "secretModal": {
       "title": "Gizli Sohbet",
       "desc": "Bu sohbet geçmişe kaydedilmez.",
@@ -226,7 +234,12 @@
   "multimodal": {
     "takePhoto": { "label": "Fotoğraf Çek", "sub": "Kamerayı aç" },
     "gallery": { "label": "Galeriden Seç", "sub": "Mevcut görsel yükle" },
-    "file": { "label": "Dosya Ekle", "sub": "PDF, Word, Excel ve diğer dosyalar" },
+    "file": {
+      "label": "Dosya Ekle",
+      "sub": "PDF, Word, Excel ve diğer dosyalar",
+      "errorTitle": "Dosya Seçilemedi",
+      "errorMessage": "Dosya seçici açılamadı. Tekrar deneyin."
+    },
     "note": { "label": "Not", "sub": "Geniş yazma alanını aç" },
     "location": {
       "label": "Konum",
