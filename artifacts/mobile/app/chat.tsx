@@ -207,14 +207,17 @@ export default function ChatScreen() {
   // Keyboard height tracking — dock floats above keyboard
   const { reanimated: kbReanimated } = useKeyboardContext();
   const kbH = kbReanimated.height;
-  const dockKbStyle = useAnimatedStyle(() => ({
-    // Closed: sit above the real system navigation inset.
-    // Open: remove both the inset and the decorative gap so the composer
-    // meets the keyboard without creating a second empty strip.
-    bottom:
-      (bottomPad + 8) * (1 - kbReanimated.progress.value)
-      - kbH.value,
-  }));
+  const dockKbStyle = useAnimatedStyle(() => {
+    // Some Android keyboards stop progress just below 1, which leaves part of
+    // the safe-area inset above the IME. Derive the fade from the actual
+    // animated keyboard height instead so an open keyboard always gets 0 inset.
+    const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
+    return {
+      bottom:
+        (bottomPad + 8) * (1 - keyboardReveal)
+        - kbH.value,
+    };
+  });
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
   const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
