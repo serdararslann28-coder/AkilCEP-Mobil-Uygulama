@@ -6,11 +6,15 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NavigationBar } from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import {
+  Platform,
+  StatusBar as NativeStatusBar,
+  StyleSheet,
+} from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import {
@@ -34,10 +38,19 @@ function RootLayoutNav() {
 
   return (
     <>
-      <StatusBar
+      <NativeStatusBar
         animated
-        style={theme.isDark ? "light" : "dark"}
+        backgroundColor="transparent"
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        hidden={false}
+        translucent
       />
+      {Platform.OS === "android" && (
+        <NavigationBar
+          hidden={false}
+          style={theme.isDark ? "dark" : "light"}
+        />
+      )}
       <Stack
         screenOptions={{
           headerShown: false,
