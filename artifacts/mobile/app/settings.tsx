@@ -8,7 +8,9 @@ import { router }   from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -18,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useChat }            from "@/context/ChatContext";
 import { useLanguage }        from "@/context/LanguageContext";
 import { ThemeMode, useTheme } from "@/context/ThemeContext";
 
@@ -95,12 +98,14 @@ function ToggleRow({
 export default function SettingsScreen() {
   const { theme: T, themeMode, setThemeMode, showToast } = useTheme();
   const { lang, t } = useLanguage();
+  const { conversations, deleteAllConversations } = useChat();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
   const isDark = T.isDark;
 
   const [notifications, setNotifications] = useState(true);
+  const [deleteAllPromptOpen, setDeleteAllPromptOpen] = useState(false);
 
   const divider      = isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.06)";
   const cardBg       = isDark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.030)";
@@ -205,6 +210,36 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* ── Veri ve Gizlilik ─────────────────────────────────────────────── */}
+        <Text style={[ss.sectionLabel, { color: muted }]}>
+          {t("settings.dataPrivacy")}
+        </Text>
+        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+          <TouchableOpacity
+            style={ss.destructiveRow}
+            onPress={() => setDeleteAllPromptOpen(true)}
+            activeOpacity={0.65}
+            disabled={conversations.length === 0}
+          >
+            <View style={ss.rowIcon}>
+              <Feather
+                name="trash-2"
+                size={16}
+                color="#C83E3E"
+                style={{ opacity: conversations.length > 0 ? 0.9 : 0.38 }}
+              />
+            </View>
+            <Text
+              style={[
+                ss.destructiveLabel,
+                { opacity: conversations.length > 0 ? 1 : 0.38 },
+              ]}
+            >
+              {t("settings.deleteAllConversations")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ── Hesap ────────────────────────────────────────────────────────── */}
         <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.account")}</Text>
         <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
@@ -257,6 +292,60 @@ export default function SettingsScreen() {
         </View>
 
       </ScrollView>
+
+      <Modal
+        visible={deleteAllPromptOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setDeleteAllPromptOpen(false)}
+      >
+        <View style={ss.confirmOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setDeleteAllPromptOpen(false)}
+          />
+          <View
+            style={[
+              ss.confirmCard,
+              {
+                backgroundColor: isDark ? "#171719" : "#FFFFFF",
+                borderColor: cardBorder,
+              },
+            ]}
+          >
+            <Text style={[ss.confirmTitle, { color: T.fg }]}>
+              {t("settings.deleteAllTitle")}
+            </Text>
+            <Text style={[ss.confirmMessage, { color: T.fgSoft }]}>
+              {t("settings.deleteAllMessage")}
+            </Text>
+            <View style={ss.confirmActions}>
+              <TouchableOpacity
+                style={ss.confirmCancel}
+                onPress={() => setDeleteAllPromptOpen(false)}
+                activeOpacity={0.65}
+              >
+                <Text style={[ss.confirmCancelText, { color: T.fg }]}>
+                  {t("settings.cancel")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={ss.confirmDelete}
+                onPress={() => {
+                  deleteAllConversations();
+                  setDeleteAllPromptOpen(false);
+                }}
+                activeOpacity={0.78}
+              >
+                <Text style={ss.confirmDeleteText}>
+                  {t("settings.deleteAllConfirm")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -305,6 +394,92 @@ const ss = StyleSheet.create({
     borderRadius:     16,
     borderWidth:      StyleSheet.hairlineWidth,
     overflow:         "hidden",
+  },
+
+  destructiveRow: {
+    minHeight:         52,
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 16,
+  },
+
+  destructiveLabel: {
+    flex:          1,
+    color:         "#C83E3E",
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.1,
+  },
+
+  confirmOverlay: {
+    flex:              1,
+    alignItems:        "center",
+    justifyContent:    "center",
+    paddingHorizontal: 28,
+    backgroundColor:   "rgba(0,0,0,0.34)",
+  },
+
+  confirmCard: {
+    width:         "100%",
+    maxWidth:      330,
+    borderRadius:  20,
+    borderWidth:   StyleSheet.hairlineWidth,
+    padding:       20,
+    shadowColor:   "#000",
+    shadowOffset:  { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius:  28,
+    elevation:     12,
+  },
+
+  confirmTitle: {
+    fontSize:      17,
+    fontFamily:    "Inter_600SemiBold",
+    letterSpacing: -0.25,
+  },
+
+  confirmMessage: {
+    marginTop:  8,
+    fontSize:   13.5,
+    lineHeight: 20,
+    fontFamily: "Inter_400Regular",
+  },
+
+  confirmActions: {
+    marginTop:      20,
+    flexDirection:  "row",
+    justifyContent: "flex-end",
+    gap:            10,
+  },
+
+  confirmCancel: {
+    minWidth:          82,
+    height:            42,
+    borderRadius:      12,
+    alignItems:        "center",
+    justifyContent:    "center",
+    paddingHorizontal: 14,
+  },
+
+  confirmCancelText: {
+    fontSize:   13.5,
+    fontFamily: "Inter_500Medium",
+  },
+
+  confirmDelete: {
+    minWidth:          96,
+    height:            42,
+    borderRadius:      12,
+    alignItems:        "center",
+    justifyContent:    "center",
+    paddingHorizontal: 14,
+    backgroundColor:   "#C83E3E",
+  },
+
+  confirmDeleteText: {
+    color:      "#FFFFFF",
+    fontSize:   13.5,
+    fontFamily: "Inter_600SemiBold",
   },
 
   // Theme selector

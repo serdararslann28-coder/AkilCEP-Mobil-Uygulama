@@ -73,172 +73,103 @@ function getDateGroup(ts: number, t: (k: string) => string): string {
   return t("sidebar.earlier");
 }
 
-interface SwipeConversationRowProps {
+interface ConversationRowProps {
   title: string;
   isActive: boolean;
   foreground: string;
   rowBackground: string;
-  deleteLabel: string;
   onSelect: () => void;
-  onRequestDelete: (close: () => void) => void;
+  onRequestDelete: () => void;
 }
 
-function SwipeConversationRow({
+function ConversationRow({
   title,
   isActive,
   foreground,
   rowBackground,
-  deleteLabel,
   onSelect,
   onRequestDelete,
-}: SwipeConversationRowProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const translateX = useSharedValue(0);
-  const pointerStartRef = useRef({ x: 0, y: 0 });
-  const pointerSwipingRef = useRef(false);
-  const suppressSelectRef = useRef(false);
-  const rowStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+}: ConversationRowProps) {
+  const suppressPressRef = useRef(false);
+  const longPressConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const close = () => {
-    setIsOpen(false);
-    translateX.value = withSpring(0, { damping: 24, stiffness: 260 });
-  };
+  useEffect(() => () => {
+    if (longPressConfirmTimerRef.current) {
+      clearTimeout(longPressConfirmTimerRef.current);
+    }
+  }, []);
 
-  const responder = useRef(
+  const horizontalDragResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-        dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6,
+        Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.6,
       onMoveShouldSetPanResponderCapture: (_, { dx, dy }) =>
-        dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6,
-      onPanResponderMove: (_, { dx }) => {
-        suppressSelectRef.current = true;
-        translateX.value = Math.max(-72, Math.min(0, dx));
+        Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.6,
+      onPanResponderGrant: () => {
+        suppressPressRef.current = true;
+        if (longPressConfirmTimerRef.current) {
+          clearTimeout(longPressConfirmTimerRef.current);
+          longPressConfirmTimerRef.current = null;
+        }
       },
-      onPanResponderRelease: (_, { dx, vx }) => {
-        const shouldOpen = dx < -34 || vx < -0.45;
-        setIsOpen(shouldOpen);
-        translateX.value = withSpring(shouldOpen ? -72 : 0, {
-          damping: 24,
-          stiffness: 260,
-        });
+      onPanResponderRelease: () => {
+        suppressPressRef.current = true;
       },
-      onPanResponderTerminate: close,
     }),
   ).current;
 
   return (
     <View
-      style={ss.swipeRow}
-      onPointerDownCapture={(event) => {
-        if (
-          Platform.OS === "web" &&
-          isOpen &&
-          event.nativeEvent.clientX >= MENU_W - 90
-        ) {
-          event.stopPropagation();
-          setTimeout(() => onRequestDelete(close), 0);
-        }
-      }}
+      {...horizontalDragResponder.panHandlers}
     >
-      <Animated.View
-        pointerEvents={isOpen ? "none" : "auto"}
+      <TouchableOpacity
         style={[
-          ss.swipeRowForeground,
+          ss.convRow,
           { backgroundColor: rowBackground },
-          rowStyle,
         ]}
-        onPointerDownCapture={(event) => {
-          if (Platform.OS !== "web") return;
-          pointerStartRef.current = {
-            x: event.nativeEvent.clientX,
-            y: event.nativeEvent.clientY,
-          };
-          pointerSwipingRef.current = false;
-          suppressSelectRef.current = false;
-        }}
-        onPointerMoveCapture={(event) => {
-          if (Platform.OS !== "web") return;
-          const dx = event.nativeEvent.clientX - pointerStartRef.current.x;
-          const dy = event.nativeEvent.clientY - pointerStartRef.current.y;
-          if (dx < -8 && Math.abs(dx) > Math.abs(dy) * 1.6) {
-            pointerSwipingRef.current = true;
-            suppressSelectRef.current = true;
-            translateX.value = Math.max(-72, dx);
+        onPress={() => {
+          if (suppressPressRef.current) {
+            suppressPressRef.current = false;
+            return;
           }
+          onSelect();
         }}
-        onPointerUpCapture={(event) => {
-          if (Platform.OS !== "web" || !pointerSwipingRef.current) return;
-          const dx = event.nativeEvent.clientX - pointerStartRef.current.x;
-          const shouldOpen = dx < -34;
-          setIsOpen(shouldOpen);
-          translateX.value = withSpring(shouldOpen ? -72 : 0, {
-            damping: 24,
-            stiffness: 260,
-          });
-          pointerSwipingRef.current = false;
+        onLongPress={() => {
+          longPressConfirmTimerRef.current = setTimeout(() => {
+            longPressConfirmTimerRef.current = null;
+            if (!suppressPressRef.current) onRequestDelete();
+          }, 150);
         }}
-        {...responder.panHandlers}
+        delayLongPress={500}
+        activeOpacity={0.68}
       >
-        <TouchableOpacity
-          style={ss.convRow}
-          onPress={() => {
-            if (isOpen) return;
-            if (suppressSelectRef.current) {
-              suppressSelectRef.current = false;
-              return;
-            }
-            onSelect();
-          }}
-          activeOpacity={0.68}
-        >
-          {isActive && (
-            <View style={[ss.activeBar, { backgroundColor: foreground }]} />
-          )}
-          <Feather
-            name="message-square"
-            size={12}
-            color={foreground}
-            style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
-          />
-          <Text
-            style={[
-              ss.convTitle,
-              { color: foreground, opacity: isActive ? 1 : 0.72 },
-            ]}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
-      <View
-        style={[ss.deleteAction, isOpen && ss.deleteActionOpen]}
-        pointerEvents="none"
-      >
-        <Feather name="trash-2" size={14} color="#FFFFFF" />
-        <Text style={ss.deleteActionText}>{deleteLabel}</Text>
-      </View>
-      {isOpen && (
-        <Pressable
-          style={ss.openRowHitTarget}
-          onPress={() => onRequestDelete(close)}
-          accessibilityRole="button"
-          accessibilityLabel={deleteLabel}
+        {isActive && (
+          <View style={[ss.activeBar, { backgroundColor: foreground }]} />
+        )}
+        <Feather
+          name="message-square"
+          size={12}
+          color={foreground}
+          style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
         />
-      )}
+        <Text
+          style={[
+            ss.convTitle,
+            { color: foreground, opacity: isActive ? 1 : 0.72 },
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 interface Props { visible: boolean; onClose: () => void; onOpen: () => void; }
-type DeletePrompt =
-  | { kind: "single"; id: string; closeRow: () => void }
-  | { kind: "all" }
-  | null;
+type DeletePrompt = { id: string } | null;
 
 export interface SideMenuHandle {
   updateOpeningGesture: (distance: number) => void;
@@ -264,7 +195,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     loadConversation,
     startNewConversation,
     deleteConversation,
-    deleteAllConversations,
   } = useChat();
 
   // UI state
@@ -401,25 +331,17 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     setTimeout(() => router.push("/chat"), 180);
   }
 
-  function confirmDeleteConversation(id: string, closeRow: () => void) {
-    setDeletePrompt({ kind: "single", id, closeRow });
-  }
-
-  function confirmDeleteAllConversations() {
-    setDeletePrompt({ kind: "all" });
+  function confirmDeleteConversation(id: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setDeletePrompt({ id });
   }
 
   function cancelDelete() {
-    if (deletePrompt?.kind === "single") deletePrompt.closeRow();
     setDeletePrompt(null);
   }
 
   function applyDelete() {
-    if (deletePrompt?.kind === "single") {
-      deleteConversation(deletePrompt.id);
-    } else if (deletePrompt?.kind === "all") {
-      deleteAllConversations();
-    }
+    if (deletePrompt) deleteConversation(deletePrompt.id);
     setDeletePrompt(null);
   }
 
@@ -575,37 +497,24 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 {items.map(conv => {
                   const isActive = conv.id === currentConversation?.id;
                   return (
-                    <SwipeConversationRow
+                    <ConversationRow
                       key={conv.id}
                       title={conv.title}
                       isActive={isActive}
                       foreground={T.fg}
                       rowBackground={isActive ? rowActiveBg : panelOverlay}
-                      deleteLabel={t("sidebar.delete")}
                       onSelect={() => {
                         Haptics.selectionAsync();
                         loadConversation(conv.id);
                         onClose();
                         setTimeout(() => router.push("/chat"), 160);
                       }}
-                      onRequestDelete={(closeRow) =>
-                        confirmDeleteConversation(conv.id, closeRow)
-                      }
+                      onRequestDelete={() => confirmDeleteConversation(conv.id)}
                     />
                   );
                 })}
               </View>
             ))
-          )}
-          {conversations.length > 0 && (
-            <TouchableOpacity
-              style={ss.deleteAllRow}
-              onPress={confirmDeleteAllConversations}
-              activeOpacity={0.62}
-            >
-              <Feather name="trash-2" size={13} color="#C83E3E" />
-              <Text style={ss.deleteAllLabel}>{t("sidebar.deleteAll")}</Text>
-            </TouchableOpacity>
           )}
         </ScrollView>
 
@@ -673,14 +582,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
             ]}
           >
             <Text style={[ss.confirmTitle, { color: T.fg }]}>
-              {deletePrompt?.kind === "all"
-                ? t("sidebar.deleteAllTitle")
-                : t("sidebar.deleteConversationTitle")}
+              {t("sidebar.deleteConversationTitle")}
             </Text>
             <Text style={[ss.confirmMessage, { color: T.fgSoft }]}>
-              {deletePrompt?.kind === "all"
-                ? t("sidebar.deleteAllMessage")
-                : t("sidebar.deleteConversationMessage")}
+              {t("sidebar.deleteConversationMessage")}
             </Text>
             <View style={ss.confirmActions}>
               <TouchableOpacity
@@ -698,9 +603,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 activeOpacity={0.78}
               >
                 <Text style={ss.confirmDeleteText}>
-                  {deletePrompt?.kind === "all"
-                    ? t("sidebar.deleteAllConfirm")
-                    : t("sidebar.delete")}
+                  {t("sidebar.delete")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -902,18 +805,6 @@ const ss = StyleSheet.create({
   },
 
   // Conversation row
-  swipeRow: {
-    marginHorizontal: 8,
-    borderRadius: 10,
-    overflow: "hidden",
-    position: "relative",
-  },
-
-  swipeRowForeground: {
-    width: "100%",
-    zIndex: 1,
-  },
-
   convRow: {
     flexDirection:     "row",
     alignItems:        "center",
@@ -922,35 +813,7 @@ const ss = StyleSheet.create({
     gap:               10,
     borderRadius:      10,
     position:          "relative",
-  },
-
-  deleteAction: {
-    position:       "absolute",
-    top:            0,
-    right:          0,
-    bottom:         0,
-    width:           72,
-    alignItems:      "center",
-    justifyContent:  "center",
-    flexDirection:   "row",
-    gap:             5,
-    backgroundColor: "#C83E3E",
-    zIndex:          0,
-  },
-
-  deleteActionOpen: {
-    zIndex: 2,
-  },
-
-  openRowHitTarget: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 3,
-  },
-
-  deleteActionText: {
-    color:      "#FFFFFF",
-    fontSize:   12,
-    fontFamily: "Inter_600SemiBold",
+    marginHorizontal: 8,
   },
 
   activeBar: {
@@ -978,25 +841,6 @@ const ss = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop:        24,
     fontStyle:         "italic",
-  },
-
-  deleteAllRow: {
-    alignSelf:        "flex-start",
-    flexDirection:    "row",
-    alignItems:       "center",
-    gap:              7,
-    marginLeft:       20,
-    marginTop:        12,
-    marginBottom:     8,
-    paddingVertical:  8,
-    paddingHorizontal: 2,
-  },
-
-  deleteAllLabel: {
-    color:         "#C83E3E",
-    fontSize:      12.5,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: -0.1,
   },
 
   confirmOverlay: {
