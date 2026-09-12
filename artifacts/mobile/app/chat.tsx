@@ -1126,7 +1126,23 @@ export default function ChatScreen() {
               {pendingAttachments.map((attachment) => (
                 <View key={attachment.id} style={[ss.attachmentCard, { backgroundColor: T.isDark ? "#242424" : "#F1F2F4" }]}>
                   {attachment.kind === "image" ? (
-                    <Image source={{ uri: attachment.uri }} style={ss.attachmentImage} />
+                    <View style={ss.attachmentMedia}>
+                      <Image source={{ uri: attachment.uri }} style={ss.attachmentImage} />
+                      <Pressable
+                        style={[
+                          ss.attachmentImageRemove,
+                          {
+                            backgroundColor: T.isDark
+                              ? "rgba(8,8,10,0.82)"
+                              : "rgba(255,255,255,0.92)",
+                          },
+                        ]}
+                        hitSlop={6}
+                        onPress={() => setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id))}
+                      >
+                        <Feather name="x" size={12} color={T.fg} />
+                      </Pressable>
+                    </View>
                   ) : (
                     <View style={[ss.fileIcon, { backgroundColor: T.isDark ? "#353535" : "#E2E4E8" }]}>
                       <Feather name="file" size={16} color={T.fgSoft} />
@@ -1143,13 +1159,15 @@ export default function ChatScreen() {
                         : `${Math.ceil(attachment.size / 1024)} KB`}` : ""}
                     </Text>
                   </View>
-                  <Pressable
-                    style={ss.attachmentRemove}
-                    hitSlop={8}
-                    onPress={() => setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id))}
-                  >
-                    <Feather name="x" size={13} color={T.fgSoft} />
-                  </Pressable>
+                  {attachment.kind === "file" && (
+                    <Pressable
+                      style={ss.attachmentRemove}
+                      hitSlop={8}
+                      onPress={() => setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id))}
+                    >
+                      <Feather name="x" size={13} color={T.fgSoft} />
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -1665,30 +1683,46 @@ const ss = StyleSheet.create({
     minHeight:       40,
   },
   attachmentStrip: {
-    gap: 8,
+    gap: 7,
     paddingHorizontal: 0,
     paddingBottom: 4,
     paddingTop: 0,
+    paddingRight: 24,
   },
   attachmentScroller: {
     width:    "100%",
     flexGrow: 0,
   },
   attachmentCard: {
-    width: 150,
-    minHeight: 64,
-    borderRadius: 12,
-    padding: 6,
+    width: 164,
+    minHeight: 76,
+    borderRadius: 14,
+    padding: 7,
     paddingRight: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     position: "relative",
   },
+  attachmentMedia: {
+    width: 61,
+    height: 61,
+    position: "relative",
+  },
   attachmentImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 8,
+    width: 61,
+    height: 61,
+    borderRadius: 10,
+  },
+  attachmentImageRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   fileIcon: {
     width: 34,
