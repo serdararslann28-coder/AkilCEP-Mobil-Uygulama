@@ -30,6 +30,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -200,7 +201,7 @@ export default function ChatScreen() {
   const { reanimated: kbReanimated } = useKeyboardContext();
   const kbH = kbReanimated.height;
   const dockKbStyle = useAnimatedStyle(() => ({
-    bottom: bottomPad + 12 - kbH.value,
+    bottom: 12 + bottomPad * (1 - kbReanimated.progress.value) - kbH.value,
   }));
 
   // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
@@ -294,6 +295,29 @@ export default function ChatScreen() {
 
   // ── Panel — multimodal AI toolbox ──────────────────────────────────────────
   const [panelOpen, setPanelOpen] = useState(false);
+  const keyboardVisibleRef = useRef(false);
+  const openPanelAfterKeyboardRef = useRef(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      keyboardVisibleRef.current = true;
+      openPanelAfterKeyboardRef.current = false;
+      setPanelOpen(false);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      keyboardVisibleRef.current = false;
+      if (openPanelAfterKeyboardRef.current) {
+        openPanelAfterKeyboardRef.current = false;
+        setPanelOpen(true);
+      }
+    });
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
   const plusRotSV = useSharedValue(0);
@@ -916,7 +940,14 @@ export default function ChatScreen() {
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
-              onPress={() => { setPanelOpen(p => !p); }}
+              onPress={() => {
+                if (keyboardVisibleRef.current) {
+                  openPanelAfterKeyboardRef.current = true;
+                  Keyboard.dismiss();
+                  return;
+                }
+                setPanelOpen((current) => !current);
+              }}
               hitSlop={4}
             >
               <Animated.View style={plusRotAnim}>
@@ -950,6 +981,8 @@ export default function ChatScreen() {
                 onSubmitEditing={() => { if (hasComposerContent) void handleSend(); }}
                 editable={!voiceActive && !sttListening}
                 onFocus={() => {
+                  openPanelAfterKeyboardRef.current = false;
+                  setPanelOpen(false);
                   inputFocused.value = withTiming(1, FOCUS_DUR);
                 }}
                 onBlur={() => {
