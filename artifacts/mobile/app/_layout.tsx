@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NavigationBar } from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as SystemUI from "expo-system-ui";
 import React, { useEffect, useState } from "react";
 import {
   Platform,
@@ -35,6 +36,12 @@ const queryClient = new QueryClient();
 // Splash is always the entry point — it resolves AsyncStorage + navigation itself.
 function RootLayoutNav() {
   const { theme } = useTheme();
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(theme.bg).catch((error) => {
+      console.warn("Unable to sync Android root background color", error);
+    });
+  }, [theme.bg]);
 
   return (
     <>
