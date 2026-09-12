@@ -106,13 +106,12 @@ export default function SettingsScreen() {
   const [deleteAllPromptOpen, setDeleteAllPromptOpen] = useState(false);
 
   const divider      = isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.06)";
-  const cardBg       = isDark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.030)";
   const cardBorder   = isDark ? "rgba(255,255,255,0.09)"  : "rgba(0,0,0,0.07)";
   const muted        = isDark ? "rgba(237,235,231,0.38)"  : "rgba(12,12,12,0.38)";
-  const themeActiveBg = T.primary;
+  const themeActiveBg = "#111111";
 
   return (
-    <View style={[ss.root, { backgroundColor: T.bg }]}>
+    <View style={[ss.root, { backgroundColor: isDark ? "#000000" : "#FFFFFF" }]}>
 
       {/* ── Floating back button (invisible header) ───────────────────────── */}
       <TouchableOpacity
@@ -139,7 +138,7 @@ export default function SettingsScreen() {
 
         {/* ── Görünüm ──────────────────────────────────────────────────────── */}
         <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.appearance")}</Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={ss.card}>
           <View style={ss.themeRow}>
             {THEME_OPTIONS.map((opt) => {
               const active = themeMode === opt.mode;
@@ -162,14 +161,14 @@ export default function SettingsScreen() {
                   <Feather
                     name={opt.icon}
                     size={15}
-                    color={active ? T.primaryForeground : T.fg}
+                    color={active ? "#FFFFFF" : T.fg}
                     style={{ opacity: active ? 1 : 0.55 }}
                   />
                   <Text
                     style={[
                       ss.themeLabel,
                       {
-                        color:      active ? T.primaryForeground : T.fg,
+                        color:      active ? "#FFFFFF" : T.fg,
                         opacity:    active ? 1 : 0.65,
                         fontFamily: active ? "Inter_600SemiBold" : "Inter_400Regular",
                       },
@@ -185,7 +184,7 @@ export default function SettingsScreen() {
 
         {/* ── Dil ──────────────────────────────────────────────────────────── */}
         <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.language")}</Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={ss.card}>
           <Row
             icon="globe"
             label={t("settings.appLanguage")}
@@ -200,7 +199,7 @@ export default function SettingsScreen() {
 
         {/* ── Bildirimler ──────────────────────────────────────────────────── */}
         <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.notifications")}</Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={ss.card}>
           <ToggleRow
             icon="bell"
             label={t("settings.notifications")}
@@ -217,7 +216,7 @@ export default function SettingsScreen() {
         <Text style={[ss.sectionLabel, { color: muted }]}>
           {t("settings.dataPrivacy")}
         </Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={ss.card}>
           <TouchableOpacity
             style={ss.destructiveRow}
             onPress={() => setDeleteAllPromptOpen(true)}
@@ -240,12 +239,18 @@ export default function SettingsScreen() {
             >
               {t("settings.deleteAllConversations")}
             </Text>
+            <Feather
+              name="chevron-right"
+              size={15}
+              color="#C83E3E"
+              style={{ opacity: conversations.length > 0 ? 0.55 : 0.24 }}
+            />
           </TouchableOpacity>
         </View>
 
         {/* ── Hesap ────────────────────────────────────────────────────────── */}
         <Text style={[ss.sectionLabel, { color: muted }]}>{t("settings.account")}</Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={ss.card}>
           <Row
             icon="user"
             label={t("settings.profile")}
@@ -257,7 +262,7 @@ export default function SettingsScreen() {
           <Row
             icon="shield"
             label={t("settings.privacyItem")}
-            onPress={() => {}}
+            onPress={() => router.push("/privacy")}
             divider={divider}
             fg={T.fg}
             muted={muted}
@@ -265,7 +270,7 @@ export default function SettingsScreen() {
           <Row
             icon="help-circle"
             label={t("settings.support")}
-            onPress={() => {}}
+            onPress={() => router.push("/support")}
             divider={divider}
             fg={T.fg}
             muted={muted}
@@ -382,15 +387,7 @@ const ss = StyleSheet.create({
 
   // Card container
   card: {
-    marginHorizontal: 14,
-    borderRadius:     12,
-    borderWidth:      StyleSheet.hairlineWidth,
-    overflow:         "hidden",
-    shadowColor:      "#000",
-    shadowOffset:     { width: 0, height: 1 },
-    shadowOpacity:    0.035,
-    shadowRadius:     3,
-    elevation:        1,
+    marginHorizontal: 18,
   },
 
   destructiveRow: {
@@ -398,6 +395,8 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.08)",
   },
 
   destructiveLabel: {
@@ -483,7 +482,7 @@ const ss = StyleSheet.create({
   themeRow: {
     flexDirection:     "row",
     gap:               6,
-    padding:           4,
+    paddingVertical:   3,
   },
 
   themeOption: {
@@ -493,7 +492,7 @@ const ss = StyleSheet.create({
     justifyContent: "center",
     gap:            5,
     height:          33,
-    borderRadius:    9,
+    borderRadius:    8,
     borderWidth:     StyleSheet.hairlineWidth,
   },
 
