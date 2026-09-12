@@ -1,262 +1,68 @@
-/**
- * About — AkılCEP about screen.
- * Shows brand identity, feature list, version and copyright.
- * Fully theme-aware: PURE / VOID.
- */
-import { Feather }  from "@expo/vector-icons";
-import { router }   from "expo-router";
-import React        from "react";
+import { router } from "expo-router";
+import React from "react";
 import {
   Image,
-  Platform,
-  ScrollView,
+  Pressable,
   StyleSheet,
-  Text,
-  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useLanguage } from "@/context/LanguageContext";
-import { useTheme }    from "@/context/ThemeContext";
+const aboutScreen = require("@/assets/images/about-screen.png");
+const SOURCE_WIDTH = 1024;
+const SOURCE_HEIGHT = 1536;
+const BACK_CENTER_X = 98;
+const BACK_CENTER_Y = 102;
+const BACK_HIT_SIZE = 48;
 
-const leafLogo = require("@/assets/images/leaf-only-transparent.png");
-
-// ─── Main screen ───────────────────────────────────────────────────────────────
 export default function AboutScreen() {
-  const { theme: T } = useTheme();
-  const { t } = useLanguage();
-
-  const FEATURES: {
-    icon:  React.ComponentProps<typeof Feather>["name"];
-    label: string;
-    desc:  string;
-  }[] = [
-    { icon: "message-circle", label: t("about.feat1.label"), desc: t("about.feat1.desc") },
-    { icon: "camera",         label: t("about.feat2.label"), desc: t("about.feat2.desc") },
-    { icon: "mic",            label: t("about.feat3.label"), desc: t("about.feat3.desc") },
-    { icon: "image",          label: t("about.feat4.label"), desc: t("about.feat4.desc") },
-    { icon: "globe",          label: t("about.feat5.label"), desc: t("about.feat5.desc") },
-  ];
-  const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
-  const isDark = T.isDark;
-
-  const divider    = isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.06)";
-  const cardBg     = isDark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.030)";
-  const cardBorder = isDark ? "rgba(255,255,255,0.09)"  : "rgba(0,0,0,0.07)";
-  const muted      = isDark ? "rgba(237,235,231,0.38)"  : "rgba(12,12,12,0.38)";
-  const iconBg     = isDark ? "rgba(255,255,255,0.07)"  : "rgba(0,0,0,0.05)";
+  const { width, height } = useWindowDimensions();
+  const scale = Math.min(width / SOURCE_WIDTH, height / SOURCE_HEIGHT);
+  const renderedWidth = SOURCE_WIDTH * scale;
+  const renderedHeight = SOURCE_HEIGHT * scale;
+  const offsetX = (width - renderedWidth) / 2;
+  const offsetY = (height - renderedHeight) / 2;
 
   return (
-    <View style={[ss.root, { backgroundColor: T.bg }]}>
-
-      {/* ── Floating back button (invisible header) ───────────────────────── */}
-      <TouchableOpacity
+    <View style={ss.root}>
+      <Image
+        source={aboutScreen}
+        style={ss.image}
+        resizeMode="contain"
+        accessibilityLabel="AkılCEP Hakkımızda"
+      />
+      <Pressable
         onPress={() => router.back()}
-        style={[ss.floatBack, { top: topPad + 10, backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)" }]}
-        hitSlop={14}
-        activeOpacity={0.60}
-      >
-        <Feather name="chevron-left" size={18} color={T.fg} />
-      </TouchableOpacity>
-
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: btmPad + 48, paddingTop: topPad + 52 }}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Hero / Brand ─────────────────────────────────────────────────── */}
-        <View style={ss.hero}>
-          <View style={[ss.logoWrap, { backgroundColor: T.bgAlt }]}>
-            <Image
-              source={leafLogo}
-              style={[ss.logo, { tintColor: T.logoTint }]}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={[ss.heroTitle, { color: T.fg }]}>AkılCEP</Text>
-          <Text style={[ss.heroSub, { color: muted }]}>{t("about.tagline")}</Text>
-          <Text style={[ss.heroDesc, { color: T.fgSoft }]}>
-            {t("about.heroDesc")}
-          </Text>
-        </View>
-
-        {/* ── Features ─────────────────────────────────────────────────────── */}
-        <Text style={[ss.sectionLabel, { color: muted }]}>{t("about.features")}</Text>
-        <View style={[ss.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-          {FEATURES.map((f, idx) => (
-            <View
-              key={f.icon}
-              style={[
-                ss.featureRow,
-                idx < FEATURES.length - 1 && {
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                  borderBottomColor: divider,
-                },
-              ]}
-            >
-              <View style={[ss.featureIcon, { backgroundColor: iconBg }]}>
-                <Feather name={f.icon} size={15} color={T.fg} style={{ opacity: 0.65 }} />
-              </View>
-              <View style={ss.featureText}>
-                <Text style={[ss.featureLabel, { color: T.fg }]}>{f.label}</Text>
-                <Text style={[ss.featureDesc, { color: muted }]}>{f.desc}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Version + Copyright ──────────────────────────────────────────── */}
-        <View style={ss.footer}>
-          <Text style={[ss.version, { color: muted }]}>v1.0</Text>
-          <View style={[ss.footerDivider, { backgroundColor: divider }]} />
-          <Text style={[ss.copyright, { color: muted }]}>© AkılCEP</Text>
-        </View>
-
-      </ScrollView>
+        style={[
+          ss.backHitArea,
+          {
+            left: offsetX + BACK_CENTER_X * scale - BACK_HIT_SIZE / 2,
+            top: offsetY + BACK_CENTER_Y * scale - BACK_HIT_SIZE / 2,
+          },
+        ]}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Geri"
+      />
     </View>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-
-  // Floating back button (invisible header)
-  floatBack: {
-    position:       "absolute",
-    left:           16,
-    zIndex:         10,
-    width:          36,
-    height:         36,
-    borderRadius:   18,
-    alignItems:     "center",
-    justifyContent: "center",
+  image: {
+    ...StyleSheet.absoluteFill,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
   },
-
-  // Section label
-  sectionLabel: {
-    fontSize:          11,
-    fontFamily:        "Inter_500Medium",
-    letterSpacing:     0.6,
-    textTransform:     "uppercase",
-    paddingHorizontal: 20,
-    paddingTop:        28,
-    paddingBottom:     8,
-  },
-
-  // Card
-  card: {
-    marginHorizontal: 16,
-    borderRadius:     16,
-    borderWidth:      StyleSheet.hairlineWidth,
-    overflow:         "hidden",
-  },
-
-  // Hero section
-  hero: {
-    alignItems: "center",
-    paddingTop: 44,
-    paddingBottom: 8,
-    gap: 8,
-  },
-
-  logoWrap: {
-    width:          80,
-    height:         80,
-    borderRadius:   24,
-    alignItems:     "center",
-    justifyContent: "center",
-    marginBottom:   8,
-  },
-
-  logo: {
-    width:  48,
-    height: 48,
-  },
-
-  heroTitle: {
-    fontSize:      28,
-    fontFamily:    "Inter_700Bold",
-    letterSpacing: 2.4,
-  },
-
-  heroSub: {
-    fontSize:      14,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.1,
-  },
-
-  heroDesc: {
-    fontSize:      15,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-    textAlign:     "center",
-    paddingHorizontal: 40,
-    marginTop:     4,
-    lineHeight:    22,
-  },
-
-  // Feature row
-  featureRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    paddingHorizontal: 16,
-    paddingVertical:   14,
-    gap:               14,
-  },
-
-  featureIcon: {
-    width:          38,
-    height:         38,
-    borderRadius:   12,
-    alignItems:     "center",
-    justifyContent: "center",
-    flexShrink:     0,
-  },
-
-  featureText: {
-    flex: 1,
-    gap:  3,
-  },
-
-  featureLabel: {
-    fontSize:      15,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: -0.2,
-  },
-
-  featureDesc: {
-    fontSize:      13,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
-  },
-
-  // Footer
-  footer: {
-    alignItems:   "center",
-    paddingTop:   40,
-    paddingBottom: 16,
-    gap:           10,
-  },
-
-  version: {
-    fontSize:   13,
-    fontFamily: "Inter_400Regular",
-  },
-
-  footerDivider: {
-    width:  32,
-    height: StyleSheet.hairlineWidth,
-  },
-
-  copyright: {
-    fontSize:      13,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: 0.2,
+  backHitArea: {
+    position: "absolute",
+    width: BACK_HIT_SIZE,
+    height: BACK_HIT_SIZE,
+    borderRadius: BACK_HIT_SIZE / 2,
   },
 });
