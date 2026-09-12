@@ -31,7 +31,6 @@ import {
   BackHandler,
   FlatList,
   Image,
-  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -158,6 +157,10 @@ export default function ChatScreen() {
   const isSecretChat = !!currentConversation?.isPrivate;
 
   const flatListRef     = useRef<FlatList>(null);
+  const textInputRef    = useRef<TextInput>(null);
+  const inputFocusedRef = useRef(false);
+  const inputBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoreInputFocusRef = useRef(false);
   const sideMenuRef     = useRef<SideMenuHandle>(null);
   const menuVisibleRef  = useRef(false);
   const voicePhaseRef   = useRef<VoicePhase>("idle");
@@ -251,9 +254,8 @@ export default function ChatScreen() {
     // animated keyboard height instead so an open keyboard always gets 0 inset.
     const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
     return {
-      bottom:
-        (bottomPad + 8) * (1 - keyboardReveal)
-        - kbH.value,
+      bottom: (bottomPad + 8) * (1 - keyboardReveal),
+      transform: [{ translateY: kbH.value }],
     };
   });
   const rootAuraPositionStyle = useAnimatedStyle(() => ({
@@ -358,29 +360,6 @@ export default function ChatScreen() {
 
   // ── Panel — multimodal AI toolbox ──────────────────────────────────────────
   const [panelOpen, setPanelOpen] = useState(false);
-  const keyboardVisibleRef = useRef(false);
-  const openPanelAfterKeyboardRef = useRef(false);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSubscription = Keyboard.addListener(showEvent, () => {
-      keyboardVisibleRef.current = true;
-      openPanelAfterKeyboardRef.current = false;
-      setPanelOpen(false);
-    });
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      keyboardVisibleRef.current = false;
-      if (openPanelAfterKeyboardRef.current) {
-        openPanelAfterKeyboardRef.current = false;
-        setPanelOpen(true);
-      }
-    });
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
   const plusRotSV = useSharedValue(0);
@@ -1179,17 +1158,21 @@ export default function ChatScreen() {
             <Pressable
               style={ss.dockPlusInner}
               onPressIn={() => {
+                restoreInputFocusRef.current = inputFocusedRef.current;
                 plusScaleSV.value = withTiming(1, PRESS_IN);
                 if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
               onPress={() => {
-                if (keyboardVisibleRef.current) {
-                  openPanelAfterKeyboardRef.current = true;
-                  Keyboard.dismiss();
-                  return;
-                }
                 setPanelOpen((current) => !current);
+                if (restoreInputFocusRef.current) {
+                  setTimeout(() => {
+                    textInputRef.current?.focus();
+                    restoreInputFocusRef.current = false;
+                  }, 80);
+                } else {
+                  restoreInputFocusRef.current = false;
+                }
               }}
               hitSlop={4}
             >
@@ -1203,6 +1186,7 @@ export default function ChatScreen() {
           <Animated.View style={[ss.underlineInput, inputFieldAnim]}>
             <View style={ss.underlineInputRow}>
               <TextInput
+                ref={textInputRef}
                 style={[
                   ss.dockField,
                   {
@@ -1224,11 +1208,18 @@ export default function ChatScreen() {
                 onSubmitEditing={() => { if (hasComposerContent) void handleSend(); }}
                 editable={!voiceActive && !sttListening}
                 onFocus={() => {
-                  openPanelAfterKeyboardRef.current = false;
-                  setPanelOpen(false);
+                  if (inputBlurTimerRef.current) {
+                    clearTimeout(inputBlurTimerRef.current);
+                    inputBlurTimerRef.current = null;
+                  }
+                  inputFocusedRef.current = true;
                   inputFocused.value = withTiming(1, FOCUS_DUR);
                 }}
                 onBlur={() => {
+                  inputBlurTimerRef.current = setTimeout(() => {
+                    inputFocusedRef.current = false;
+                    inputBlurTimerRef.current = null;
+                  }, 120);
                   inputFocused.value = withTiming(0, FOCUS_DUR);
                 }}
               />

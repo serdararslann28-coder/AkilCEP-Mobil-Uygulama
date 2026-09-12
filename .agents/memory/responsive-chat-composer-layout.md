@@ -7,8 +7,8 @@ Keep attachment previews in a separate horizontal row above the input controls, 
 
 **Why:** The two-row arrangement was explicitly confirmed on a physical Android device with no overlap or overflow. The user later confirmed the rows should read visually as one composer rather than separate floating sections. Combining both into one row or restoring a fixed height risks reintroducing overflow.
 
-When the keyboard opens, close the multimodal `+` panel immediately. Keep the composer attached to the animated keyboard height, but fade out the device bottom safe-area contribution as keyboard progress reaches fully open so the inset is not counted twice.
+Keep the composer attached to the animated keyboard height with one Y-axis translation applied to the shared composer container, and fade out the device bottom safe-area contribution as the keyboard opens so the inset is not counted twice. The `+` panel may open while the keyboard remains visible; preserve input focus and translate the popup by the same keyboard height.
 
-**Why:** Leaving the panel open causes it to overlap the keyboard-adjusted composer, while retaining the full bottom inset above an open keyboard creates an unnecessary gap.
+**Why:** Updating an absolute `bottom` value was unreliable across Android/Expo Go window modes, and dismissing the keyboard before opening the popup contradicted the required interaction. A shared translation keeps `+`, input, microphone, send, and popup synchronized.
 
-**How to apply:** Preserve the two-row structure inside one shared visual container and keep measured-height spacing during future composer changes. When there are no attachments, preserve the compact original input appearance. Any new way of focusing the input must also close the multimodal panel.
+**How to apply:** Preserve the two-row structure inside one shared visual container and keep measured-height spacing during future composer changes. When there are no attachments, preserve the compact original input appearance. Do not split composer controls into independently positioned keyboard elements.

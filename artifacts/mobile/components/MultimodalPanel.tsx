@@ -164,8 +164,8 @@ export default function MultimodalPanel({
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
   const panelStyle = useAnimatedStyle(() => ({
     opacity: panelOpacity.value,
-    bottom: bottomOffset + PANEL_GAP - kbH.value,
-    transform: [{ translateY: panelY.value }],
+    bottom: bottomOffset + PANEL_GAP,
+    transform: [{ translateY: panelY.value + kbH.value }],
   }));
 
   const handleCamera = useCallback(() => {
