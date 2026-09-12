@@ -78,7 +78,6 @@ interface ConversationRowProps {
   title: string;
   isActive: boolean;
   foreground: string;
-  rowBackground: string;
   onSelect: () => void;
   onRequestDelete: () => void;
 }
@@ -87,7 +86,6 @@ function ConversationRow({
   title,
   isActive,
   foreground,
-  rowBackground,
   onSelect,
   onRequestDelete,
 }: ConversationRowProps) {
@@ -125,10 +123,7 @@ function ConversationRow({
       {...horizontalDragResponder.panHandlers}
     >
       <TouchableOpacity
-        style={[
-          ss.convRow,
-          { backgroundColor: rowBackground },
-        ]}
+        style={ss.convRow}
         onPress={() => {
           if (suppressPressRef.current) {
             suppressPressRef.current = false;
@@ -145,24 +140,27 @@ function ConversationRow({
         delayLongPress={500}
         activeOpacity={0.68}
       >
-        {isActive && (
-          <View style={[ss.activeBar, { backgroundColor: foreground }]} />
-        )}
         <Feather
           name="message-square"
-          size={12}
+          size={16}
           color={foreground}
-          style={{ opacity: isActive ? 0.65 : 0.35, flexShrink: 0 }}
+          style={{ opacity: isActive ? 0.72 : 0.48, flexShrink: 0 }}
         />
         <Text
           style={[
             ss.convTitle,
-            { color: foreground, opacity: isActive ? 1 : 0.72 },
+            { color: foreground, opacity: isActive ? 1 : 0.88 },
           ]}
           numberOfLines={1}
         >
           {title}
         </Text>
+        <Feather
+          name="chevron-right"
+          size={15}
+          color={foreground}
+          style={{ opacity: 0.32, flexShrink: 0 }}
+        />
       </TouchableOpacity>
     </View>
   );
@@ -351,7 +349,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const panelOverlay  = isDark ? "rgba(8,8,10,0.82)"       : "rgba(253,253,251,0.88)";
   const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
-  const rowActiveBg   = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
   const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
@@ -486,7 +483,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                       title={conv.title}
                       isActive={isActive}
                       foreground={T.fg}
-                      rowBackground={isActive ? rowActiveBg : panelOverlay}
                       onSelect={() => {
                         Haptics.selectionAsync();
                         loadConversation(conv.id);
@@ -784,28 +780,19 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     paddingHorizontal: 20,
-    paddingVertical:   10,
-    gap:               10,
-    borderRadius:      10,
+    minHeight:         52,
+    paddingVertical:   14,
+    gap:               12,
     position:          "relative",
-    marginHorizontal: 8,
-  },
-
-  activeBar: {
-    position:     "absolute",
-    left:         10,
-    top:          "50%",
-    marginTop:    -8,
-    width:        3,
-    height:       16,
-    borderRadius: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E5EA",
   },
 
   convTitle: {
     flex:          1,
-    fontSize:      14,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: -0.1,
+    fontSize:      16,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.2,
   },
 
   // Empty state
