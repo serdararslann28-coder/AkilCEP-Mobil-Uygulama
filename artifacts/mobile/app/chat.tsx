@@ -1127,7 +1127,7 @@ export default function ChatScreen() {
                 <View key={attachment.id} style={[ss.attachmentCard, { backgroundColor: T.isDark ? "#242424" : "#F1F2F4" }]}>
                   {attachment.kind === "image" ? (
                     <View style={ss.attachmentMedia}>
-                      <Image source={{ uri: attachment.uri }} style={ss.attachmentImage} />
+                      <Image source={{ uri: attachment.uri }} style={ss.attachmentImage} resizeMode="cover" />
                       <Pressable
                         style={[
                           ss.attachmentImageRemove,
@@ -1694,8 +1694,8 @@ const ss = StyleSheet.create({
     flexGrow: 0,
   },
   attachmentCard: {
-    width: 164,
-    minHeight: 76,
+    width: 195,
+    minHeight: 106,
     borderRadius: 14,
     padding: 7,
     paddingRight: 24,
@@ -1705,22 +1705,22 @@ const ss = StyleSheet.create({
     position: "relative",
   },
   attachmentMedia: {
-    width: 61,
-    height: 61,
+    width: 92,
+    height: 92,
     position: "relative",
   },
   attachmentImage: {
-    width: 61,
-    height: 61,
-    borderRadius: 10,
+    width: 92,
+    height: 92,
+    borderRadius: 14,
   },
   attachmentImageRemove: {
     position: "absolute",
     top: 4,
     right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
