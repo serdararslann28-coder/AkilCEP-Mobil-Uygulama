@@ -156,7 +156,7 @@ async function serveQrPage(res) {
   </style>
 </head>
 <body>
-  <h1>AkılCEP AI — Expo Go</h1>
+  <h1>AkılCEP — Expo Go</h1>
   <div class="card">
     <div class="badge">Scan with Expo Go</div>
     ${qrImg}

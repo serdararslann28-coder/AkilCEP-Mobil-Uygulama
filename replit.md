@@ -1,4 +1,4 @@
-# AkılCEP AI
+# AkılCEP
 
 Premium Turkish AI assistant mobile app with ultra-minimalist Apple × Nothing aesthetic, cinematic Voice Mode, and a full PURE/VOID theme system.
 

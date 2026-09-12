@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "AkılCEP AI",
+    "name": "AkılCEP",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,10 +16,10 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "AkılCEP AI, kameranızı AI Vizyon Modu için kullanmak istiyor.",
-        "NSMicrophoneUsageDescription": "AkılCEP AI, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor.",
-        "NSPhotoLibraryAddUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor.",
-        "NSPhotoLibraryUsageDescription": "AkılCEP AI, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor."
+        "NSCameraUsageDescription": "AkılCEP, kameranızı AI Vizyon Modu için kullanmak istiyor.",
+        "NSMicrophoneUsageDescription": "AkılCEP, ses kaydı ve sesli sohbet için mikrofonunuza erişmek istiyor.",
+        "NSPhotoLibraryAddUsageDescription": "AkılCEP, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor.",
+        "NSPhotoLibraryUsageDescription": "AkılCEP, oluşturulan görselleri fotoğraf kütüphanenize kaydetmek istiyor."
       },
       "bundleIdentifier": "com.akilcep.ai"
     },
@@ -49,8 +49,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "AkılCEP AI, AI Vizyon Modu için kameranıza erişmek istiyor.",
-          "microphonePermission": "AkılCEP AI, ses kaydı için mikrofonunuza erişmek istiyor.",
+          "cameraPermission": "AkılCEP, AI Vizyon Modu için kameranıza erişmek istiyor.",
+          "microphonePermission": "AkılCEP, ses kaydı için mikrofonunuza erişmek istiyor.",
           "recordAudioAndroid": true
         }
       ],
