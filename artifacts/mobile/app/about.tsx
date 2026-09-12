@@ -1,74 +1,60 @@
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const aboutScreen = require("@/assets/images/about-screen.png");
 const SOURCE_WIDTH = 852;
 const SOURCE_HEIGHT = 1846;
-const BACK_CENTER_X = 72;
-const BACK_CENTER_Y = 72;
 const BACK_HIT_SIZE = 48;
 
 export default function AboutScreen() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const contentHeight = Math.max(height, (width * SOURCE_HEIGHT) / SOURCE_WIDTH);
-  const scale = Math.max(width / SOURCE_WIDTH, contentHeight / SOURCE_HEIGHT);
-  const renderedWidth = SOURCE_WIDTH * scale;
-  const renderedHeight = SOURCE_HEIGHT * scale;
-  const offsetX = (width - renderedWidth) / 2;
-  const offsetY = (contentHeight - renderedHeight) / 2;
-  const backLeft = Math.max(
-    0,
-    Math.min(
-      width - BACK_HIT_SIZE,
-      offsetX + BACK_CENTER_X * scale - BACK_HIT_SIZE / 2,
-    ),
-  );
-  const backTop = Math.max(
-    0,
-    Math.min(
-      contentHeight - BACK_HIT_SIZE,
-      offsetY + BACK_CENTER_Y * scale - BACK_HIT_SIZE / 2,
-    ),
-  );
 
   return (
-    <ScrollView
-      style={ss.root}
-      contentContainerStyle={{ height: contentHeight }}
-      showsVerticalScrollIndicator={false}
-      bounces
-      overScrollMode="always"
-    >
-      <View style={[ss.imageContainer, { height: contentHeight }]}>
+    <View style={ss.root}>
+      <StatusBar style="dark" />
+      <ScrollView
+        style={ss.scroll}
+        contentContainerStyle={{ minHeight: contentHeight }}
+        showsVerticalScrollIndicator={false}
+        bounces
+        overScrollMode="always"
+      >
         <Image
           source={aboutScreen}
-          style={ss.image}
-          resizeMode="cover"
+          style={{ width, height: (width * SOURCE_HEIGHT) / SOURCE_WIDTH }}
+          resizeMode="contain"
           accessibilityLabel="AkılCEP Hakkımızda"
         />
-        <Pressable
-          onPress={() => router.back()}
-          style={[
-            ss.backHitArea,
-            {
-              left: backLeft,
-              top: backTop,
-            },
-          ]}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Geri"
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+      <Pressable
+        onPress={() => router.back()}
+        style={[
+          ss.backButton,
+          {
+            left: Math.max(insets.left + 12, 12),
+            top: insets.top + 8,
+          },
+        ]}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Geri"
+      >
+        <Text style={ss.backIcon}>‹</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -77,20 +63,26 @@ const ss = StyleSheet.create({
     flex: 1,
     backgroundColor: "#EAF7FF",
   },
-  imageContainer: {
-    width: "100%",
-    overflow: "hidden",
+  scroll: {
+    flex: 1,
+    backgroundColor: "#EAF7FF",
   },
-  image: {
-    ...StyleSheet.absoluteFill,
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  backHitArea: {
+  backButton: {
     position: "absolute",
     width: BACK_HIT_SIZE,
     height: BACK_HIT_SIZE,
     borderRadius: BACK_HIT_SIZE / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.82)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0, 0, 0, 0.08)",
+  },
+  backIcon: {
+    color: "#111111",
+    fontSize: 36,
+    fontWeight: "300",
+    lineHeight: 38,
+    marginTop: -2,
   },
 });
