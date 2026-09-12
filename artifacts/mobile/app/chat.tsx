@@ -985,7 +985,6 @@ export default function ChatScreen() {
             })),
           );
         }}
-        onNote={() => setExpandedOpen(true)}
         onLocationPicked={({ latitude, longitude }) => {
           const locationUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
           setInputText((current) => current ? `${current}\n${locationUrl}` : locationUrl);
@@ -1615,6 +1614,7 @@ const ss = StyleSheet.create({
     position:          "absolute",
     left:              0,
     right:             0,
+    zIndex:            170,
     paddingTop:        4,
     alignItems:        "center",
   },

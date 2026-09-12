@@ -1,40 +1,22 @@
-/**
- * MultimodalPanel — premium Apple-inspired attachment sheet.
- *
- * Layout: two paired rows plus one centered action.
- *         Icon (52px circle) centered at top, title + subtitle centered below.
- *
- * Glass surface:
- *   Outer Animated.View: shadow carrier (no overflow:hidden)
- *   Inner View: overflow:hidden clips BlurView to borderRadius 34
- *   BlurView intensity 85 + soft white overlay + hairline border
- *
- * Entry:
- *   Panel: overdamped spring + 200ms opacity
- *   Backdrop: 180ms fade
- *   Cards: staggered 0/50/100/150ms — opacity + scale 0.96→1.00
- *
- * Press: scale 1→0.98 in 90ms, return in 200ms cubic-out + haptic
- * Close: 150ms snap-down, cards collapse in 110ms
- */
-import { BlurView }           from "expo-blur";
-import * as Haptics           from "expo-haptics";
-import * as ImagePicker       from "expo-image-picker";
-import * as Location          from "expo-location";
-import { File as ExpoFile }   from "expo-file-system";
-import { router }             from "expo-router";
-import { Feather }            from "@expo/vector-icons";
-import { useKeyboardContext } from "react-native-keyboard-controller";
+import { Feather } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { File as ExpoFile } from "expo-file-system";
+import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import { router } from "expo-router";
 import React, { useCallback, useEffect } from "react";
 import {
-  Dimensions,
   Alert,
+  BackHandler,
+  Dimensions,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useKeyboardContext } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -45,26 +27,17 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { useLanguage } from "@/context/LanguageContext";
-import { useTheme }    from "@/context/ThemeContext";
+import { useTheme } from "@/context/ThemeContext";
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
-const SW        = Dimensions.get("window").width;
-const PANEL_MX  = SW * 0.04;                              // 4% each side → 92% width
-const INNER_PAD = 14;                                     // horizontal + vertical padding inside panel
-const CARD_GAP  = 12;                                     // gap between cards
-const CARD_W    = (SW * 0.92 - INNER_PAD * 2 - CARD_GAP) / 2;  // exactly ~45% of panel
-const PANEL_GAP = 8;                                      // gap between panel bottom and input bar
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const PANEL_LEFT = SCREEN_WIDTH * 0.04;
+const PANEL_WIDTH = Math.min(300, SCREEN_WIDTH - PANEL_LEFT - 16);
+const PANEL_GAP = 6;
+const EASE_OUT = Easing.out(Easing.cubic);
+const EASE_IN = Easing.in(Easing.ease);
+const PANEL_SPRING = { damping: 30, stiffness: 260, mass: 0.9 };
 
-// ─── Easing curves ────────────────────────────────────────────────────────────
-const EASE_OUT  = Easing.out(Easing.cubic);
-const EASE_IN   = Easing.in(Easing.ease);
-const EASE_SNAP = Easing.out(Easing.ease);
-
-// ─── Spring — overdamped, zero overshoot ──────────────────────────────────────
-const PANEL_SPRING = { damping: 32, stiffness: 240, mass: 1.0 };
-
-// ─── Action IDs ───────────────────────────────────────────────────────────────
-type ActionId = "photos" | "camera" | "files" | "note" | "location";
+type ActionId = "camera" | "photos" | "files" | "location";
 
 function inferFileMimeType(name: string, nativeType: string): string {
   if (nativeType) return nativeType;
@@ -76,149 +49,125 @@ function inferFileMimeType(name: string, nativeType: string): string {
   return "application/octet-stream";
 }
 
-// ─── ActionCard ───────────────────────────────────────────────────────────────
-function ActionCard({
+function ActionRow({
   icon,
   label,
-  sub,
   index,
   open,
   isDark,
   onPress,
 }: {
-  icon:    React.ComponentProps<typeof Feather>["name"];
-  label:   string;
-  sub:     string;
-  index:   number;
-  open:    boolean;
-  isDark:  boolean;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  label: string;
+  index: number;
+  open: boolean;
+  isDark: boolean;
   onPress: () => void;
 }) {
-  const stagger    = index * 50;
-  const entOp      = useSharedValue(0);
-  const entScale   = useSharedValue(0.96);
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(6);
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
     if (open) {
-      entOp.value    = withDelay(stagger, withTiming(1,   { duration: 200, easing: EASE_OUT }));
-      entScale.value = withDelay(stagger, withTiming(1.0, { duration: 240, easing: EASE_OUT }));
+      opacity.value = withDelay(index * 35, withTiming(1, { duration: 170, easing: EASE_OUT }));
+      translateY.value = withDelay(index * 35, withTiming(0, { duration: 190, easing: EASE_OUT }));
     } else {
-      entOp.value    = withTiming(0,    { duration: 110 });
-      entScale.value = withTiming(0.97, { duration: 110 });
+      opacity.value = withTiming(0, { duration: 100 });
+      translateY.value = withTiming(5, { duration: 100 });
       pressScale.value = 1;
     }
   }, [open]);
 
-  const cardAnim = useAnimatedStyle(() => ({
-    opacity:   entOp.value,
-    transform: [{ scale: entScale.value * pressScale.value }],
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { translateY: translateY.value },
+      { scale: pressScale.value },
+    ],
   }));
 
-  const handlePressIn = useCallback(() => {
-    pressScale.value = withTiming(0.98, { duration: 90, easing: EASE_SNAP });
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
-
-  const handlePressOut = useCallback(() => {
-    pressScale.value = withTiming(1.0, { duration: 200, easing: EASE_OUT });
-  }, []);
-
-  // Theme-reactive colors
-  const cardBg     = isDark ? "rgba(40,40,40,0.82)"   : "rgba(255,255,255,0.95)";
-  const cardBorder = isDark ? "rgba(255,255,255,0.10)" : "#ECECEC";
-  const iconBg     = isDark ? "rgba(255,255,255,0.12)" : "#F5F5F7";
-  const iconColor  = isDark ? "rgba(255,255,255,0.88)" : "#222222";
-  const labelColor = isDark ? "rgba(255,255,255,0.92)" : "#222222";
-  const subColor   = isDark ? "rgba(255,255,255,0.44)" : "#9B9B9B";
+  const iconBg = isDark ? "rgba(255,255,255,0.10)" : "#F2F3F5";
+  const iconColor = isDark ? "rgba(255,255,255,0.88)" : "#222222";
+  const labelColor = isDark ? "rgba(255,255,255,0.94)" : "#171717";
+  const chevronColor = isDark ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.24)";
 
   return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onPress}>
-      <Animated.View style={[ss.card, cardAnim, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-        {/* Icon circle — 52×52, centered */}
+    <Pressable
+      onPressIn={() => {
+        pressScale.value = withTiming(0.98, { duration: 80 });
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }}
+      onPressOut={() => {
+        pressScale.value = withTiming(1, { duration: 160, easing: EASE_OUT });
+      }}
+      onPress={onPress}
+    >
+      <Animated.View style={[ss.actionRow, animatedStyle]}>
         <View style={[ss.iconWrap, { backgroundColor: iconBg }]}>
-          <Feather name={icon} size={26} color={iconColor} />
+          <Feather name={icon} size={19} color={iconColor} />
         </View>
-        {/* Title — up to 2 lines, centered */}
-        <Text style={[ss.cardLabel, { color: labelColor }]} numberOfLines={2}>{label}</Text>
-        {/* Subtitle — up to 2 lines, centered */}
-        <Text style={[ss.cardSub, { color: subColor }]} numberOfLines={2}>{sub}</Text>
+        <Text style={[ss.actionLabel, { color: labelColor }]}>{label}</Text>
+        <Feather name="chevron-right" size={16} color={chevronColor} />
       </Animated.View>
     </Pressable>
   );
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
-  open:           boolean;
-  onClose:        () => void;
+  open: boolean;
+  onClose: () => void;
   onImagesPicked?: (assets: ImagePicker.ImagePickerAsset[]) => void;
   onFilesPicked?: (files: { uri: string; name: string; mimeType?: string; size?: number }[]) => void;
-  onNote?:        () => void;
   onLocationPicked?: (location: { latitude: number; longitude: number }) => void;
-  bottomOffset:   number;
+  bottomOffset: number;
 }
 
-// ─── Panel ────────────────────────────────────────────────────────────────────
 export default function MultimodalPanel({
   open,
   onClose,
   onImagesPicked,
   onFilesPicked,
-  onNote,
   onLocationPicked,
   bottomOffset,
 }: Props) {
   const { theme: T } = useTheme();
   const { t } = useLanguage();
-
-  const ACTIONS: { id: ActionId; icon: React.ComponentProps<typeof Feather>["name"]; label: string; sub: string }[] = [
-    { id: "photos", icon: "image",     label: t("multimodal.gallery.label"),   sub: t("multimodal.gallery.sub")    },
-    { id: "camera", icon: "camera",    label: t("multimodal.takePhoto.label"), sub: t("multimodal.takePhoto.sub")  },
-    { id: "files",  icon: "paperclip", label: t("multimodal.file.label"),      sub: t("multimodal.file.sub")       },
-    { id: "note",   icon: "edit-3",    label: t("multimodal.note.label"),      sub: t("multimodal.note.sub")       },
-    { id: "location", icon: "map-pin", label: t("multimodal.location.label"),  sub: t("multimodal.location.sub")   },
-  ];
   const { reanimated } = useKeyboardContext();
   const kbH = reanimated.height;
 
-  const panelOp = useSharedValue(0);
-  const panelY  = useSharedValue(20);
-  const bdOp    = useSharedValue(0);
-  const pillOp  = useSharedValue(0);
+  const panelOpacity = useSharedValue(0);
+  const panelY = useSharedValue(12);
+  const backdropOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
-      bdOp.value    = withTiming(1,  { duration: 180 });
-      pillOp.value  = withTiming(1,  { duration: 140, easing: EASE_OUT });
-      panelOp.value = withTiming(1,  { duration: 200, easing: EASE_OUT });
-      panelY.value  = withSpring(0,  PANEL_SPRING);
+      backdropOpacity.value = withTiming(1, { duration: 150 });
+      panelOpacity.value = withTiming(1, { duration: 180, easing: EASE_OUT });
+      panelY.value = withSpring(0, PANEL_SPRING);
     } else {
-      bdOp.value    = withTiming(0,  { duration: 160 });
-      pillOp.value  = withTiming(0,  { duration: 120 });
-      panelOp.value = withTiming(0,  { duration: 150 });
-      panelY.value  = withTiming(16, { duration: 160, easing: EASE_IN });
+      backdropOpacity.value = withTiming(0, { duration: 130 });
+      panelOpacity.value = withTiming(0, { duration: 130 });
+      panelY.value = withTiming(10, { duration: 140, easing: EASE_IN });
     }
   }, [open]);
 
-  const bdStyle   = useAnimatedStyle(() => ({ opacity: bdOp.value }));
-  const pillStyle = useAnimatedStyle(() => ({ opacity: pillOp.value }));
+  useEffect(() => {
+    if (Platform.OS === "web" || !open) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [open, onClose]);
 
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
   const panelStyle = useAnimatedStyle(() => ({
-    opacity:   panelOp.value,
-    bottom:    bottomOffset + PANEL_GAP - kbH.value,
+    opacity: panelOpacity.value,
+    bottom: bottomOffset + PANEL_GAP - kbH.value,
     transform: [{ translateY: panelY.value }],
   }));
 
-  // Glass tokens
-  const blurTint      = T.isDark ? "dark"                   : "light";
-  const overlayColor  = T.isDark ? "rgba(18,18,18,0.65)"    : "rgba(255,255,255,0.82)";
-  const borderColor   = T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
-  const shadowColor   = "#000000";
-  const shadowOpacity = T.isDark ? 0.36 : 0.06;
-  const pillColor     = T.isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.14)";
-
-  // Action handlers
   const handleCamera = useCallback(() => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClose();
@@ -229,7 +178,7 @@ export default function MultimodalPanel({
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality:    0.88,
+      quality: 0.88,
       allowsMultipleSelection: true,
     });
     if (!result.canceled && result.assets.length) {
@@ -265,12 +214,6 @@ export default function MultimodalPanel({
     }
   }, [onClose, onFilesPicked, t]);
 
-  const handleNote = useCallback(() => {
-    if (Platform.OS !== "web") Haptics.selectionAsync();
-    onClose();
-    setTimeout(() => onNote?.(), 180);
-  }, [onClose, onNote]);
-
   const handleLocation = useCallback(async () => {
     if (Platform.OS === "web") {
       Alert.alert(t("multimodal.location.errorTitle"), t("multimodal.location.mobileOnly"));
@@ -297,192 +240,113 @@ export default function MultimodalPanel({
     }
   }, [onClose, onLocationPicked, t]);
 
-  const handlers: Record<ActionId, () => void> = {
-    camera: handleCamera,
-    photos: handlePhotos,
-    files:  handleFiles,
-    note: handleNote,
-    location: handleLocation,
-  };
+  const actions: {
+    id: ActionId;
+    icon: React.ComponentProps<typeof Feather>["name"];
+    label: string;
+    handler: () => void;
+  }[] = [
+    { id: "camera", icon: "camera", label: "Kamera", handler: handleCamera },
+    { id: "photos", icon: "image", label: "Fotoğraflar", handler: handlePhotos },
+    { id: "files", icon: "paperclip", label: "Dosyalar", handler: handleFiles },
+    { id: "location", icon: "map-pin", label: "Konum", handler: handleLocation },
+  ];
+
+  const panelColor = T.isDark ? "rgba(24,24,26,0.97)" : "rgba(255,255,255,0.98)";
+  const borderColor = T.isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.07)";
+  const dividerColor = T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
 
   return (
     <>
-      {/* Very light backdrop — Apple-style, not dark */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, ss.backdrop, bdStyle]}
+        style={[StyleSheet.absoluteFill, ss.backdrop, backdropStyle]}
         pointerEvents={open ? "auto" : "none"}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Outer shadow carrier — no overflow:hidden */}
       <Animated.View
-        style={[ss.panelShadow, panelStyle, { shadowColor, shadowOpacity }]}
-        pointerEvents={open ? "box-none" : "none"}
+        style={[
+          ss.panelShadow,
+          panelStyle,
+          { shadowOpacity: T.isDark ? 0.28 : 0.10 },
+        ]}
+        pointerEvents={open ? "auto" : "none"}
       >
-        {/* Glass surface — clips blur to borderRadius 34 */}
-        <View style={ss.panelGlass}>
-
+        <View style={[ss.panelSurface, { backgroundColor: panelColor, borderColor }]}>
           <BlurView
             style={StyleSheet.absoluteFill}
-            tint={blurTint}
-            intensity={85}
+            tint={T.isDark ? "dark" : "light"}
+            intensity={Platform.OS === "android" ? 35 : 65}
           />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }]} />
-          <View style={[StyleSheet.absoluteFill, ss.panelBorder, { borderColor }]} />
-
-          {/* Drag handle */}
-          <Animated.View style={[ss.dragPill, pillStyle, { backgroundColor: pillColor }]} />
-
-          {/* Row 1 */}
-          <View style={ss.gridRow}>
-            {ACTIONS.slice(0, 2).map((a, i) => (
-              <ActionCard
-                key={a.id}
-                icon={a.icon}
-                label={a.label}
-                sub={a.sub}
-                index={i}
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: panelColor }]} />
+          {actions.map((action, index) => (
+            <React.Fragment key={action.id}>
+              <ActionRow
+                icon={action.icon}
+                label={action.label}
+                index={index}
                 open={open}
                 isDark={T.isDark}
-                onPress={handlers[a.id]}
+                onPress={action.handler}
               />
-            ))}
-          </View>
-
-          {/* Gap between rows */}
-          <View style={{ height: CARD_GAP }} />
-
-          {/* Row 2 */}
-          <View style={ss.gridRow}>
-            {ACTIONS.slice(2, 4).map((a, i) => (
-              <ActionCard
-                key={a.id}
-                icon={a.icon}
-                label={a.label}
-                sub={a.sub}
-                index={i + 2}
-                open={open}
-                isDark={T.isDark}
-                onPress={handlers[a.id]}
-              />
-            ))}
-          </View>
-
-          <View style={{ height: CARD_GAP }} />
-
-          {/* Row 3 — centered location action */}
-          <View style={ss.gridSingleRow}>
-            {ACTIONS.slice(4, 5).map((a, i) => (
-              <ActionCard
-                key={a.id}
-                icon={a.icon}
-                label={a.label}
-                sub={a.sub}
-                index={i + 4}
-                open={open}
-                isDark={T.isDark}
-                onPress={handlers[a.id]}
-              />
-            ))}
-          </View>
-
+              {index < actions.length - 1 && (
+                <View style={[ss.divider, { backgroundColor: dividerColor }]} />
+              )}
+            </React.Fragment>
+          ))}
         </View>
       </Animated.View>
     </>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-
   backdrop: {
-    zIndex:          150,
-    backgroundColor: "rgba(0,0,0,0.05)",
+    zIndex: 150,
+    backgroundColor: "rgba(0,0,0,0.025)",
   },
-
-  // Shadow carrier — must NOT have overflow:hidden
   panelShadow: {
-    position:      "absolute",
-    zIndex:        160,
-    left:          PANEL_MX,
-    right:         PANEL_MX,
-    borderRadius:  34,
-    shadowOffset:  { width: 0, height: 4 },
-    shadowRadius:  24,
-    elevation:     18,
+    position: "absolute",
+    zIndex: 160,
+    left: PANEL_LEFT,
+    width: PANEL_WIDTH,
+    borderRadius: 22,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowRadius: 18,
+    elevation: 10,
   },
-
-  // Glass surface — clips blur + overlays
-  panelGlass: {
-    borderRadius:      34,
-    overflow:          "hidden",
-    paddingHorizontal: INNER_PAD,
-    paddingBottom:     INNER_PAD + 2,
-    paddingTop:        10,
-  },
-
-  panelBorder: {
-    borderRadius: 34,
-    borderWidth:  0.5,
-  },
-
-  dragPill: {
-    width:        36,
-    height:       4,
-    borderRadius: 2,
-    alignSelf:    "center",
-    marginBottom: 14,
-  },
-
-  // Row — two equal-width cards side by side
-  gridRow: {
-    flexDirection:  "row",
-    gap:            CARD_GAP,
-    alignItems:     "stretch",  // equal height within each row
-  },
-  gridSingleRow: {
-    flexDirection:  "row",
-    justifyContent: "center",
-  },
-
-  // Card — fixed width (~45% of panel), centered content
-  card: {
-    width:          CARD_W,
-    borderRadius:   22,
-    borderWidth:    0.5,
-    alignItems:     "center",
-    paddingTop:     18,
-    paddingBottom:  16,
+  panelSurface: {
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
     paddingHorizontal: 10,
+    paddingVertical: 8,
   },
-
-  // Icon circle — 52×52
+  actionRow: {
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    gap: 12,
+  },
   iconWrap: {
-    width:          52,
-    height:         52,
-    borderRadius:   26,
-    alignItems:     "center",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
     justifyContent: "center",
-    marginBottom:   14,
   },
-
-  // Title — Inter Medium 17px, centered
-  cardLabel: {
-    fontSize:      17,
-    fontFamily:    "Inter_500Medium",
+  actionLabel: {
+    flex: 1,
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
     letterSpacing: -0.2,
-    textAlign:     "center",
-    marginBottom:  5,
-    lineHeight:    22,
+    lineHeight: 22,
   },
-
-  // Subtitle — Inter Regular 13px, centered, max 2 lines
-  cardSub: {
-    fontSize:   13,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-    textAlign:  "center",
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 58,
   },
-
 });
