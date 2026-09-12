@@ -7,11 +7,9 @@ import { Feather }  from "@expo/vector-icons";
 import { router }   from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -101,7 +99,7 @@ export default function SettingsScreen() {
   const { conversations, deleteAllConversations } = useChat();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
-  const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const btmPad = Platform.OS === "web" ? 16 : insets.bottom;
   const isDark = T.isDark;
 
   const [notifications, setNotifications] = useState(true);
@@ -126,9 +124,14 @@ export default function SettingsScreen() {
         <Feather name="chevron-left" size={18} color={T.fg} />
       </TouchableOpacity>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: btmPad + 48, paddingTop: topPad + 52 }}
-        showsVerticalScrollIndicator={false}
+      <View
+        style={[
+          ss.content,
+          {
+            paddingTop: topPad + 48,
+            paddingBottom: btmPad + 8,
+          },
+        ]}
       >
 
         {/* ── Page title ───────────────────────────────────────────────────── */}
@@ -270,28 +273,13 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* ── Çıkış Yap ────────────────────────────────────────────────────── */}
-        <View style={ss.logoutWrap}>
-          <TouchableOpacity
-            style={[ss.logoutBtn, { borderColor: cardBorder }]}
-            onPress={() =>
-              Alert.alert(
-                t("settings.logout"),
-                t("settings.logoutConfirm"),
-                [
-                  { text: t("common.cancel"),  style: "cancel"      },
-                  { text: t("settings.logout"), style: "destructive" },
-                ]
-              )
-            }
-            activeOpacity={0.72}
-          >
-            <Feather name="log-out" size={16} color="#FF3B30" />
-            <Text style={ss.logoutLabel}>{t("settings.logout")}</Text>
-          </TouchableOpacity>
+        <View style={ss.footer}>
+          <Text style={[ss.footerBrand, { color: T.fg }]}>AkılCEP</Text>
+          <Text style={[ss.footerVersion, { color: muted }]}>
+            v1.0 • AI Assistant
+          </Text>
         </View>
-
-      </ScrollView>
+      </View>
 
       <Modal
         visible={deleteAllPromptOpen}
@@ -356,6 +344,10 @@ const ss = StyleSheet.create({
     flex: 1,
   },
 
+  content: {
+    flex: 1,
+  },
+
   // Floating back button (invisible header)
   floatBack: {
     position:       "absolute",
@@ -370,37 +362,42 @@ const ss = StyleSheet.create({
 
   // Page title (replaces header title in scroll content)
   pageTitle: {
-    fontSize:          28,
+    fontSize:          25,
     fontFamily:        "Inter_700Bold",
-    letterSpacing:     -0.6,
-    paddingHorizontal: 20,
-    paddingBottom:     8,
+    letterSpacing:     -0.5,
+    paddingHorizontal: 18,
+    paddingBottom:     2,
   },
 
   // Section label
   sectionLabel: {
-    fontSize:          11,
+    fontSize:          9.5,
     fontFamily:        "Inter_500Medium",
     letterSpacing:     0.6,
     textTransform:     "uppercase",
-    paddingHorizontal: 20,
-    paddingTop:        28,
-    paddingBottom:     8,
+    paddingHorizontal: 18,
+    paddingTop:        7,
+    paddingBottom:     3,
   },
 
   // Card container
   card: {
-    marginHorizontal: 16,
-    borderRadius:     16,
+    marginHorizontal: 14,
+    borderRadius:     12,
     borderWidth:      StyleSheet.hairlineWidth,
     overflow:         "hidden",
+    shadowColor:      "#000",
+    shadowOffset:     { width: 0, height: 1 },
+    shadowOpacity:    0.035,
+    shadowRadius:     3,
+    elevation:        1,
   },
 
   destructiveRow: {
-    minHeight:         52,
+    height:            39,
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
 
   destructiveLabel: {
@@ -485,8 +482,8 @@ const ss = StyleSheet.create({
   // Theme selector
   themeRow: {
     flexDirection:     "row",
-    gap:               8,
-    padding:           12,
+    gap:               6,
+    padding:           4,
   },
 
   themeOption: {
@@ -494,9 +491,9 @@ const ss = StyleSheet.create({
     flexDirection:  "row",
     alignItems:     "center",
     justifyContent: "center",
-    gap:            6,
-    paddingVertical: 11,
-    borderRadius:    12,
+    gap:            5,
+    height:          33,
+    borderRadius:    9,
     borderWidth:     StyleSheet.hairlineWidth,
   },
 
@@ -507,15 +504,15 @@ const ss = StyleSheet.create({
 
   // Row
   row: {
+    height:             39,
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 16,
-    paddingVertical:   14,
-    gap:               12,
+    paddingHorizontal: 12,
+    gap:               8,
   },
 
   rowIcon: {
-    width:          26,
+    width:          22,
     alignItems:     "center",
     justifyContent: "center",
     flexShrink:     0,
@@ -523,7 +520,7 @@ const ss = StyleSheet.create({
 
   rowLabel: {
     flex:          1,
-    fontSize:      15,
+    fontSize:      13.5,
     fontFamily:    "Inter_400Regular",
     letterSpacing: -0.1,
   },
@@ -535,29 +532,26 @@ const ss = StyleSheet.create({
   },
 
   rowValue: {
-    fontSize:   14,
+    fontSize:   12.5,
     fontFamily: "Inter_400Regular",
   },
 
-  // Logout
-  logoutWrap: {
-    paddingHorizontal: 16,
-    paddingTop:        28,
+  footer: {
+    flex:           1,
+    minHeight:      38,
+    alignItems:     "center",
+    justifyContent: "flex-end",
+    paddingTop:     6,
   },
 
-  logoutBtn: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "center",
-    gap:             10,
-    paddingVertical: 15,
-    borderRadius:    16,
-    borderWidth:     StyleSheet.hairlineWidth,
+  footerBrand: {
+    fontSize:   12,
+    fontFamily: "Inter_600SemiBold",
   },
 
-  logoutLabel: {
-    fontSize:   15,
-    fontFamily: "Inter_500Medium",
-    color:      "#FF3B30",
+  footerVersion: {
+    marginTop:  1,
+    fontSize:   9.5,
+    fontFamily: "Inter_400Regular",
   },
 });
