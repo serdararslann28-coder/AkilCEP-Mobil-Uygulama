@@ -1102,7 +1102,19 @@ export default function ChatScreen() {
         style={[ss.inputOuter, dockKbStyle]}
         onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
       >
-        <View style={ss.dock}>
+        <View
+          style={[
+            ss.dock,
+            pendingAttachments.length > 0 && [
+              ss.dockWithAttachments,
+              {
+                backgroundColor: T.isDark
+                  ? "rgba(22,22,24,0.96)"
+                  : "rgba(255,255,255,0.96)",
+              },
+            ],
+          ]}
+        >
           {pendingAttachments.length > 0 && (
             <ScrollView
               horizontal
@@ -1613,6 +1625,12 @@ const ss = StyleSheet.create({
     minWidth:          0,
     paddingVertical:   4,
   },
+  dockWithAttachments: {
+    borderRadius:      18,
+    paddingHorizontal: 8,
+    paddingTop:        8,
+    paddingBottom:     6,
+  },
   composerRow: {
     flexDirection: "row",
     alignItems:    "center",
@@ -1648,9 +1666,9 @@ const ss = StyleSheet.create({
   },
   attachmentStrip: {
     gap: 8,
-    paddingHorizontal: 2,
-    paddingBottom: 10,
-    paddingTop: 4,
+    paddingHorizontal: 0,
+    paddingBottom: 4,
+    paddingTop: 0,
   },
   attachmentScroller: {
     width:    "100%",
@@ -1661,9 +1679,11 @@ const ss = StyleSheet.create({
     minHeight: 64,
     borderRadius: 12,
     padding: 6,
+    paddingRight: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    position: "relative",
   },
   attachmentImage: {
     width: 52,
@@ -1690,6 +1710,9 @@ const ss = StyleSheet.create({
     marginTop: 3,
   },
   attachmentRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
     width: 20,
     height: 20,
     alignItems: "center",

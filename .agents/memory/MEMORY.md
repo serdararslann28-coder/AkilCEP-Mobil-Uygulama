@@ -10,5 +10,5 @@
 - [Expo Audio SDK 57 migration](expo-audio-sdk57-migration.md) — replace ExponentAV with expo-audio’s recorder lifecycle and verify real module paths, not comments
 - [Expo SDK 57 Android edge-to-edge](expo-sdk57-edge-to-edge.md) — fill every root provider and place custom controls with safe-area insets; old status-bar overlay props are gone
 - [Expo SDK 57 native file picker](expo-sdk57-file-picker.md) — use expo-file-system File.pickFileAsync for native multi-file selection; no expo-document-picker dependency needed
-- [Responsive chat composer layout](responsive-chat-composer-layout.md) — keep attachments and controls in separate rows and reserve measured composer height; verified on a physical Android device
+- [Responsive chat composer layout](responsive-chat-composer-layout.md) — keep previews and controls as two rows in one measured composer surface; preserve keyboard and safe-area behavior
 - [Android navigation-bar aura](android-navigation-bar-aura.md) — distinguish the three-button system area from composer spacing; extend visual effects through the real bottom inset
