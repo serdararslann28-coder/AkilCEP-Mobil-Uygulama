@@ -8,6 +8,12 @@
  * Gesture: Swipe-left closes the drawer.
  */
 import { Feather }   from "@expo/vector-icons";
+import {
+  BookOpen,
+  Clock,
+  Folder,
+  Grid,
+} from "lucide-react-native";
 import * as Haptics  from "expo-haptics";
 import { router }    from "expo-router";
 import React, {
@@ -432,6 +438,25 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           )}
         </View>
 
+        <View style={ss.navGroup}>
+          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+            <BookOpen size={20} color={T.fg} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: T.fg }]}>Kitaplık</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+            <Folder size={20} color={T.fg} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: T.fg }]}>Projeler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+            <Clock size={20} color={T.fg} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: T.fg }]}>Zamanlandı</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+            <Grid size={20} color={T.fg} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: T.fg }]}>Eklentiler</Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           style={ss.scroll}
           contentContainerStyle={ss.scrollContent}
@@ -658,6 +683,27 @@ const ss = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical:   7,
     borderRadius:  10,
+  },
+
+  navGroup: {
+    flexShrink:        0,
+    paddingHorizontal: 20,
+    paddingTop:        6,
+    paddingBottom:     10,
+    gap:               2,
+  },
+
+  navRow: {
+    minHeight:      44,
+    flexDirection:  "row",
+    alignItems:     "center",
+    gap:            14,
+  },
+
+  navText: {
+    fontSize:      16,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.2,
   },
 
   // ── Profile card ─────────────────────────────────────────────────────────────

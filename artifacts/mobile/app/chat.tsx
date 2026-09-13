@@ -63,8 +63,8 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 
-import SideMenu         from "@/components/SideMenu";
-import type { SideMenuHandle } from "@/components/SideMenu";
+import SideDrawer         from "@/components/SideDrawer";
+import type { SideDrawerHandle } from "@/components/SideDrawer";
 import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import ImageGenCard     from "@/components/ImageGenCard";
@@ -162,7 +162,7 @@ export default function ChatScreen() {
   const inputFocusedRef = useRef(false);
   const inputBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoreInputFocusRef = useRef(false);
-  const sideMenuRef     = useRef<SideMenuHandle>(null);
+  const sideMenuRef     = useRef<SideDrawerHandle>(null);
   const menuVisibleRef  = useRef(false);
   const voicePhaseRef   = useRef<VoicePhase>("idle");
   const voiceRecorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -998,7 +998,7 @@ export default function ChatScreen() {
         }}
         bottomOffset={composerContentHeight + bottomInset}
       />
-      <SideMenu
+      <SideDrawer
         ref={sideMenuRef}
         visible={menuVisible}
         onOpen={() => setMenuVisible(true)}
