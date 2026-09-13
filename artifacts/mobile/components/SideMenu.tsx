@@ -349,6 +349,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
+  const ghostSurface  = isDark ? "rgba(10,10,10,0.96)"      : "rgba(247,247,245,0.96)";
   const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
@@ -363,7 +364,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       </Animated.View>
 
       <Animated.View
-        style={[ss.panel, { width: MENU_W, backgroundColor: T.bg }, panelAnim]}
+        style={[ss.panel, { width: MENU_W, backgroundColor: ghostSurface }, panelAnim]}
         pointerEvents={visible ? "auto" : "none"}
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
