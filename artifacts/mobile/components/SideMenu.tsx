@@ -349,7 +349,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
-  const ghostSurface  = isDark ? "rgba(10,10,10,0.96)"      : "rgba(247,247,245,0.96)";
+  const ghostSurface  = isDark ? "rgba(10,10,10,0.96)"      : "rgba(255,255,255,0.98)";
   const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
@@ -486,8 +486,9 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
-              <Feather name="plus" size={17} color={T.fg} />
-              <Text style={[ss.fabLabel, { color: T.fg }]}>{t("sidebar.newChat")}</Text>
+              <View pointerEvents="none" style={ss.fabTail} />
+              <Feather name="plus" size={16} color="#FFFFFF" />
+              <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -860,15 +861,29 @@ const ss = StyleSheet.create({
 
   fab: {
     flex:            1,
-    minHeight:       52,
+    height:          46,
     flexDirection:   "row",
     alignItems:      "center",
     justifyContent:  "flex-start",
-    paddingHorizontal: 4,
-    gap:             10,
+    paddingHorizontal: 15,
+    borderRadius:    15,
+    gap:             8,
+    backgroundColor: "#000000",
+  },
+
+  fabTail: {
+    position:        "absolute",
+    left:            16,
+    bottom:          -4,
+    width:           10,
+    height:          10,
+    borderRadius:    2,
+    backgroundColor: "#000000",
+    transform:       [{ rotate: "45deg" }],
   },
 
   fabLabel: {
+    color:         "#FFFFFF",
     fontSize:      15,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,
