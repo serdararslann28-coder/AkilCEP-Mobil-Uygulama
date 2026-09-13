@@ -411,7 +411,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           style={ss.scroll}
           contentContainerStyle={[
             ss.scrollContent,
-            { paddingTop: topPad + 66 + (searchOpen ? 48 : 0) },
+            {
+              paddingTop: topPad + 66 + (searchOpen ? 48 : 0),
+              paddingBottom: btmPad + 72,
+            },
           ]}
           showsVerticalScrollIndicator={false}
           bounces
@@ -469,7 +472,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
         <View
           style={[
-            ss.bottomArea,
+            ss.ghostBottomContainer,
             { paddingBottom: btmPad },
           ]}
         >
@@ -800,11 +803,24 @@ const ss = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
 
-  // ── Bottom area ───────────────────────────────────────────────────────────────
-  bottomArea: {
-    flexShrink:        0,
+  ghostBottomContainer: {
+    position:          "absolute",
+    left:              0,
+    right:             0,
+    bottom:            0,
+    zIndex:            20,
     paddingHorizontal: 16,
-    zIndex:            2,
+    opacity:           1,
+    backgroundColor:   "transparent",
+    borderWidth:       0,
+    borderColor:       "transparent",
+    borderRadius:      0,
+    shadowColor:       "transparent",
+    shadowOpacity:     0,
+    shadowRadius:      0,
+    shadowOffset:      { width: 0, height: 0 },
+    elevation:         0,
+    boxShadow:         "none",
   },
 
   bottomActions: {
