@@ -199,7 +199,11 @@ export default function RootLayout() {
       >
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <KeyboardProvider>
+            <KeyboardProvider
+              statusBarTranslucent
+              navigationBarTranslucent
+              preserveEdgeToEdge
+            >
               <LanguageProvider>
                 <AuthProvider>
                   <ThemeProvider>

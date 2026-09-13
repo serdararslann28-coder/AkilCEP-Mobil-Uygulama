@@ -233,8 +233,8 @@ export default function ChatScreen() {
   const hasText     = inputText.trim().length > 0;
   const hasComposerContent = hasText || pendingAttachments.length > 0;
   const hasMessages = currentMessages.length > 0;
-  const topPad      = Platform.OS === "web" ? 60 : insets.top;
-  const bottomPad   = Platform.OS === "web" ? 34 : insets.bottom;
+  const topPad      = insets.top;
+  const bottomInset = insets.bottom;
 
   const addPendingAttachments = (incoming: ChatAttachment[]) => {
     setPendingAttachments((current) => {
@@ -261,16 +261,16 @@ export default function ChatScreen() {
   };
   const isSpeaking  = voicePhase === "speaking";
 
-  // Keyboard height tracking — dock floats above keyboard
+  // Keep the dock in the root edge-to-edge coordinate space. Its safe-area
+  // contribution lives inside the measured dock and fades out as the IME opens,
+  // so neither the navigation bar nor the keyboard inset is counted twice.
   const { reanimated: kbReanimated } = useKeyboardContext();
   const kbH = kbReanimated.height;
   const dockKbStyle = useAnimatedStyle(() => {
-    // Some Android keyboards stop progress just below 1, which leaves part of
-    // the safe-area inset above the IME. Derive the fade from the actual
-    // animated keyboard height instead so an open keyboard always gets 0 inset.
     const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
     return {
-      bottom: (bottomPad + 8) * (1 - keyboardReveal),
+      bottom: 0,
+      paddingBottom: bottomInset * (1 - keyboardReveal),
       transform: [{ translateY: kbH.value }],
     };
   });
@@ -984,7 +984,7 @@ export default function ChatScreen() {
           const locationUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
           setInputText((current) => current ? `${current}\n${locationUrl}` : locationUrl);
         }}
-        bottomOffset={bottomPad + 80}
+        bottomOffset={composerHeight}
       />
       <SideMenu
         ref={sideMenuRef}
@@ -1071,7 +1071,7 @@ export default function ChatScreen() {
           )}
           inverted
           showsVerticalScrollIndicator={false}
-           contentContainerStyle={[ss.msgList, { paddingTop: bottomPad + composerHeight }]}
+          contentContainerStyle={[ss.msgList, { paddingTop: composerHeight }]}
           ListHeaderComponent={isTyping ? (
             imagePending ? (
               <ImageGenCard />
@@ -1380,7 +1380,7 @@ export default function ChatScreen() {
           />
 
           {/* Bottom action bar */}
-          <View style={[ss.expandFooter, { borderTopColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", paddingBottom: bottomPad + 10 }]}>
+          <View style={[ss.expandFooter, { borderTopColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", paddingBottom: bottomInset }]}>
             <Text style={[ss.expandCounter, { color: T.muted }]}>
               {inputText.length} / 4000
             </Text>
