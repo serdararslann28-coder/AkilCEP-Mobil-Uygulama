@@ -48,7 +48,7 @@ import ProfileMenu     from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
-const MENU_W = SCREEN_W;
+const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 340);
 
 const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
 const defaultAvatar = require("@/assets/images/avatar.png");
@@ -216,8 +216,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   }, [visible]);
 
   const panelAnim = useAnimatedStyle(() => ({
-    opacity: backdropOp.value,
     transform: [{ translateX: translateX.value }],
+  }));
+  const backdropAnim = useAnimatedStyle(() => ({
+    opacity: backdropOp.value,
   }));
 
   const onOpenRef = useRef(onOpen);
@@ -353,7 +355,15 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   return (
     <>
       <Animated.View
-        style={[ss.panel, { backgroundColor: T.bg }, panelAnim]}
+        style={[ss.backdrop, backdropAnim]}
+        pointerEvents={visible ? "auto" : "none"}
+        {...panResponder.panHandlers}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      </Animated.View>
+
+      <Animated.View
+        style={[ss.panel, { width: MENU_W, backgroundColor: T.bg }, panelAnim]}
         pointerEvents={visible ? "auto" : "none"}
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
@@ -397,16 +407,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 <Feather name={searchOpen ? "x" : "search"} size={15} color={T.fg} style={{ opacity: 0.70 }} />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={ss.iconBtn}
-                onPress={onClose}
-                hitSlop={10}
-                activeOpacity={0.65}
-                accessibilityRole="button"
-                accessibilityLabel="Menüyü kapat"
-              >
-                <Feather name="x" size={18} color={T.fg} style={{ opacity: 0.70 }} />
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -474,7 +474,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         <View
           style={[
             ss.bottomArea,
-            { paddingBottom: btmPad + 12, borderTopColor: divider },
+            { paddingBottom: btmPad + 12 },
           ]}
         >
           <View style={ss.bottomActions}>
@@ -562,13 +562,22 @@ export default SideMenu;
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
+  backdrop: {
+    position:        "absolute",
+    top:             0,
+    right:           0,
+    bottom:          0,
+    left:            0,
+    zIndex:          400,
+    backgroundColor: "rgba(0,0,0,0.34)",
+  },
+
   // Full-screen menu surface
   panel: {
     position:  "absolute",
     top:       0,
     bottom:    0,
     left:      0,
-    right:     0,
     zIndex:    401,
     overflow:  "hidden",
   },
@@ -840,7 +849,6 @@ const ss = StyleSheet.create({
   bottomArea: {
     flexShrink:        0,
     paddingHorizontal: 16,
-    borderTopWidth:    StyleSheet.hairlineWidth,
     zIndex:            2,
   },
 
