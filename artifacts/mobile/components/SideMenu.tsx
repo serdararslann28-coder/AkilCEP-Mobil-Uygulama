@@ -48,7 +48,7 @@ import ProfileMenu     from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
-const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 340);
+const MENU_W = Math.min(Math.round(SCREEN_W * 0.80), 360);
 
 const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
 const defaultAvatar = require("@/assets/images/avatar.png");
@@ -369,7 +369,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
       >
-        <View style={[ss.stickyTop, { paddingTop: topPad + 18, borderBottomColor: divider }]}>
+        <View style={[ss.stickyTop, { paddingTop: topPad + 18 }]}>
           <View style={ss.header}>
             <View style={ss.brandBlock}>
               <View style={ss.brandRow}>
@@ -475,7 +475,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         <View
           style={[
             ss.bottomArea,
-            { paddingBottom: btmPad + 12 },
+            { paddingBottom: btmPad },
           ]}
         >
           <View style={ss.bottomActions}>
@@ -584,9 +584,8 @@ const ss = StyleSheet.create({
   },
 
   stickyTop: {
-    flexShrink:        0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    zIndex:            2,
+    flexShrink: 0,
+    zIndex:     2,
   },
 
   header: {
