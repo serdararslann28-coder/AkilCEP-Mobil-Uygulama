@@ -362,17 +362,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       >
         <View style={[ss.stickyTop, { paddingTop: topPad + 18 }]}>
           <View style={ss.header}>
-            <TouchableOpacity
-              style={ss.iconBtn}
-              onPress={onClose}
-              hitSlop={10}
-              activeOpacity={0.65}
-              accessibilityRole="button"
-              accessibilityLabel={t("common.close")}
-            >
-              <Feather name="menu" size={20} color={drawerForeground} />
-            </TouchableOpacity>
-
             <View pointerEvents="none" style={ss.brandOverlay}>
               <Image
                 source={leafLogo}
@@ -420,38 +409,33 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           )}
         </View>
 
-        <View style={ss.navGroup}>
-          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <BookOpen size={20} color={drawerForeground} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Folder size={20} color={drawerForeground} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Clock size={20} color={drawerForeground} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Grid size={20} color={drawerForeground} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
           style={ss.scroll}
           contentContainerStyle={ss.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces
         >
-          {!searchQuery.trim() && (
-            <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
-              Sabitlenenler
-            </Text>
-          )}
+          <View style={ss.navGroup}>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <BookOpen size={20} color={drawerForeground} strokeWidth={1.8} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Folder size={20} color={drawerForeground} strokeWidth={1.8} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Clock size={20} color={drawerForeground} strokeWidth={1.8} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Grid size={20} color={drawerForeground} strokeWidth={1.8} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
-            Yakın zamandakiler
+            Geçmiş Sohbetler
           </Text>
           {filtered.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
@@ -493,8 +477,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
-              <Feather name="edit-3" size={17} color="#FFFFFF" />
-              <Text style={ss.fabLabel}>Sohbet</Text>
+              <Feather name="edit-3" size={22} color={drawerForeground} />
+              <Text style={[ss.fabLabel, { color: drawerForeground }]}>Sohbet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -587,11 +571,6 @@ const ss = StyleSheet.create({
     bottom:    0,
     left:      0,
     zIndex:    401,
-    elevation: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 6, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
   },
 
   stickyTop: {
@@ -604,14 +583,14 @@ const ss = StyleSheet.create({
     minHeight:         54,
     flexDirection:     "row",
     alignItems:        "center",
-    justifyContent:    "space-between",
+    justifyContent:    "flex-end",
     paddingHorizontal: 20,
     paddingBottom:     16,
   },
 
   brandOverlay: {
     position:      "absolute",
-    left:          54,
+    left:          20,
     right:         54,
     top:           0,
     height:        38,
@@ -674,10 +653,9 @@ const ss = StyleSheet.create({
   },
 
   navGroup: {
-    flexShrink:        0,
     paddingHorizontal: 20,
-    paddingTop:        6,
-    paddingBottom:     10,
+    paddingTop:        8,
+    paddingBottom:     8,
     gap:               2,
   },
 
@@ -765,10 +743,12 @@ const ss = StyleSheet.create({
   },
 
   historySectionTitle: {
-    fontSize:          14,
-    fontFamily:        "Inter_700Bold",
+    fontSize:          11,
+    fontFamily:        "Inter_500Medium",
+    letterSpacing:     0.8,
+    textTransform:     "uppercase",
     paddingHorizontal: 20,
-    paddingTop:        14,
+    paddingTop:        18,
     paddingBottom:     8,
   },
 
@@ -902,21 +882,17 @@ const ss = StyleSheet.create({
   },
 
   fab: {
-    flex:            1,
+    flexShrink:      0,
     height:          46,
     flexDirection:   "row",
     alignItems:      "center",
     justifyContent:  "flex-start",
-    paddingHorizontal: 15,
+    paddingHorizontal: 2,
     gap:             8,
-    maxWidth:         154,
-    borderRadius:     23,
-    backgroundColor:  "#2563EB",
   },
 
   fabLabel: {
-    color:         "#FFFFFF",
-    fontSize:      15,
+    fontSize:      16,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,
   },
@@ -925,14 +901,13 @@ const ss = StyleSheet.create({
     width:          52,
     height:         52,
     borderRadius:   26,
-    padding:        2,
-    backgroundColor: "#FFFFFF",
+    overflow:       "hidden",
   },
 
   bottomAvatar: {
     width:        "100%",
     height:       "100%",
-    borderRadius: 24,
+    borderRadius: 26,
   },
 
 });
