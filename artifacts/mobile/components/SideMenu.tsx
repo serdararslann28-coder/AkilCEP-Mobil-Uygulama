@@ -344,8 +344,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
   // ── Derived color tokens ──────────────────────────────────────────────────────
   const muted         = drawerMuted;
-  const ghostSurface  = "#FFFFFF";
-
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <>
@@ -358,7 +356,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       </Animated.View>
 
       <Animated.View
-        style={[ss.panel, { width: MENU_W, backgroundColor: ghostSurface }, panelAnim]}
+        style={[ss.drawerSurface, { width: MENU_W }, panelAnim]}
         pointerEvents={visible ? "auto" : "none"}
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
@@ -474,14 +472,14 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         >
           <View style={ss.bottomActions}>
             <TouchableOpacity
-              style={ss.fab}
+              style={ss.newChatAction}
               onPress={handleNewChat}
               activeOpacity={0.72}
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
               <Feather name="edit-3" size={22} color={drawerForeground} />
-              <Text style={[ss.fabLabel, { color: drawerForeground }]}>Sohbet</Text>
+              <Text style={[ss.newChatLabel, { color: drawerForeground }]}>Sohbet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -567,13 +565,13 @@ const ss = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
   },
 
-  // Full-screen menu surface
-  panel: {
-    position:  "absolute",
-    top:       0,
-    bottom:    0,
-    left:      0,
-    zIndex:    401,
+  drawerSurface: {
+    position:        "absolute",
+    top:             0,
+    bottom:          0,
+    left:            0,
+    zIndex:          401,
+    backgroundColor: "#FFFFFF",
   },
 
   ghostHeader: {
@@ -809,7 +807,7 @@ const ss = StyleSheet.create({
     width:             "100%",
   },
 
-  fab: {
+  newChatAction: {
     flexShrink:      0,
     height:          46,
     flexDirection:   "row",
@@ -819,7 +817,7 @@ const ss = StyleSheet.create({
     gap:             8,
   },
 
-  fabLabel: {
+  newChatLabel: {
     fontSize:      16,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,

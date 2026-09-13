@@ -1,0 +1,393 @@
+AKILCEP SIDEDRAWER — FINAL UI REBUILD
+======================================
+
+STOP PATCHING THE EXISTING SIDEDRAWER.
+
+DO NOT TRY TO IMPROVE THE CURRENT DESIGN.
+
+DELETE THE CURRENT SIDEDRAWER UI STRUCTURE AND REBUILD THE UI FROM SCRATCH.
+
+KEEP ALL EXISTING FUNCTIONAL LOGIC WORKING:
+- open / close drawer
+- conversation selection
+- conversation history
+- search
+- extensions
+- scrolling
+- new chat
+- profile
+
+ONLY REBUILD THE UI / LAYOUT.
+
+==================================================
+CRITICAL REQUIREMENT — NO VISIBLE CARD
+==================================================
+
+I DO NOT WANT ANY VISIBLE CARD, PANEL, BOX, FLOATING BAR OR HEADER CARD.
+
+The drawer must look like ONE SINGLE FLAT WHITE SURFACE.
+
+There must be NO visual separation around the logo area.
+
+The logo must NOT appear to sit inside a card.
+
+The logo must NOT appear inside a header panel.
+
+The logo must NOT appear inside a floating container.
+
+The logo must look like it is directly placed on the white drawer surface.
+
+==================================================
+INVISIBLE CONTAINER / GHOST CONTAINER
+==================================================
+
+A container MAY exist ONLY for layout and positioning.
+
+Call it an invisible container if necessary.
+
+It MUST have:
+
+backgroundColor: transparent
+borderWidth: 0
+borderColor: transparent
+shadowOpacity: 0
+shadowRadius: 0
+elevation: 0
+boxShadow: none
+backdropFilter: none
+blur: none
+borderRadius: 0
+
+IMPORTANT:
+
+DO NOT set opacity: 0 on the container.
+
+The container itself must be visually invisible, while its children remain fully visible.
+
+The user must NEVER be able to visually detect the container.
+
+==================================================
+DRAWER BEHAVIOR
+==================================================
+
+The drawer opens from the LEFT.
+
+Width: approximately 80% of the screen.
+
+Use a smooth native slide-in animation.
+
+Approximately 250–300ms.
+
+NO scale animation.
+NO bouncing animation.
+NO floating animation.
+
+When the drawer is open, the remaining right side of the main screen stays visible.
+
+Apply a subtle dark translucent overlay over the remaining screen.
+
+Tapping the overlay closes the drawer.
+
+==================================================
+TOP AREA
+==================================================
+
+REMOVE THE HAMBURGER ICON COMPLETELY.
+
+Top area contains ONLY:
+
+LEFT:
+AkılCEP logo + AkılCEP text
+
+RIGHT:
+Search icon
+
+There must be NO visible header background.
+
+There must be NO header card.
+
+There must be NO header border.
+
+There must be NO header shadow.
+
+There must be NO rounded rectangle behind the logo.
+
+There must be NO separate colored area behind the logo.
+
+The logo must sit directly on the white drawer surface.
+
+==================================================
+IMPORTANT VISUAL STRUCTURE
+==================================================
+
+The final result should visually look like this:
+
+┌──────────────────────────────────┐
+│                                  │
+│   [AkılCEP LOGO] AkılCEP    🔍  │
+│                                  │
+│   Kitaplık                       │
+│   Projeler                       │
+│   Zamanlandı                     │
+│   Eklentiler                     │
+│                                  │
+│   Geçmiş Sohbetler               │
+│                                  │
+│   💬 Sohbet 1                    │
+│   💬 Sohbet 2                    │
+│   💬 Sohbet 3                    │
+│   💬 Sohbet 4                    │
+│                                  │
+│   ...                            │
+│                                  │
+│   Profil / Yeni Sohbet           │
+│                                  │
+└──────────────────────────────────┘
+
+THIS IS ONE SINGLE WHITE SURFACE.
+
+NO CARDS.
+
+NO PANELS.
+
+NO FLOATING HEADER.
+
+NO FLOATING FOOTER.
+
+==================================================
+MENU ITEMS
+==================================================
+
+Place these items directly under the AkılCEP logo:
+
+Kitaplık
+Projeler
+Zamanlandı
+Eklentiler
+
+Each item should be:
+
+ICON + TEXT
+
+Each item must NOT have:
+- card background
+- border
+- shadow
+- elevation
+- rounded rectangle
+- floating effect
+
+Use clean spacing only.
+
+==================================================
+CONVERSATION HISTORY
+==================================================
+
+Below the menu items, show:
+
+Geçmiş Sohbetler
+
+Then display the conversation history.
+
+Each conversation row must be flat and simple.
+
+NO conversation cards.
+
+NO background rectangles.
+
+NO borders.
+
+NO shadows.
+
+NO floating elements.
+
+The conversation list must scroll vertically.
+
+==================================================
+SCROLL BEHAVIOR
+==================================================
+
+The conversation history must be vertically scrollable.
+
+The logo/top area may remain fixed.
+
+The scrolling content must remain on the SAME white surface.
+
+Scrolling must NEVER reveal a hidden card background.
+
+There must NEVER be a visible boundary between the logo area and conversation area.
+
+==================================================
+BOTTOM AREA
+==================================================
+
+Keep existing New Chat and Profile functionality.
+
+But DO NOT create a bottom card.
+
+DO NOT create a floating footer panel.
+
+DO NOT create a large rounded rectangle around the bottom controls.
+
+Keep the controls clean and integrated into the drawer surface.
+
+==================================================
+DESIGN LANGUAGE
+==================================================
+
+Use:
+
+Apple-style minimalism.
+Premium.
+Clean.
+Flat.
+Modern.
+Spacious.
+Simple typography.
+Strong visual hierarchy.
+
+DO NOT use card-based UI.
+
+==================================================
+STRICTLY FORBIDDEN
+==================================================
+
+DO NOT USE:
+
+Card
+CardView
+FloatingCard
+HeaderCard
+FooterCard
+GlassCard
+Glassmorphism
+FloatingPanel
+HeaderPanel
+FooterPanel
+RoundedCard
+visible background container
+visible border
+shadow
+elevation
+blur panel
+colored header
+colored logo background
+hamburger icon
+
+==================================================
+REFERENCE BEHAVIOR
+==================================================
+
+Use the uploaded reference image ONLY as a behavioral/layout reference.
+
+Match the general behavior:
+
+- drawer slides from the left
+- right side becomes dimmed
+- menu occupies most of the screen
+- menu items are vertically organized
+- conversation history is scrollable
+- search is accessible from the top
+- profile/new-chat controls remain available
+
+BUT DO NOT COPY THE CHATGPT BRAND.
+
+DO NOT SHOW "ChatGPT".
+
+DO NOT USE THE ChatGPT LOGO.
+
+USE AKILCEP ONLY.
+
+==================================================
+CODE REQUIREMENT
+==================================================
+
+FIRST inspect the existing SideDrawer component.
+
+Find every existing wrapper responsible for:
+
+- header card
+- logo card
+- top panel
+- floating container
+- bottom card
+- visible background
+- shadow
+- elevation
+
+REMOVE THESE VISUAL STRUCTURES.
+
+DO NOT REUSE THEIR OLD STYLES.
+
+Then create the new SideDrawer layout from scratch.
+
+KEEP BUSINESS LOGIC AND EVENT HANDLERS.
+
+DO NOT BREAK EXISTING NAVIGATION.
+
+DO NOT BREAK CHAT SELECTION.
+
+DO NOT BREAK SEARCH.
+
+DO NOT BREAK SCROLLING.
+
+DO NOT BREAK PROFILE.
+
+DO NOT BREAK NEW CHAT.
+
+==================================================
+FINAL VISUAL QA — MANDATORY
+==================================================
+
+Before considering the task complete, inspect the rendered SideDrawer.
+
+Ask yourself:
+
+1. Can I see a card behind the AkılCEP logo?
+→ MUST BE NO.
+
+2. Can I see a header panel?
+→ MUST BE NO.
+
+3. Can I see a border around the logo area?
+→ MUST BE NO.
+
+4. Can I see a shadow?
+→ MUST BE NO.
+
+5. Can I see a floating container?
+→ MUST BE NO.
+
+6. Can I see a separate white rectangle?
+→ MUST BE NO.
+
+7. Can I see a card around conversations?
+→ MUST BE NO.
+
+8. Can I see a bottom floating card?
+→ MUST BE NO.
+
+9. Is the entire drawer one continuous white surface?
+→ MUST BE YES.
+
+10. Does the AkılCEP logo look directly placed on that surface?
+→ MUST BE YES.
+
+IF ANY VISIBLE CARD OR PANEL REMAINS,
+THE IMPLEMENTATION IS NOT FINISHED.
+
+DO NOT ADD ANOTHER PATCH.
+
+FIX THE STRUCTURE.
+
+FINAL RULE:
+
+ONE DRAWER.
+ONE WHITE SURFACE.
+INVISIBLE LAYOUT CONTAINERS ONLY.
+VISIBLE CONTENT ONLY.
+ZERO VISIBLE CARDS.
+ZERO VISIBLE PANELS.
+ZERO FLOATING BARS.
+
+BUILD IT CLEANLY FROM SCRATCH.
