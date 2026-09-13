@@ -1,0 +1,383 @@
+AKILCEP — COMPLETE HOME SCREEN & SIDE MENU UI REVISION
+
+Use the uploaded reference image ONLY as a structural UI/UX reference.
+Do NOT copy ChatGPT branding, ChatGPT text, colors, layout details or identity.
+Recreate the same clean navigation-drawer PRINCIPLE for AkılCEP.
+
+IMPORTANT:
+Do not creatively redesign the application.
+Do not change existing functionality.
+Do not change backend, database, authentication or navigation logic.
+This is a STRICT UI/UX revision.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. AKILCEP MAIN SCREEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Keep the current AkılCEP main screen structure.
+
+The entire interface must use a clean, flat, Apple-style minimalist design.
+
+BACKGROUND:
+- Main background: pure white.
+- No unnecessary gray containers.
+- No decorative cards.
+- No large floating panels.
+
+HEADER:
+- AkılCEP logo remains at the top-left.
+- Theme button remains at the top-right.
+- Search button remains at the top-right.
+- Header is FULL-WIDTH and FLAT.
+- Header is NOT a card.
+- No rounded header container.
+- No border around the header.
+- No shadow around the header.
+- No floating effect.
+- White background continues naturally through the header.
+
+A very subtle thin divider below the header is allowed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. CHAT HISTORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The chat history MUST NOT look like cards.
+
+REMOVE ALL CARD STYLING FROM CHAT ITEMS.
+
+Every conversation must appear directly on the white background.
+
+NO:
+- Card
+- Rounded rectangle
+- Background box
+- Shadow
+- Floating container
+- Gray box
+
+Use a clean flat list.
+
+Example:
+
+BUGÜN
+
+[chat icon]   Merhaba arkadaşlar                    >
+
+────────────────────────────────────
+
+[chat icon]   Merhaba                              >
+
+────────────────────────────────────
+
+[chat icon]   Operasyon                            >
+
+────────────────────────────────────
+
+[chat icon]   Neden                                >
+
+Conversation titles should be clearly readable and slightly larger.
+
+Use simple thin-line chat icons.
+
+Use subtle thin dividers only where necessary.
+
+All existing conversations must remain functional and clickable.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. SIDE MENU / NAVIGATION DRAWER
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THIS IS THE MOST IMPORTANT PART.
+
+When the menu button is opened, create a native-style LEFT SIDE NAVIGATION DRAWER similar in STRUCTURE to the uploaded reference image.
+
+The drawer must:
+
+- Slide in from the LEFT.
+- Occupy the left portion of the screen.
+- Extend from TOP to BOTTOM.
+- Have a completely FLAT WHITE background.
+- Have NO rounded outer corners.
+- Have NO card appearance.
+- Have NO floating-card appearance.
+- Have NO border around the entire drawer.
+- Have NO large shadow around the drawer.
+
+The area outside the drawer must receive a subtle dark/translucent overlay.
+
+The underlying AkılCEP screen should remain visible through the overlay.
+
+The drawer should feel like a native mobile navigation menu.
+
+NOT a modal card.
+NOT a floating card.
+NOT a popup card.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. SIDE MENU HEADER
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+At the top of the drawer:
+
+AkılCEP logo
+AkılCEP
+
+Keep the AkılCEP branding.
+
+Do NOT use ChatGPT branding.
+
+The header must remain FLAT.
+
+No header card.
+No rounded rectangle.
+No colored background.
+
+Add a simple search/action icon if it already exists in the current menu.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. MENU STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Use large, clean, minimalist icons with readable text.
+
+Suggested structure:
+
+Yeni Sohbet
+
+Kütüphane
+
+Projeler
+
+Zamanlandı
+
+Eklentiler
+
+Then a section:
+
+Sohbetler
+
+Below it, show conversation history as a FLAT LIST:
+
+Merhaba arkadaşlar
+Merhaba
+Operasyon
+Neden
+...
+
+Conversation items must NOT be cards.
+
+They should look like simple native navigation/list rows.
+
+Use:
+- Black/dark text
+- Thin line icons
+- Plenty of spacing
+- Subtle dividers only when needed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. BOTTOM OF MAIN SCREEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+At the bottom-left of the main screen:
+
+ONLY “+ Yeni Sohbet” should be a BLACK SPEECH BUBBLE.
+
+It must contain:
+
++ Yeni Sohbet
+
+White text.
+White plus icon.
+Black speech bubble.
+Small speech-bubble tail at the lower-left.
+Soft subtle shadow.
+
+This is the ONLY major black speech-bubble button on the main screen.
+
+At the bottom-right:
+
+Show ONLY the user's circular profile photo.
+
+No user name.
+No profile card.
+No profile container.
+No extra text.
+
+Profile photo remains clickable and functional.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. RIGHT SIDE CONTROLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Keep the existing right-side vertical controls and functionality.
+
+Do not remove existing functionality.
+
+Do not redesign them into cards.
+
+Keep the interface visually simple and consistent.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. REMOVE CARD DESIGN EVERYWHERE
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The visual language of the application must move AWAY from the “everything is a card” design.
+
+REMOVE unnecessary:
+
+- Card containers
+- Rounded rectangles
+- Floating panels
+- Large shadows
+- Gray backgrounds
+- Decorative containers
+
+The screen should feel like a clean native mobile application rather than a collection of cards.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. PROFILE / SETTINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The user profile is accessed by tapping the profile photo.
+
+The profile/settings screen can continue using its existing functionality.
+
+Keep:
+- Profile
+- Account
+- Preferences
+- Language
+- Notifications
+- Appearance
+- Security
+- About
+- Support
+- Privacy Policy
+- Terms
+
+Do not remove functionality.
+
+Keep the same minimalist Apple-style visual language.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+10. LANGUAGE SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Keep the previously implemented global language architecture.
+
+The language screen must support a large worldwide language list.
+
+Keep:
+- Language search
+- Selected language checkmark
+- Persistent language selection
+- Real localization/i18n
+- Instant language switching
+
+Do not break the existing localization system.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+11. RESPONSIVE DESIGN
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Everything must work correctly on different Android phone sizes.
+
+Important:
+
+- No horizontal overflow.
+- No clipped text.
+- No elements behind the keyboard.
+- Side drawer must fit the screen.
+- Chat history must scroll correctly.
+- Bottom controls must remain accessible.
+- Profile photo must remain visible.
+- “+ Yeni Sohbet” must remain accessible.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+12. DO NOT BREAK EXISTING FUNCTIONALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DO NOT change:
+
+- Authentication
+- Login
+- Registration
+- Password reset
+- Database
+- Supabase
+- Chat functionality
+- Conversation history
+- Navigation logic
+- Profile logic
+- Language logic
+- Voice functionality
+- Search functionality
+- Settings functionality
+- Existing APIs
+
+Only modify the UI/UX where explicitly requested.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+13. ABSOLUTELY FORBIDDEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DO NOT:
+
+❌ Turn the AkılCEP header into a card
+❌ Turn conversations into cards
+❌ Turn the side menu into a card
+❌ Add rounded outer corners to the side menu
+❌ Add a floating menu panel
+❌ Add unnecessary containers
+❌ Add unnecessary shadows
+❌ Add unnecessary colors
+❌ Copy ChatGPT branding
+❌ Rename AkılCEP
+❌ Add ChatGPT text
+❌ Remove existing functionality
+❌ Rebuild the application architecture
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+14. FINAL VISUAL TARGET
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The final AkılCEP experience should feel like a premium native mobile AI application.
+
+Visual hierarchy:
+
+WHITE FLAT BACKGROUND
+↓
+AKILCEP FLAT HEADER
+↓
+FLAT CHAT HISTORY
+↓
+THIN DIVIDERS
+↓
+BLACK “+ YENİ SOHBET” SPEECH BUBBLE
+↓
+CIRCULAR PROFILE PHOTO
+
+When the menu opens:
+
+FLAT WHITE FULL-HEIGHT LEFT DRAWER
++
+DARK TRANSLUCENT OVERLAY
++
+CLEAN ICON + TEXT NAVIGATION
+
+The reference image is ONLY an inspiration for the navigation drawer behavior and visual simplicity.
+
+Do NOT copy its branding.
+
+FINAL AND MOST IMPORTANT RULE:
+
+NO CARD-BASED HEADER.
+NO CARD-BASED CHAT LIST.
+NO CARD-BASED SIDE MENU.
+
+ONLY “+ Yeni Sohbet” is a black speech bubble.
+
+Follow these instructions literally.
+Do not reinterpret them.
+Do not make additional design changes.

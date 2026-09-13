@@ -923,7 +923,7 @@ export default function ChatScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View
-      style={[ss.root, { backgroundColor: T.bg }]}
+      style={[ss.root, { backgroundColor: T.isDark ? T.bg : "#FFFFFF" }]}
       {...edgeSwipeResponder.panHandlers}
     >
       <StatusBar

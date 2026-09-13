@@ -349,7 +349,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
   const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
-  const ghostSurface  = isDark ? "rgba(10,10,10,0.96)"      : "rgba(255,255,255,0.98)";
+  const ghostSurface  = isDark ? "#0A0A0A"                   : "#FFFFFF";
   const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
@@ -869,6 +869,11 @@ const ss = StyleSheet.create({
     borderRadius:    15,
     gap:             8,
     backgroundColor: "#000000",
+    shadowColor:     "#000000",
+    shadowOffset:    { width: 0, height: 3 },
+    shadowOpacity:   0.14,
+    shadowRadius:    7,
+    elevation:       3,
   },
 
   fabTail: {
