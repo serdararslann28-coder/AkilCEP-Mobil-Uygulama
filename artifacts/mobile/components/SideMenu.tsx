@@ -362,15 +362,24 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       >
         <View style={[ss.stickyTop, { paddingTop: topPad + 18 }]}>
           <View style={ss.header}>
-            <View style={ss.brandBlock}>
-              <View style={ss.brandRow}>
-                <Image
-                  source={leafLogo}
-                  style={[ss.brandLogo, { tintColor: drawerForeground }]}
-                  resizeMode="contain"
-                />
-                <Text style={[ss.brandName, { color: drawerForeground }]}>AkılCEP</Text>
-              </View>
+            <TouchableOpacity
+              style={ss.iconBtn}
+              onPress={onClose}
+              hitSlop={10}
+              activeOpacity={0.65}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+            >
+              <Feather name="menu" size={20} color={drawerForeground} />
+            </TouchableOpacity>
+
+            <View pointerEvents="none" style={ss.brandOverlay}>
+              <Image
+                source={leafLogo}
+                style={[ss.brandLogo, { tintColor: drawerForeground }]}
+                resizeMode="contain"
+              />
+              <Text style={[ss.brandName, { color: drawerForeground }]}>AkılCEP</Text>
             </View>
 
             <View style={ss.headerIcons}>
@@ -591,6 +600,8 @@ const ss = StyleSheet.create({
   },
 
   header: {
+    position:          "relative",
+    minHeight:         54,
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "space-between",
@@ -598,20 +609,21 @@ const ss = StyleSheet.create({
     paddingBottom:     16,
   },
 
-  brandBlock: {
-    flex: 1,
-    gap:  3,
-  },
-
-  brandRow: {
+  brandOverlay: {
+    position:      "absolute",
+    left:          54,
+    right:         54,
+    top:           0,
+    height:        38,
     flexDirection: "row",
     alignItems:    "center",
-    gap:           14,
+    justifyContent:"center",
+    gap:           9,
   },
 
   brandLogo: {
-    width:  38,
-    height: 38,
+    width:  30,
+    height: 30,
   },
 
   brandName: {
