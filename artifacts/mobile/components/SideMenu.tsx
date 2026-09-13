@@ -508,10 +508,11 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
             <TouchableOpacity
               style={ss.fab}
               onPress={handleNewChat}
-              activeOpacity={0.82}
+              activeOpacity={0.72}
+              accessibilityRole="button"
+              accessibilityLabel={t("sidebar.newChat")}
             >
-              <View pointerEvents="none" style={ss.fabTail} />
-              <Feather name="plus" size={17} color="#FFFFFF" />
+              <Feather name="plus" size={15} color="#FFFFFF" />
               <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -892,36 +893,21 @@ const ss = StyleSheet.create({
 
   fab: {
     flex:            1,
-    height:          52,
+    height:          40,
     flexDirection:   "row",
     alignItems:      "center",
-    justifyContent:  "center",
-    borderRadius:    18,
-    gap:             8,
+    justifyContent:  "flex-start",
+    borderRadius:    12,
+    paddingHorizontal: 16,
+    gap:             7,
     backgroundColor: "#000000",
-    shadowColor:     "#000",
-    shadowOffset:    { width: 0, height: 5 },
-    shadowOpacity:   0.14,
-    shadowRadius:    14,
-    elevation:       7,
-  },
-
-  fabTail: {
-    position:        "absolute",
-    left:            18,
-    bottom:          -5,
-    width:           13,
-    height:          13,
-    borderRadius:    3,
-    backgroundColor: "#000000",
-    transform:       [{ rotate: "45deg" }],
   },
 
   fabLabel: {
     color:         "#FFFFFF",
-    fontSize:      15,
-    fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.3,
+    fontSize:      14,
+    fontFamily:    "Inter_500Medium",
+    letterSpacing: -0.2,
   },
 
   avatarButton: {
