@@ -42,7 +42,6 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -156,12 +155,6 @@ function ConversationRow({
         >
           {title}
         </Text>
-        <Feather
-          name="chevron-right"
-          size={15}
-          color={foreground}
-          style={{ opacity: 0.32, flexShrink: 0 }}
-        />
       </TouchableOpacity>
     </View>
   );
@@ -211,7 +204,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
   useEffect(() => {
     if (visible) {
-      translateX.value = withSpring(0, { damping: 26, stiffness: 200, mass: 0.9 });
+      translateX.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
       backdropOp.value = withTiming(1, { duration: 280 });
     } else {
       setSearchOpen(false);
@@ -242,7 +235,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       if (distance >= openDistance || velocity > 0.55) {
         onOpenRef.current();
       } else {
-        translateX.value = withSpring(-MENU_W, { damping: 26, stiffness: 220 });
+        translateX.value = withTiming(-MENU_W, { duration: 220, easing: Easing.out(Easing.cubic) });
         backdropOp.value = withTiming(0, { duration: 180 });
       }
     },
@@ -297,7 +290,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         if (dx < -(MENU_W * 0.28) || vx < -0.55) {
           onCloseRef.current();
         } else {
-          translateX.value = withSpring(0, { damping: 26, stiffness: 220 });
+          translateX.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
           backdropOp.value = withTiming(1, { duration: 180 });
         }
       },
@@ -351,7 +344,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
   // ── Derived color tokens ──────────────────────────────────────────────────────
   const muted         = drawerMuted;
-  const inputBg       = "rgba(0,0,0,0.05)";
   const ghostSurface  = "#FFFFFF";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
@@ -400,7 +392,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
             <View style={ss.searchBar}>
               <Feather name="search" size={14} color={muted} />
               <TextInput
-                style={[ss.searchInput, { color: drawerForeground, backgroundColor: inputBg }]}
+                style={[ss.searchInput, { color: drawerForeground }]}
                 placeholder={t("sidebar.searchPlaceholder")}
                 placeholderTextColor={muted}
                 value={searchQuery}
@@ -415,6 +407,25 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               )}
             </View>
           )}
+
+          <View style={ss.primaryMenu}>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <BookOpen size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Folder size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Clock size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Grid size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -453,24 +464,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
             ))
           )}
 
-          <View style={ss.utilitySection}>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <BookOpen size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Folder size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Clock size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Grid size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
 
         <View
@@ -646,17 +639,17 @@ const ss = StyleSheet.create({
     letterSpacing: -0.1,
     paddingHorizontal: 10,
     paddingVertical:   7,
-    borderRadius:  10,
+    borderRadius:  0,
   },
 
-  utilitySection: {
+  primaryMenu: {
     paddingHorizontal: 20,
-    paddingTop:        20,
-    paddingBottom:     14,
+    paddingTop:        6,
+    paddingBottom:     8,
   },
 
   navRow: {
-    minHeight:      44,
+    minHeight:      48,
     flexDirection:  "row",
     alignItems:     "center",
     gap:            14,
@@ -666,63 +659,6 @@ const ss = StyleSheet.create({
     fontSize:      16,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,
-  },
-
-  // ── Profile card ─────────────────────────────────────────────────────────────
-  profileCard: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    marginHorizontal:  14,
-    marginTop:         14,
-    marginBottom:      4,
-    paddingHorizontal: 14,
-    paddingVertical:   13,
-    borderRadius:      16,
-    borderWidth:       StyleSheet.hairlineWidth,
-    gap:               12,
-    zIndex:            2,
-  },
-
-  profileAvatar: {
-    width:        44,
-    height:       44,
-    borderRadius: 22,
-    flexShrink:   0,
-  },
-
-  profileInfo: {
-    flex:            1,
-    justifyContent:  "center",
-  },
-
-  profileName: {
-    fontSize:      15,
-    fontFamily:    "Inter_600SemiBold",
-    letterSpacing: -0.2,
-  },
-
-  statusRow: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           5,
-  },
-
-  statusDot: {
-    width:        6,
-    height:       6,
-    borderRadius: 3,
-  },
-
-  statusLabel: {
-    fontSize:   12,
-    fontFamily: "Inter_400Regular",
-  },
-
-  // Full-width hairline
-  fullDivider: {
-    height:          StyleSheet.hairlineWidth,
-    marginTop:       12,
-    marginBottom:    2,
   },
 
   // ── Scroll area ──────────────────────────────────────────────────────────────
@@ -743,7 +679,7 @@ const ss = StyleSheet.create({
     fontFamily:        "Inter_600SemiBold",
     letterSpacing:     -0.2,
     paddingHorizontal: 20,
-    paddingTop:        10,
+    paddingTop:        12,
     paddingBottom:     12,
   },
 
