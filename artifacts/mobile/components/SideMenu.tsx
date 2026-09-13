@@ -1,17 +1,12 @@
 /**
  * SideMenu — Premium AkılCEP side drawer.
  *
- * Layout (sticky → scrollable → sticky):
- *   [HEADER]   logo + brand + theme/search icons
- *   [SEARCH]   collapsible instant-filter row
- *   [PROFILE]  card — avatar, name, online status
- *   [HISTORY]  date-grouped conversation list
- *   [FAB]      "Yeni Sohbet" pill button
+ * Layout: one full-screen scroll surface containing header, search,
+ * date-grouped history, new-chat row, and profile access.
  *
- * Visual: Glassmorphism panel (BlurView) over a blurred backdrop.
+ * Visual: edge-to-edge, card-free conversation history.
  * Gesture: Swipe-left closes the drawer.
  */
-import { BlurView }  from "expo-blur";
 import { Feather }   from "@expo/vector-icons";
 import * as Haptics  from "expo-haptics";
 import { router }    from "expo-router";
@@ -53,7 +48,7 @@ import ProfileMenu     from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
-const MENU_W = Math.min(Math.round(SCREEN_W * 0.82), 340);
+const MENU_W = SCREEN_W;
 
 const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
 const defaultAvatar = require("@/assets/images/avatar.png");
@@ -220,8 +215,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     }
   }, [visible]);
 
-  const panelAnim    = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  const backdropAnim = useAnimatedStyle(() => ({ opacity: backdropOp.value }));
+  const panelAnim = useAnimatedStyle(() => ({
+    opacity: backdropOp.value,
+    transform: [{ translateX: translateX.value }],
+  }));
 
   const onOpenRef = useRef(onOpen);
   useEffect(() => { onOpenRef.current = onOpen; }, [onOpen]);
@@ -346,7 +343,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   }
 
   // ── Derived color tokens ──────────────────────────────────────────────────────
-  const panelOverlay  = isDark ? "rgba(8,8,10,0.82)"       : "rgba(253,253,251,0.88)";
   const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
   const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
   const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
@@ -356,43 +352,22 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Backdrop ──────────────────────────────────────────────────────────── */}
       <Animated.View
-        style={[ss.backdrop, backdropAnim]}
+        style={[ss.panel, { backgroundColor: T.bg }, panelAnim]}
         pointerEvents={visible ? "auto" : "none"}
+        {...panelPointerHandlers}
         {...panResponder.panHandlers}
       >
-        <BlurView intensity={14} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.28)" }]} />
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      </Animated.View>
-
-      {/* ── Panel ─────────────────────────────────────────────────────────────── */}
-      <Animated.View
-        style={[ss.panel, { width: MENU_W }, panelAnim]}
-        pointerEvents={visible ? "auto" : "none"}
-      >
-        {/* Glassmorphism fill */}
-        <BlurView
-          intensity={isDark ? 60 : 85}
-          tint={isDark ? "dark" : "light"}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: panelOverlay }]} />
-
-        {/* Right-edge separator */}
-        <View style={[ss.edgeLine, { backgroundColor: divider }]} />
-
-        {/* ═══ STICKY TOP — header + search bar ═══════════════════════════════ */}
-        <View
-          style={[ss.stickyTop, { borderBottomColor: divider }]}
-          {...panelPointerHandlers}
-          {...panResponder.panHandlers}
+        <ScrollView
+          style={ss.scroll}
+          contentContainerStyle={[
+            ss.scrollContent,
+            { paddingTop: topPad + 18, paddingBottom: btmPad + 18 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces
         >
-
-          {/* ── Header ────────────────────────────────────────────────────────── */}
-          <View style={[ss.header, { paddingTop: topPad + 18 }]}>
-            {/* Brand */}
+          <View style={ss.header}>
             <View style={ss.brandBlock}>
               <View style={ss.brandRow}>
                 <Image
@@ -404,9 +379,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               </View>
             </View>
 
-            {/* Action icons */}
             <View style={ss.headerIcons}>
-              {/* Theme toggle — single tap Light ↔ Dark */}
               <TouchableOpacity
                 style={[ss.iconBtn, { backgroundColor: iconIdleBg }]}
                 onPress={() => {
@@ -419,7 +392,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 <Feather name={themeIconName} size={15} color={T.fg} style={{ opacity: 0.70 }} />
               </TouchableOpacity>
 
-              {/* Search toggle */}
               <TouchableOpacity
                 style={[ss.iconBtn, { backgroundColor: searchOpen ? "rgba(0,0,0,0.09)" : iconIdleBg }]}
                 onPress={() => {
@@ -432,12 +404,22 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               >
                 <Feather name={searchOpen ? "x" : "search"} size={15} color={T.fg} style={{ opacity: 0.70 }} />
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={ss.iconBtn}
+                onPress={onClose}
+                hitSlop={10}
+                activeOpacity={0.65}
+                accessibilityRole="button"
+                accessibilityLabel="Menüyü kapat"
+              >
+                <Feather name="x" size={18} color={T.fg} style={{ opacity: 0.70 }} />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* ── Search bar (collapsible) ─────────────────────────────────────── */}
           {searchOpen && (
-            <View style={[ss.searchBar, { borderTopColor: divider }]}>
+            <View style={ss.searchBar}>
               <Feather name="search" size={14} color={muted} />
               <TextInput
                 style={[ss.searchInput, { color: T.fg, backgroundColor: inputBg }]}
@@ -455,15 +437,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               )}
             </View>
           )}
-        </View>
 
-        {/* ═══ CHAT HISTORY — scrollable ═══════════════════════════════════════ */}
-        <ScrollView
-          style={ss.scroll}
-          contentContainerStyle={[ss.scrollContent, { paddingBottom: btmPad + 110 }]}
-          showsVerticalScrollIndicator={false}
-          bounces
-        >
           {grouped.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
               {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
@@ -496,14 +470,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               </View>
             ))
           )}
-        </ScrollView>
 
-        {/* ═══ BOTTOM AREA — sticky ═════════════════════════════════════════════ */}
-        <View
-          style={[ss.bottomArea, { paddingBottom: btmPad + 18, borderTopColor: divider }]}
-          {...panelPointerHandlers}
-          {...panResponder.panHandlers}
-        >
+          <View style={[ss.bottomArea, { borderTopColor: divider }]}>
           <View style={ss.bottomActions}>
             <TouchableOpacity
               style={ss.fab}
@@ -512,8 +480,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
-              <Feather name="plus" size={15} color="#FFFFFF" />
-              <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
+              <Feather name="plus" size={17} color={T.fg} />
+              <Text style={[ss.fabLabel, { color: T.fg }]}>{t("sidebar.newChat")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -525,8 +493,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               <Image source={defaultAvatar} style={ss.bottomAvatar} resizeMode="cover" />
             </TouchableOpacity>
           </View>
-        </View>
-
+          </View>
+        </ScrollView>
       </Animated.View>
 
       <Modal
@@ -590,41 +558,20 @@ export default SideMenu;
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
-  // Backdrop
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 400,
-  },
-
-  // Panel
+  // Full-screen menu surface
   panel: {
     position:  "absolute",
     top:       0,
     bottom:    0,
     left:      0,
+    right:     0,
     zIndex:    401,
     overflow:  "hidden",
   },
 
-  // Right-edge separator line
-  edgeLine: {
-    position: "absolute",
-    top:      0,
-    bottom:   0,
-    right:    0,
-    width:    StyleSheet.hairlineWidth,
-    zIndex:   1,
-  },
-
-  // ── Header area ─────────────────────────────────────────────────────────────
-  stickyTop: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    zIndex:            2,
-  },
-
   header: {
     flexDirection:     "row",
-    alignItems:        "flex-start",
+    alignItems:        "center",
     justifyContent:    "space-between",
     paddingHorizontal: 20,
     paddingBottom:     16,
@@ -680,7 +627,6 @@ const ss = StyleSheet.create({
     alignItems:        "center",
     paddingHorizontal: 16,
     paddingVertical:   10,
-    borderTopWidth:    StyleSheet.hairlineWidth,
     gap:               8,
   },
 
@@ -758,7 +704,7 @@ const ss = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingTop: 6,
+    minHeight: "100%",
   },
 
   // Group
@@ -880,9 +826,8 @@ const ss = StyleSheet.create({
   // ── Bottom area ───────────────────────────────────────────────────────────────
   bottomArea: {
     paddingHorizontal: 16,
-    paddingTop:        12,
+    marginTop:         8,
     borderTopWidth:    StyleSheet.hairlineWidth,
-    zIndex:            2,
   },
 
   bottomActions: {
@@ -893,19 +838,16 @@ const ss = StyleSheet.create({
 
   fab: {
     flex:            1,
-    height:          40,
+    minHeight:       52,
     flexDirection:   "row",
     alignItems:      "center",
     justifyContent:  "flex-start",
-    borderRadius:    12,
-    paddingHorizontal: 16,
-    gap:             7,
-    backgroundColor: "#000000",
+    paddingHorizontal: 4,
+    gap:             10,
   },
 
   fabLabel: {
-    color:         "#FFFFFF",
-    fontSize:      14,
+    fontSize:      15,
     fontFamily:    "Inter_500Medium",
     letterSpacing: -0.2,
   },
@@ -916,11 +858,6 @@ const ss = StyleSheet.create({
     borderRadius:   26,
     padding:        2,
     backgroundColor: "#FFFFFF",
-    shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 3 },
-    shadowOpacity:  0.10,
-    shadowRadius:   8,
-    elevation:      4,
   },
 
   bottomAvatar: {
