@@ -12,3 +12,4 @@
 - [Expo SDK 57 native file picker](expo-sdk57-file-picker.md) — use expo-file-system File.pickFileAsync for native multi-file selection; no expo-document-picker dependency needed
 - [Responsive chat composer layout](responsive-chat-composer-layout.md) — keep previews and controls as two rows in one measured composer surface; preserve keyboard and safe-area behavior
 - [Android navigation-bar aura](android-navigation-bar-aura.md) — distinguish the three-button system area from composer spacing; extend visual effects through the real bottom inset
+- [Bounded menu scrolling](bounded-menu-scrolling.md) — fixed-header/footer layouts need a shrinkable middle ScrollView; otherwise web content clips behind the footer

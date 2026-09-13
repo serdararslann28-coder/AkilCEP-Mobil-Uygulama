@@ -1,8 +1,8 @@
 /**
  * SideMenu — Premium AkılCEP side drawer.
  *
- * Layout: one full-screen scroll surface containing header, search,
- * date-grouped history, new-chat row, and profile access.
+ * Layout: fixed safe-area header, scrollable conversation history,
+ * and fixed safe-area bottom actions.
  *
  * Visual: edge-to-edge, card-free conversation history.
  * Gesture: Swipe-left closes the drawer.
@@ -358,15 +358,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
       >
-        <ScrollView
-          style={ss.scroll}
-          contentContainerStyle={[
-            ss.scrollContent,
-            { paddingTop: topPad + 18, paddingBottom: btmPad + 18 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          bounces
-        >
+        <View style={[ss.stickyTop, { paddingTop: topPad + 18, borderBottomColor: divider }]}>
           <View style={ss.header}>
             <View style={ss.brandBlock}>
               <View style={ss.brandRow}>
@@ -437,7 +429,14 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               )}
             </View>
           )}
+        </View>
 
+        <ScrollView
+          style={ss.scroll}
+          contentContainerStyle={ss.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces
+        >
           {grouped.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
               {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
@@ -470,8 +469,14 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               </View>
             ))
           )}
+        </ScrollView>
 
-          <View style={[ss.bottomArea, { borderTopColor: divider }]}>
+        <View
+          style={[
+            ss.bottomArea,
+            { paddingBottom: btmPad + 12, borderTopColor: divider },
+          ]}
+        >
           <View style={ss.bottomActions}>
             <TouchableOpacity
               style={ss.fab}
@@ -493,8 +498,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               <Image source={defaultAvatar} style={ss.bottomAvatar} resizeMode="cover" />
             </TouchableOpacity>
           </View>
-          </View>
-        </ScrollView>
+        </View>
       </Animated.View>
 
       <Modal
@@ -567,6 +571,12 @@ const ss = StyleSheet.create({
     right:     0,
     zIndex:    401,
     overflow:  "hidden",
+  },
+
+  stickyTop: {
+    flexShrink:        0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex:            2,
   },
 
   header: {
@@ -699,12 +709,15 @@ const ss = StyleSheet.create({
 
   // ── Scroll area ──────────────────────────────────────────────────────────────
   scroll: {
-    flex: 1,
-    zIndex: 2,
+    flex:       1,
+    minHeight:  0,
+    overflow:   "scroll",
+    zIndex:     1,
   },
 
   scrollContent: {
-    minHeight: "100%",
+    paddingTop:    6,
+    paddingBottom: 6,
   },
 
   // Group
@@ -825,9 +838,10 @@ const ss = StyleSheet.create({
 
   // ── Bottom area ───────────────────────────────────────────────────────────────
   bottomArea: {
+    flexShrink:        0,
     paddingHorizontal: 16,
-    marginTop:         8,
     borderTopWidth:    StyleSheet.hairlineWidth,
+    zIndex:            2,
   },
 
   bottomActions: {
