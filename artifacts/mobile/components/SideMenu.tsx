@@ -580,20 +580,19 @@ const ss = StyleSheet.create({
 
   header: {
     position:          "relative",
-    minHeight:         54,
+    height:            46,
     flexDirection:     "row",
     alignItems:        "center",
     justifyContent:    "flex-end",
     paddingHorizontal: 20,
-    paddingBottom:     16,
   },
 
   brandOverlay: {
     position:      "absolute",
-    left:          20,
-    right:         54,
+    left:          0,
+    right:         0,
     top:           0,
-    height:        38,
+    bottom:        0,
     flexDirection: "row",
     alignItems:    "center",
     justifyContent:"center",
@@ -622,7 +621,7 @@ const ss = StyleSheet.create({
     flexDirection: "row",
     alignItems:    "center",
     gap:           8,
-    paddingTop:    2,
+    zIndex:        1,
   },
 
   iconBtn: {
@@ -654,7 +653,7 @@ const ss = StyleSheet.create({
 
   navGroup: {
     paddingHorizontal: 20,
-    paddingTop:        8,
+    paddingTop:        0,
     paddingBottom:     8,
     gap:               2,
   },
@@ -738,7 +737,7 @@ const ss = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingTop:    8,
+    paddingTop:    0,
     paddingBottom: 6,
   },
 
@@ -878,7 +877,8 @@ const ss = StyleSheet.create({
   bottomActions: {
     flexDirection:     "row",
     alignItems:        "center",
-    gap:               12,
+    justifyContent:    "space-between",
+    width:             "100%",
   },
 
   fab: {
@@ -898,16 +898,16 @@ const ss = StyleSheet.create({
   },
 
   avatarButton: {
-    width:          52,
-    height:         52,
-    borderRadius:   26,
+    width:          44,
+    height:         44,
+    borderRadius:   22,
     overflow:       "hidden",
   },
 
   bottomAvatar: {
     width:        "100%",
     height:       "100%",
-    borderRadius: 26,
+    borderRadius: 22,
   },
 
 });
