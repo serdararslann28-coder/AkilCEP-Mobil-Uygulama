@@ -405,7 +405,17 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               )}
             </View>
           )}
+        </View>
 
+        <ScrollView
+          style={ss.scroll}
+          contentContainerStyle={[
+            ss.scrollContent,
+            { paddingTop: topPad + 66 + (searchOpen ? 48 : 0) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          bounces
+        >
           <View style={ss.primaryMenu}>
             <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
               <BookOpen size={19} color={drawerForeground} strokeWidth={1.7} />
@@ -424,14 +434,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <ScrollView
-          style={ss.scroll}
-          contentContainerStyle={ss.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces
-        >
           <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
             Geçmiş Sohbetler
           </Text>
@@ -575,7 +578,11 @@ const ss = StyleSheet.create({
   },
 
   ghostHeader: {
-    flexShrink:      0,
+    position:        "absolute",
+    top:             0,
+    left:            0,
+    right:           0,
+    zIndex:          20,
     opacity:         1,
     backgroundColor: "transparent",
     borderWidth:     0,
