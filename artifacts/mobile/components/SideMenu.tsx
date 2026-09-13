@@ -311,6 +311,17 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     return conversations.filter(c => c.title.toLowerCase().includes(q));
   }, [conversations, searchQuery]);
 
+  const groupedConversations = useMemo(() => {
+    const groups = new Map<string, typeof filtered>();
+    filtered.forEach((conversation) => {
+      const label = getDateGroup(conversation.createdAt, t);
+      const group = groups.get(label) ?? [];
+      group.push(conversation);
+      groups.set(label, group);
+    });
+    return Array.from(groups.entries());
+  }, [filtered, t]);
+
   // ── Navigate helpers ──────────────────────────────────────────────────────────
   function go(path: string) {
     onClose();
@@ -360,9 +371,9 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
       >
-        <View style={[ss.ghostHeaderCard, { paddingTop: topPad + 18 }]}>
+        <View style={[ss.ghostHeader, { paddingTop: topPad + 14 }]}>
           <View style={ss.header}>
-            <View pointerEvents="none" style={ss.brandOverlay}>
+            <View pointerEvents="none" style={ss.brand}>
               <Image
                 source={leafLogo}
                 style={[ss.brandLogo, { tintColor: drawerForeground }]}
@@ -371,21 +382,18 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               <Text style={[ss.brandName, { color: drawerForeground }]}>AkılCEP</Text>
             </View>
 
-            <View style={ss.headerIcons}>
-              <TouchableOpacity
-                style={ss.iconBtn}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSearchOpen(v => !v);
-                  if (searchOpen) setSearchQuery("");
-                }}
-                hitSlop={10}
-                activeOpacity={0.65}
-              >
-                <Feather name={searchOpen ? "x" : "search"} size={18} color={drawerForeground} />
-              </TouchableOpacity>
-
-            </View>
+            <TouchableOpacity
+              style={ss.searchButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSearchOpen(v => !v);
+                if (searchOpen) setSearchQuery("");
+              }}
+              hitSlop={10}
+              activeOpacity={0.65}
+            >
+              <Feather name={searchOpen ? "x" : "search"} size={19} color={drawerForeground} />
+            </TouchableOpacity>
           </View>
 
           {searchOpen && (
@@ -415,25 +423,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           showsVerticalScrollIndicator={false}
           bounces
         >
-          <View style={ss.navGroup}>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <BookOpen size={20} color={drawerForeground} strokeWidth={1.8} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Folder size={20} color={drawerForeground} strokeWidth={1.8} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Clock size={20} color={drawerForeground} strokeWidth={1.8} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-              <Grid size={20} color={drawerForeground} strokeWidth={1.8} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
-            </TouchableOpacity>
-          </View>
-
           <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
             Geçmiş Sohbetler
           </Text>
@@ -442,25 +431,46 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
             </Text>
           ) : (
-            filtered.map(conv => {
-              const isActive = conv.id === currentConversation?.id;
-              return (
-                <ConversationRow
-                  key={conv.id}
-                  title={conv.title}
-                  isActive={isActive}
-                  foreground={drawerForeground}
-                  onSelect={() => {
-                    Haptics.selectionAsync();
-                    loadConversation(conv.id);
-                    onClose();
-                    setTimeout(() => router.push("/chat"), 160);
-                  }}
-                  onRequestDelete={() => confirmDeleteConversation(conv.id)}
-                />
-              );
-            })
+            groupedConversations.map(([label, items]) => (
+              <View key={label} style={ss.conversationGroup}>
+                <Text style={[ss.groupLabel, { color: drawerMuted }]}>{label}</Text>
+                {items.map((conv) => (
+                  <ConversationRow
+                    key={conv.id}
+                    title={conv.title}
+                    isActive={conv.id === currentConversation?.id}
+                    foreground={drawerForeground}
+                    onSelect={() => {
+                      Haptics.selectionAsync();
+                      loadConversation(conv.id);
+                      onClose();
+                      setTimeout(() => router.push("/chat"), 160);
+                    }}
+                    onRequestDelete={() => confirmDeleteConversation(conv.id)}
+                  />
+                ))}
+              </View>
+            ))
           )}
+
+          <View style={ss.utilitySection}>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <BookOpen size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Folder size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Clock size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
+              <Grid size={19} color={drawerForeground} strokeWidth={1.7} />
+              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         <View
@@ -573,7 +583,7 @@ const ss = StyleSheet.create({
     zIndex:    401,
   },
 
-  ghostHeaderCard: {
+  ghostHeader: {
     flexShrink:      0,
     opacity:         1,
     backgroundColor: "transparent",
@@ -589,55 +599,33 @@ const ss = StyleSheet.create({
   },
 
   header: {
-    position:          "relative",
-    height:            46,
+    minHeight:         52,
     flexDirection:     "row",
     alignItems:        "center",
-    justifyContent:    "flex-end",
+    justifyContent:    "space-between",
     paddingHorizontal: 20,
   },
 
-  brandOverlay: {
-    position:      "absolute",
-    left:          0,
-    right:         0,
-    top:           0,
-    bottom:        0,
+  brand: {
     flexDirection: "row",
     alignItems:    "center",
-    justifyContent:"center",
-    gap:           9,
+    gap:           8,
   },
 
   brandLogo: {
-    width:  30,
-    height: 30,
+    width:  28,
+    height: 28,
   },
 
   brandName: {
     fontSize:      18,
     fontFamily:    "Inter_700Bold",
-    letterSpacing: 1.8,
+    letterSpacing: 1.2,
   },
 
-  brandSub: {
-    fontSize:      12,
-    fontFamily:    "Inter_400Regular",
-    letterSpacing: 0.1,
-    marginLeft:    30,
-  },
-
-  headerIcons: {
-    flexDirection: "row",
-    alignItems:    "center",
-    gap:           8,
-    zIndex:        1,
-  },
-
-  iconBtn: {
-    width:          34,
-    height:         34,
-    borderRadius:   17,
+  searchButton: {
+    width:          40,
+    height:         40,
     alignItems:     "center",
     justifyContent: "center",
   },
@@ -646,8 +634,8 @@ const ss = StyleSheet.create({
   searchBar: {
     flexDirection:     "row",
     alignItems:        "center",
-    paddingHorizontal: 16,
-    paddingVertical:   10,
+    paddingHorizontal: 20,
+    paddingBottom:     10,
     gap:               8,
   },
 
@@ -661,11 +649,10 @@ const ss = StyleSheet.create({
     borderRadius:  10,
   },
 
-  navGroup: {
+  utilitySection: {
     paddingHorizontal: 20,
-    paddingTop:        0,
-    paddingBottom:     8,
-    gap:               2,
+    paddingTop:        20,
+    paddingBottom:     14,
   },
 
   navRow: {
@@ -748,32 +735,29 @@ const ss = StyleSheet.create({
 
   scrollContent: {
     paddingTop:    0,
-    paddingBottom: 6,
+    paddingBottom: 10,
   },
 
   historySectionTitle: {
-    fontSize:          11,
-    fontFamily:        "Inter_500Medium",
-    letterSpacing:     0.8,
-    textTransform:     "uppercase",
+    fontSize:          15,
+    fontFamily:        "Inter_600SemiBold",
+    letterSpacing:     -0.2,
     paddingHorizontal: 20,
-    paddingTop:        18,
-    paddingBottom:     8,
+    paddingTop:        10,
+    paddingBottom:     12,
   },
 
-  // Group
-  group: {
-    marginBottom: 4,
+  conversationGroup: {
+    marginBottom: 10,
   },
 
   groupLabel: {
-    fontSize:          11,
+    fontSize:          12,
     fontFamily:        "Inter_500Medium",
-    letterSpacing:     0.6,
-    textTransform:     "uppercase",
+    letterSpacing:     0.1,
     paddingHorizontal: 20,
-    paddingTop:        16,
-    paddingBottom:     4,
+    paddingTop:        5,
+    paddingBottom:     6,
   },
 
   // Conversation row
@@ -781,18 +765,16 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     paddingHorizontal: 20,
-    minHeight:         52,
-    paddingVertical:   14,
+    minHeight:         46,
+    paddingVertical:   11,
     gap:               12,
     position:          "relative",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
   },
 
   convTitle: {
     flex:          1,
-    fontSize:      16,
-    fontFamily:    "Inter_500Medium",
+    fontSize:      15,
+    fontFamily:    "Inter_400Regular",
     letterSpacing: -0.2,
   },
 
