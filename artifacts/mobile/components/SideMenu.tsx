@@ -180,14 +180,14 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   { visible, onClose, onOpen },
   ref,
 ) {
-  const { theme: T, toggle } = useTheme();
+  const { theme: T } = useTheme();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 20 : insets.top;
   const btmPad = Platform.OS === "web" ? 34 : insets.bottom;
   const isDark = T.isDark;
-
-  const GROUP_ORDER = [t("sidebar.today"), t("sidebar.yesterday"), t("sidebar.thisWeek"), t("sidebar.thisMonth"), t("sidebar.earlier")];
+  const drawerForeground = "#111111";
+  const drawerMuted = "rgba(17,17,17,0.42)";
 
   const {
     conversations,
@@ -311,18 +311,6 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
     return conversations.filter(c => c.title.toLowerCase().includes(q));
   }, [conversations, searchQuery]);
 
-  const grouped = useMemo(() => {
-    const map: Record<string, typeof conversations> = {};
-    for (const conv of filtered) {
-      const g = getDateGroup(conv.createdAt, t);
-      if (!map[g]) map[g] = [];
-      map[g].push(conv);
-    }
-    return GROUP_ORDER
-      .filter(g => map[g]?.length)
-      .map(g => ({ label: g, items: map[g] }));
-  }, [filtered]);
-
   // ── Navigate helpers ──────────────────────────────────────────────────────────
   function go(path: string) {
     onClose();
@@ -351,12 +339,9 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   }
 
   // ── Derived color tokens ──────────────────────────────────────────────────────
-  const divider       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.06)";
-  const muted         = isDark ? "rgba(237,235,231,0.38)"   : "rgba(12,12,12,0.38)";
-  const inputBg       = isDark ? "rgba(255,255,255,0.07)"   : "rgba(0,0,0,0.05)";
-  const iconIdleBg    = isDark ? "rgba(255,255,255,0.08)"   : "rgba(0,0,0,0.055)";
-  const ghostSurface  = isDark ? "#0A0A0A"                   : "#FFFFFF";
-  const themeIconName: React.ComponentProps<typeof Feather>["name"] = isDark ? "moon" : "sun";
+  const muted         = drawerMuted;
+  const inputBg       = "rgba(0,0,0,0.05)";
+  const ghostSurface  = "#FFFFFF";
 
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
@@ -381,28 +366,16 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               <View style={ss.brandRow}>
                 <Image
                   source={leafLogo}
-                  style={[ss.brandLogo, { tintColor: T.logoTint }]}
+                  style={[ss.brandLogo, { tintColor: drawerForeground }]}
                   resizeMode="contain"
                 />
-                <Text style={[ss.brandName, { color: T.fg }]}>AkılCEP</Text>
+                <Text style={[ss.brandName, { color: drawerForeground }]}>AkılCEP</Text>
               </View>
             </View>
 
             <View style={ss.headerIcons}>
               <TouchableOpacity
-                style={[ss.iconBtn, { backgroundColor: iconIdleBg }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  toggle();
-                }}
-                hitSlop={10}
-                activeOpacity={0.65}
-              >
-                <Feather name={themeIconName} size={15} color={T.fg} style={{ opacity: 0.70 }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[ss.iconBtn, { backgroundColor: searchOpen ? "rgba(0,0,0,0.09)" : iconIdleBg }]}
+                style={ss.iconBtn}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setSearchOpen(v => !v);
@@ -411,7 +384,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 hitSlop={10}
                 activeOpacity={0.65}
               >
-                <Feather name={searchOpen ? "x" : "search"} size={15} color={T.fg} style={{ opacity: 0.70 }} />
+                <Feather name={searchOpen ? "x" : "search"} size={18} color={drawerForeground} />
               </TouchableOpacity>
 
             </View>
@@ -421,7 +394,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
             <View style={ss.searchBar}>
               <Feather name="search" size={14} color={muted} />
               <TextInput
-                style={[ss.searchInput, { color: T.fg, backgroundColor: inputBg }]}
+                style={[ss.searchInput, { color: drawerForeground, backgroundColor: inputBg }]}
                 placeholder={t("sidebar.searchPlaceholder")}
                 placeholderTextColor={muted}
                 value={searchQuery}
@@ -440,20 +413,20 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
         <View style={ss.navGroup}>
           <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <BookOpen size={20} color={T.fg} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: T.fg }]}>Kitaplık</Text>
+            <BookOpen size={20} color={drawerForeground} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
           </TouchableOpacity>
           <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Folder size={20} color={T.fg} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: T.fg }]}>Projeler</Text>
+            <Folder size={20} color={drawerForeground} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
           </TouchableOpacity>
           <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Clock size={20} color={T.fg} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: T.fg }]}>Zamanlandı</Text>
+            <Clock size={20} color={drawerForeground} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
           </TouchableOpacity>
           <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
-            <Grid size={20} color={T.fg} strokeWidth={1.8} />
-            <Text style={[ss.navText, { color: T.fg }]}>Eklentiler</Text>
+            <Grid size={20} color={drawerForeground} strokeWidth={1.8} />
+            <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
           </TouchableOpacity>
         </View>
 
@@ -463,37 +436,37 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           showsVerticalScrollIndicator={false}
           bounces
         >
-          {grouped.length === 0 ? (
+          {!searchQuery.trim() && (
+            <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
+              Sabitlenenler
+            </Text>
+          )}
+          <Text style={[ss.historySectionTitle, { color: drawerForeground }]}>
+            Yakın zamandakiler
+          </Text>
+          {filtered.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
               {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
             </Text>
           ) : (
-            grouped.map(({ label, items }) => (
-              <View key={label} style={ss.group}>
-                {/* Date group label */}
-                <Text style={[ss.groupLabel, { color: muted }]}>{label}</Text>
-
-                {/* Conversation rows */}
-                {items.map(conv => {
-                  const isActive = conv.id === currentConversation?.id;
-                  return (
-                    <ConversationRow
-                      key={conv.id}
-                      title={conv.title}
-                      isActive={isActive}
-                      foreground={T.fg}
-                      onSelect={() => {
-                        Haptics.selectionAsync();
-                        loadConversation(conv.id);
-                        onClose();
-                        setTimeout(() => router.push("/chat"), 160);
-                      }}
-                      onRequestDelete={() => confirmDeleteConversation(conv.id)}
-                    />
-                  );
-                })}
-              </View>
-            ))
+            filtered.map(conv => {
+              const isActive = conv.id === currentConversation?.id;
+              return (
+                <ConversationRow
+                  key={conv.id}
+                  title={conv.title}
+                  isActive={isActive}
+                  foreground={drawerForeground}
+                  onSelect={() => {
+                    Haptics.selectionAsync();
+                    loadConversation(conv.id);
+                    onClose();
+                    setTimeout(() => router.push("/chat"), 160);
+                  }}
+                  onRequestDelete={() => confirmDeleteConversation(conv.id)}
+                />
+              );
+            })
           )}
         </ScrollView>
 
@@ -511,9 +484,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
-              <View pointerEvents="none" style={ss.fabTail} />
-              <Feather name="plus" size={16} color="#FFFFFF" />
-              <Text style={ss.fabLabel}>{t("sidebar.newChat")}</Text>
+              <Feather name="edit-3" size={17} color="#FFFFFF" />
+              <Text style={ss.fabLabel}>Sohbet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -596,7 +568,7 @@ const ss = StyleSheet.create({
     bottom:          0,
     left:            0,
     zIndex:          400,
-    backgroundColor: "rgba(0,0,0,0.34)",
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   // Full-screen menu surface
@@ -606,7 +578,11 @@ const ss = StyleSheet.create({
     bottom:    0,
     left:      0,
     zIndex:    401,
-    overflow:  "hidden",
+    elevation: 16,
+    shadowColor: "#000000",
+    shadowOffset: { width: 6, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
   },
 
   stickyTop: {
@@ -772,8 +748,16 @@ const ss = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingTop:    6,
+    paddingTop:    8,
     paddingBottom: 6,
+  },
+
+  historySectionTitle: {
+    fontSize:          14,
+    fontFamily:        "Inter_700Bold",
+    paddingHorizontal: 20,
+    paddingTop:        14,
+    paddingBottom:     8,
   },
 
   // Group
@@ -912,25 +896,10 @@ const ss = StyleSheet.create({
     alignItems:      "center",
     justifyContent:  "flex-start",
     paddingHorizontal: 15,
-    borderRadius:    15,
     gap:             8,
-    backgroundColor: "#000000",
-    shadowColor:     "#000000",
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.14,
-    shadowRadius:    7,
-    elevation:       3,
-  },
-
-  fabTail: {
-    position:        "absolute",
-    left:            16,
-    bottom:          -4,
-    width:           10,
-    height:          10,
-    borderRadius:    2,
-    backgroundColor: "#000000",
-    transform:       [{ rotate: "45deg" }],
+    maxWidth:         154,
+    borderRadius:     23,
+    backgroundColor:  "#2563EB",
   },
 
   fabLabel: {
