@@ -360,8 +360,8 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         {...panelPointerHandlers}
         {...panResponder.panHandlers}
       >
-        <>
-          <View style={[ss.header, { marginTop: topPad + 18 }]}>
+        <View style={[ss.ghostHeaderCard, { paddingTop: topPad + 18 }]}>
+          <View style={ss.header}>
             <View pointerEvents="none" style={ss.brandOverlay}>
               <Image
                 source={leafLogo}
@@ -407,7 +407,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               )}
             </View>
           )}
-        </>
+        </View>
 
         <ScrollView
           style={ss.scroll}
@@ -571,6 +571,21 @@ const ss = StyleSheet.create({
     bottom:    0,
     left:      0,
     zIndex:    401,
+  },
+
+  ghostHeaderCard: {
+    flexShrink:      0,
+    opacity:         1,
+    backgroundColor: "transparent",
+    borderWidth:     0,
+    borderColor:     "transparent",
+    borderRadius:    0,
+    shadowColor:     "transparent",
+    shadowOpacity:   0,
+    shadowRadius:    0,
+    shadowOffset:    { width: 0, height: 0 },
+    elevation:       0,
+    boxShadow:       "none",
   },
 
   header: {
