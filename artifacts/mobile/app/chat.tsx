@@ -84,6 +84,7 @@ type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
 
 const MIN_INPUT_H = 42;   // single-line underlined input
 const MAX_INPUT_H = 120;  // ~5 lines before scroll kicks in
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const MAX_ATTACHMENT_COUNT = 10;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_BYTES = 24 * 1024 * 1024;
@@ -152,7 +153,7 @@ export default function ChatScreen() {
   const [expandedOpen,     setExpandedOpen] = useState(false);
   const [voicePhase,       setVoicePhase]   = useState<VoicePhase>("idle");
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
-  const [composerHeight, setComposerHeight] = useState(72);
+  const [composerContentHeight, setComposerContentHeight] = useState(72);
 
   const isSecretChat = !!currentConversation?.isPrivate;
 
@@ -170,6 +171,12 @@ export default function ChatScreen() {
   const abortRef        = useRef<AbortController | null>(null);
   const voiceConvIdRef  = useRef<number>(0);
   const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
+
+  const scrollToLatest = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated });
+    });
+  }, []);
 
   const focusComposer = useCallback((delay = Platform.OS === "android" ? 220 : 80) => {
     return setTimeout(() => textInputRef.current?.focus(), delay);
@@ -332,11 +339,16 @@ export default function ChatScreen() {
       easing: Easing.out(Easing.cubic),
     });
     sendMessage(inputText.trim(), verifiedAttachments);
+    scrollToLatest();
     setInputText("");
     setPendingAttachments([]);
     inputHeightSV.value = withTiming(MIN_INPUT_H, { duration: 160 });
     setScrollEnabled(false);
   };
+
+  useEffect(() => {
+    if (currentMessages[0]?.id) scrollToLatest();
+  }, [currentMessages[0]?.id, scrollToLatest]);
 
   // ── Watermark logo — breathing + speaking boost ────────────────────────────
   const loScale = useSharedValue(1);
@@ -984,7 +996,7 @@ export default function ChatScreen() {
           const locationUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
           setInputText((current) => current ? `${current}\n${locationUrl}` : locationUrl);
         }}
-        bottomOffset={composerHeight}
+        bottomOffset={composerContentHeight + bottomInset}
       />
       <SideMenu
         ref={sideMenuRef}
@@ -1071,7 +1083,10 @@ export default function ChatScreen() {
           )}
           inverted
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[ss.msgList, { paddingTop: composerHeight }]}
+          contentContainerStyle={[
+            ss.msgList,
+            { paddingTop: composerContentHeight + bottomInset },
+          ]}
           ListHeaderComponent={isTyping ? (
             imagePending ? (
               <ImageGenCard />
@@ -1094,9 +1109,14 @@ export default function ChatScreen() {
       {/* ════ FLOATING DOCK — absolute, floats over content, tracks keyboard ════ */}
       <Animated.View
         style={[ss.inputOuter, dockKbStyle]}
-        onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
       >
         <View
+          onLayout={(event) => {
+            const nextHeight = event.nativeEvent.layout.height;
+            setComposerContentHeight((currentHeight) =>
+              Math.abs(currentHeight - nextHeight) < 0.5 ? currentHeight : nextHeight
+            );
+          }}
           style={[
             ss.dock,
             pendingAttachments.length > 0 && [
@@ -1201,11 +1221,12 @@ export default function ChatScreen() {
           {/* B — open input surface with a single underline */}
           <Animated.View style={[ss.underlineInput, inputFieldAnim]}>
             <View style={ss.underlineInputRow}>
-              <TextInput
+              <AnimatedTextInput
                 ref={textInputRef}
                 autoFocus
                 style={[
                   ss.dockField,
+                  inputFieldAnim,
                   {
                     color: T.isDark ? "#F2F0EC" : "#111111",
                     opacity: voiceActive ? 0.45 : 1,
@@ -1231,6 +1252,7 @@ export default function ChatScreen() {
                   }
                   inputFocusedRef.current = true;
                   inputFocused.value = withTiming(1, FOCUS_DUR);
+                  scrollToLatest();
                 }}
                 onBlur={() => {
                   inputBlurTimerRef.current = setTimeout(() => {
