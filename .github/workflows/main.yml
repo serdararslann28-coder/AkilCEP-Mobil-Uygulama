@@ -1,3 +1,4 @@
+
 name: Build Android AAB
 
 on:
@@ -34,13 +35,38 @@ jobs:
         working-directory: artifacts/mobile
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build AAB
+      - name: Check Expo and Babel configuration
+        working-directory: artifacts/mobile
+        run: |
+          echo "=== Expo version ==="
+          npx expo --version
+          echo "=== Babel config ==="
+          cat babel.config.js || true
+          echo "=== Metro config ==="
+          cat metro.config.js || true
+
+      - name: Build AAB and show real error
         working-directory: artifacts/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease --stacktrace 2>&1 | tee build.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo ""
+          echo "========================================"
+          echo "AKILCEP BUILD SONUCU"
+          echo "========================================"
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "BUILD FAILED"
+            echo ""
+            echo "Gercek hata satirlari:"
+            grep -E "Error:|ERROR|TypeError:|ReferenceError:|Cannot find|Unable to resolve|TransformError|ConfigError" build.log | head -50 || true
+          else
+            echo "BUILD SUCCESS"
+          fi
+          exit $EXIT_CODE
 
       - name: Upload AAB
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: AkılCEP-AAB
