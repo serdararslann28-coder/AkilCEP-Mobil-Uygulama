@@ -25,7 +25,6 @@
     },
     "android": {
       "package": "com.akilcep.ai",
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -93,5 +92,5 @@
       }
     },
     "owner": "serdararslann28"
-  }
+  },
 }

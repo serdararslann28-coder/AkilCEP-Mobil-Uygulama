@@ -7,15 +7,10 @@
  * Visual: edge-to-edge, card-free conversation history.
  * Gesture: Swipe-left closes the drawer.
  */
-import { Feather }   from "@expo/vector-icons";
-import {
-  BookOpen,
-  Clock,
-  Folder,
-  Grid,
-} from "lucide-react-native";
-import * as Haptics  from "expo-haptics";
-import { router }    from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { BookOpen, Clock, Folder, Grid } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, {
   forwardRef,
   useEffect,
@@ -46,30 +41,30 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useChat }     from "@/context/ChatContext";
+import { useChat } from "@/context/ChatContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { useTheme }    from "@/context/ThemeContext";
-import ProfileMenu     from "@/components/ProfileMenu";
+import { useTheme } from "@/context/ThemeContext";
+import ProfileMenu from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const { width: SCREEN_W } = Dimensions.get("window");
-const MENU_W = Math.min(Math.round(SCREEN_W * 0.80), 360);
+const MENU_W = Math.min(Math.round(SCREEN_W * 0.8), 360);
 
-const leafLogo      = require("@/assets/images/leaf-only-transparent.png");
+const leafLogo = require("@/assets/images/leaf-only-transparent.png");
 const defaultAvatar = require("@/assets/images/avatar.png");
 
 // ─── Date grouping helpers (createdAt is a number/ms timestamp) ────────────────
 function getDateGroup(ts: number, t: (k: string) => string): string {
-  const now  = new Date();
+  const now = new Date();
   const date = new Date(ts);
   const isSameDay =
-    now.getDate()     === date.getDate()     &&
-    now.getMonth()    === date.getMonth()    &&
+    now.getDate() === date.getDate() &&
+    now.getMonth() === date.getMonth() &&
     now.getFullYear() === date.getFullYear();
   if (isSameDay) return t("sidebar.today");
   const diffDays = (now.getTime() - date.getTime()) / 86_400_000;
-  if (diffDays < 2)  return t("sidebar.yesterday");
-  if (diffDays < 7)  return t("sidebar.thisWeek");
+  if (diffDays < 2) return t("sidebar.yesterday");
+  if (diffDays < 7) return t("sidebar.thisWeek");
   if (diffDays < 30) return t("sidebar.thisMonth");
   return t("sidebar.earlier");
 }
@@ -90,13 +85,18 @@ function ConversationRow({
   onRequestDelete,
 }: ConversationRowProps) {
   const suppressPressRef = useRef(false);
-  const longPressConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  useEffect(() => () => {
-    if (longPressConfirmTimerRef.current) {
-      clearTimeout(longPressConfirmTimerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (longPressConfirmTimerRef.current) {
+        clearTimeout(longPressConfirmTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const horizontalDragResponder = useRef(
     PanResponder.create({
@@ -119,9 +119,7 @@ function ConversationRow({
   ).current;
 
   return (
-    <View
-      {...horizontalDragResponder.panHandlers}
-    >
+    <View {...horizontalDragResponder.panHandlers}>
       <TouchableOpacity
         style={ss.convRow}
         onPress={() => {
@@ -161,7 +159,11 @@ function ConversationRow({
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
-interface Props { visible: boolean; onClose: () => void; onOpen: () => void; }
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+  onOpen: () => void;
+}
 type DeletePrompt = { id: string } | null;
 
 export interface SideMenuHandle {
@@ -191,7 +193,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   } = useChat();
 
   // UI state
-  const [searchOpen,  setSearchOpen]  = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletePrompt, setDeletePrompt] = useState<DeletePrompt>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -204,12 +206,18 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
 
   useEffect(() => {
     if (visible) {
-      translateX.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
+      translateX.value = withTiming(0, {
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+      });
       backdropOp.value = withTiming(1, { duration: 280 });
     } else {
       setSearchOpen(false);
       setSearchQuery("");
-      translateX.value = withTiming(-MENU_W, { duration: 260, easing: Easing.in(Easing.ease) });
+      translateX.value = withTiming(-MENU_W, {
+        duration: 260,
+        easing: Easing.in(Easing.ease),
+      });
       backdropOp.value = withTiming(0, { duration: 230 });
     }
   }, [visible]);
@@ -222,28 +230,39 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   }));
 
   const onOpenRef = useRef(onOpen);
-  useEffect(() => { onOpenRef.current = onOpen; }, [onOpen]);
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+  }, [onOpen]);
 
-  useImperativeHandle(ref, () => ({
-    updateOpeningGesture: (distance) => {
-      const progress = Math.min(Math.max(distance, 0), MENU_W);
-      translateX.value = -MENU_W + progress;
-      backdropOp.value = progress / MENU_W;
-    },
-    finishOpeningGesture: (distance, velocity) => {
-      const openDistance = Math.min(MENU_W * 0.28, 32);
-      if (distance >= openDistance || velocity > 0.55) {
-        onOpenRef.current();
-      } else {
-        translateX.value = withTiming(-MENU_W, { duration: 220, easing: Easing.out(Easing.cubic) });
-        backdropOp.value = withTiming(0, { duration: 180 });
-      }
-    },
-  }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      updateOpeningGesture: (distance) => {
+        const progress = Math.min(Math.max(distance, 0), MENU_W);
+        translateX.value = -MENU_W + progress;
+        backdropOp.value = progress / MENU_W;
+      },
+      finishOpeningGesture: (distance, velocity) => {
+        const openDistance = Math.min(MENU_W * 0.28, 32);
+        if (distance >= openDistance || velocity > 0.55) {
+          onOpenRef.current();
+        } else {
+          translateX.value = withTiming(-MENU_W, {
+            duration: 220,
+            easing: Easing.out(Easing.cubic),
+          });
+          backdropOp.value = withTiming(0, { duration: 180 });
+        }
+      },
+    }),
+    [],
+  );
 
   // ── Swipe-left-to-close gesture ───────────────────────────────────────────────
   const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const panelPointerHandlers = {
     onPointerDownCapture: (event: {
@@ -265,9 +284,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
       panelPointerSwipingRef.current =
         dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.8;
     },
-    onPointerUpCapture: (event: {
-      nativeEvent: { clientX: number };
-    }) => {
+    onPointerUpCapture: (event: { nativeEvent: { clientX: number } }) => {
       if (Platform.OS !== "web" || !panelPointerSwipingRef.current) return;
       const dx = event.nativeEvent.clientX - panelPointerStartRef.current.x;
       panelPointerSwipingRef.current = false;
@@ -290,18 +307,21 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         if (dx < -(MENU_W * 0.28) || vx < -0.55) {
           onCloseRef.current();
         } else {
-          translateX.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+          translateX.value = withTiming(0, {
+            duration: 220,
+            easing: Easing.out(Easing.cubic),
+          });
           backdropOp.value = withTiming(1, { duration: 180 });
         }
       },
-    })
+    }),
   ).current;
 
   // ── Filtered & grouped conversations ─────────────────────────────────────────
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
     const q = searchQuery.toLowerCase();
-    return conversations.filter(c => c.title.toLowerCase().includes(q));
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
   }, [conversations, searchQuery]);
 
   const groupedConversations = useMemo(() => {
@@ -343,7 +363,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
   }
 
   // ── Derived color tokens ──────────────────────────────────────────────────────
-  const muted         = drawerMuted;
+  const muted = drawerMuted;
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
     <>
@@ -369,20 +389,27 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 style={[ss.brandLogo, { tintColor: drawerForeground }]}
                 resizeMode="contain"
               />
-              <Text style={[ss.brandName, { color: drawerForeground }]}>AkılCEP</Text>
+              <Text style={ss.brandName}>
+                <Text style={ss.brandAkil}>Akıl</Text>
+                <Text style={ss.brandCep}>CEP</Text>
+              </Text>
             </View>
 
             <TouchableOpacity
               style={ss.searchButton}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSearchOpen(v => !v);
+                setSearchOpen((v) => !v);
                 if (searchOpen) setSearchQuery("");
               }}
               hitSlop={10}
               activeOpacity={0.65}
             >
-              <Feather name={searchOpen ? "x" : "search"} size={19} color={drawerForeground} />
+              <Feather
+                name={searchOpen ? "x" : "search"}
+                size={19}
+                color={drawerForeground}
+              />
             </TouchableOpacity>
           </View>
 
@@ -399,7 +426,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={10}>
+                <TouchableOpacity
+                  onPress={() => setSearchQuery("")}
+                  hitSlop={10}
+                >
                   <Feather name="x-circle" size={15} color={muted} />
                 </TouchableOpacity>
               )}
@@ -422,19 +452,27 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           <View style={ss.primaryMenu}>
             <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
               <BookOpen size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Kitaplık</Text>
+              <Text style={[ss.navText, { color: drawerForeground }]}>
+                Kitaplık
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
               <Folder size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Projeler</Text>
+              <Text style={[ss.navText, { color: drawerForeground }]}>
+                Projeler
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
               <Clock size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Zamanlandı</Text>
+              <Text style={[ss.navText, { color: drawerForeground }]}>
+                Zamanlandı
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={ss.navRow} activeOpacity={0.62}>
               <Grid size={19} color={drawerForeground} strokeWidth={1.7} />
-              <Text style={[ss.navText, { color: drawerForeground }]}>Eklentiler</Text>
+              <Text style={[ss.navText, { color: drawerForeground }]}>
+                Eklentiler
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -443,12 +481,16 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
           </Text>
           {filtered.length === 0 ? (
             <Text style={[ss.emptyText, { color: muted }]}>
-              {searchQuery.trim() ? t("sidebar.noResults") : t("sidebar.emptyHistory")}
+              {searchQuery.trim()
+                ? t("sidebar.noResults")
+                : t("sidebar.emptyHistory")}
             </Text>
           ) : (
             groupedConversations.map(([label, items]) => (
               <View key={label} style={ss.conversationGroup}>
-                <Text style={[ss.groupLabel, { color: drawerMuted }]}>{label}</Text>
+                <Text style={[ss.groupLabel, { color: drawerMuted }]}>
+                  {label}
+                </Text>
                 {items.map((conv) => (
                   <ConversationRow
                     key={conv.id}
@@ -467,15 +509,9 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               </View>
             ))
           )}
-
         </ScrollView>
 
-        <View
-          style={[
-            ss.ghostBottomContainer,
-            { paddingBottom: btmPad },
-          ]}
-        >
+        <View style={[ss.ghostBottomContainer, { paddingBottom: btmPad }]}>
           <View style={ss.bottomActions}>
             <TouchableOpacity
               style={ss.newChatAction}
@@ -484,8 +520,10 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("sidebar.newChat")}
             >
-              <Feather name="edit-3" size={22} color={drawerForeground} />
-              <Text style={[ss.newChatLabel, { color: drawerForeground }]}>Sohbet</Text>
+              <Feather name="edit-3" size={26} color="#FFFFFF" />
+              <Text style={[ss.newChatLabel, { color: "#FFFFFF" }]}>
+                Sohbet
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ss.avatarButton}
@@ -494,7 +532,11 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
               accessibilityRole="button"
               accessibilityLabel={t("profileMenu.profile")}
             >
-              <Image source={defaultAvatar} style={ss.bottomAvatar} resizeMode="cover" />
+              <Image
+                source={defaultAvatar}
+                style={ss.bottomAvatar}
+                resizeMode="cover"
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -541,9 +583,7 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
                 onPress={applyDelete}
                 activeOpacity={0.78}
               >
-                <Text style={ss.confirmDeleteText}>
-                  {t("sidebar.delete")}
-                </Text>
+                <Text style={ss.confirmDeleteText}>{t("sidebar.delete")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -562,133 +602,142 @@ export default SideMenu;
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   backdrop: {
-    position:        "absolute",
-    top:             0,
-    right:           0,
-    bottom:          0,
-    left:            0,
-    zIndex:          400,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 400,
     backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   drawerSurface: {
-    position:        "absolute",
-    top:             0,
-    bottom:          0,
-    left:            0,
-    zIndex:          401,
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 401,
     backgroundColor: "#FFFFFF",
   },
 
   ghostHeader: {
-    position:        "absolute",
-    top:             0,
-    left:            0,
-    right:           0,
-    zIndex:          20,
-    opacity:         1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    opacity: 1,
     backgroundColor: "transparent",
-    borderWidth:     0,
-    borderColor:     "transparent",
-    borderRadius:    0,
-    shadowColor:     "transparent",
-    shadowOpacity:   0,
-    shadowRadius:    0,
-    shadowOffset:    { width: 0, height: 0 },
-    elevation:       0,
-    boxShadow:       "none",
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 0,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+    boxShadow: "none",
   },
 
   header: {
-    minHeight:         52,
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
   },
 
   brand: {
     flexDirection: "row",
-    alignItems:    "center",
-    gap:           8,
+    alignItems: "center",
+    gap: 8,
   },
-
   brandLogo: {
-    width:  28,
-    height: 28,
+    width: 64,
+    height: 58,
   },
 
   brandName: {
-    fontSize:      18,
-    fontFamily:    "Inter_700Bold",
-    letterSpacing: 1.2,
+    fontSize: 34,
+    fontWeight: "400",
+    letterSpacing: -0.7,
+  },
+
+  brandAkil: {
+    color: "#9AA0A6",
+    fontWeight: "400",
+  },
+
+  brandCep: {
+    color: "#111111",
+    fontWeight: "600",
   },
 
   searchButton: {
-    width:          40,
-    height:         40,
-    alignItems:     "center",
+    width: 40,
+    height: 40,
+    alignItems: "center",
     justifyContent: "center",
   },
 
   // ── Search bar ───────────────────────────────────────────────────────────────
   searchBar: {
-    flexDirection:     "row",
-    alignItems:        "center",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
-    paddingBottom:     10,
-    gap:               8,
+    paddingBottom: 10,
+    gap: 8,
   },
 
   searchInput: {
-    flex:          1,
-    fontSize:      14,
-    fontFamily:    "Inter_400Regular",
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
     letterSpacing: -0.1,
     paddingHorizontal: 10,
-    paddingVertical:   7,
-    borderRadius:  0,
+    paddingVertical: 7,
+    borderRadius: 0,
   },
 
   primaryMenu: {
     paddingHorizontal: 20,
-    paddingTop:        6,
-    paddingBottom:     8,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
 
   navRow: {
-    minHeight:      48,
-    flexDirection:  "row",
-    alignItems:     "center",
-    gap:            14,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
   },
 
   navText: {
-    fontSize:      16,
-    fontFamily:    "Inter_500Medium",
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
     letterSpacing: -0.2,
   },
 
   // ── Scroll area ──────────────────────────────────────────────────────────────
   scroll: {
-    flex:       1,
-    minHeight:  0,
-    overflow:   "scroll",
-    zIndex:     1,
+    flex: 1,
+    minHeight: 0,
+    overflow: "scroll",
+    zIndex: 1,
   },
 
   scrollContent: {
-    paddingTop:    0,
+    paddingTop: 0,
     paddingBottom: 10,
   },
 
   historySectionTitle: {
-    fontSize:          15,
-    fontFamily:        "Inter_600SemiBold",
-    letterSpacing:     -0.2,
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: -0.2,
     paddingHorizontal: 20,
-    paddingTop:        12,
-    paddingBottom:     12,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
 
   conversationGroup: {
@@ -696,167 +745,177 @@ const ss = StyleSheet.create({
   },
 
   groupLabel: {
-    fontSize:          12,
-    fontFamily:        "Inter_500Medium",
-    letterSpacing:     0.1,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    letterSpacing: 0.1,
     paddingHorizontal: 20,
-    paddingTop:        5,
-    paddingBottom:     6,
+    paddingTop: 5,
+    paddingBottom: 6,
   },
 
   // Conversation row
   convRow: {
-    flexDirection:     "row",
-    alignItems:        "center",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 20,
-    minHeight:         46,
-    paddingVertical:   11,
-    gap:               12,
-    position:          "relative",
+    minHeight: 46,
+    paddingVertical: 11,
+    gap: 12,
+    position: "relative",
   },
 
   convTitle: {
-    flex:          1,
-    fontSize:      15,
-    fontFamily:    "Inter_400Regular",
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
     letterSpacing: -0.2,
   },
 
   // Empty state
   emptyText: {
-    fontSize:          14,
-    fontFamily:        "Inter_400Regular",
-    letterSpacing:     -0.1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    letterSpacing: -0.1,
     paddingHorizontal: 20,
-    paddingTop:        24,
-    fontStyle:         "italic",
+    paddingTop: 24,
+    fontStyle: "italic",
   },
 
   confirmOverlay: {
-    flex:            1,
-    alignItems:      "center",
-    justifyContent:  "center",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 28,
     backgroundColor: "rgba(0,0,0,0.34)",
   },
 
   confirmCard: {
-    width:           "100%",
-    maxWidth:        330,
-    borderRadius:    20,
-    borderWidth:     StyleSheet.hairlineWidth,
-    padding:         20,
-    shadowColor:     "#000",
-    shadowOffset:    { width: 0, height: 12 },
-    shadowOpacity:   0.18,
-    shadowRadius:    28,
-    elevation:       12,
+    width: "100%",
+    maxWidth: 330,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 12,
   },
 
   confirmTitle: {
-    fontSize:      17,
-    fontFamily:    "Inter_600SemiBold",
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
     letterSpacing: -0.25,
   },
 
   confirmMessage: {
-    marginTop:     8,
-    fontSize:      13.5,
-    lineHeight:    20,
-    fontFamily:    "Inter_400Regular",
+    marginTop: 8,
+    fontSize: 13.5,
+    lineHeight: 20,
+    fontFamily: "Inter_400Regular",
   },
 
   confirmActions: {
-    marginTop:      20,
-    flexDirection:  "row",
+    marginTop: 20,
+    flexDirection: "row",
     justifyContent: "flex-end",
-    gap:            10,
+    gap: 10,
   },
 
   confirmCancel: {
-    minWidth:        82,
-    height:          42,
-    borderRadius:    12,
-    alignItems:      "center",
-    justifyContent:  "center",
+    minWidth: 82,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 14,
   },
 
   confirmCancelText: {
-    fontSize:   13.5,
+    fontSize: 13.5,
     fontFamily: "Inter_500Medium",
   },
 
   confirmDelete: {
-    minWidth:        82,
-    height:          42,
-    borderRadius:    12,
-    alignItems:      "center",
-    justifyContent:  "center",
+    minWidth: 82,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 14,
     backgroundColor: "#C83E3E",
   },
 
   confirmDeleteText: {
-    color:      "#FFFFFF",
-    fontSize:   13.5,
+    color: "#FFFFFF",
+    fontSize: 13.5,
     fontFamily: "Inter_600SemiBold",
   },
 
   ghostBottomContainer: {
-    position:          "absolute",
-    left:              0,
-    right:             0,
-    bottom:            0,
-    zIndex:            20,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
     paddingHorizontal: 16,
-    opacity:           1,
-    backgroundColor:   "transparent",
-    borderWidth:       0,
-    borderColor:       "transparent",
-    borderRadius:      0,
-    shadowColor:       "transparent",
-    shadowOpacity:     0,
-    shadowRadius:      0,
-    shadowOffset:      { width: 0, height: 0 },
-    elevation:         0,
-    boxShadow:         "none",
+    opacity: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 0,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+    boxShadow: "none",
   },
 
   bottomActions: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    width:             "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 18,
   },
 
   newChatAction: {
-    flexShrink:      0,
-    height:          46,
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "flex-start",
-    paddingHorizontal: 2,
-    gap:             8,
+    flexShrink: 0,
+    width: 160,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingHorizontal: 18,
+    gap: 10,
+    backgroundColor: "#000000",
+    borderRadius: 26,
+    borderWidth: 0,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
 
   newChatLabel: {
-    fontSize:      16,
-    fontFamily:    "Inter_500Medium",
+    fontSize: 18,
+    fontFamily: "Inter_500Medium",
     letterSpacing: -0.2,
   },
 
   avatarButton: {
-    width:          44,
-    height:         44,
-    borderRadius:   22,
-    overflow:       "hidden",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    alignSelf: "center",
   },
 
   bottomAvatar: {
-    width:        "100%",
-    height:       "100%",
+    width: "100%",
+    height: "100%",
     borderRadius: 22,
   },
-
 });

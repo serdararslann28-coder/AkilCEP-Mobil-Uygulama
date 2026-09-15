@@ -638,9 +638,9 @@ const ss = StyleSheet.create({
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.07)",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
     alignItems: "center", justifyContent: "center",
   },
   topCenter: { flex: 1, alignItems: "center", paddingRight: 36 },

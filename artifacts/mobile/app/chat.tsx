@@ -1119,14 +1119,7 @@ export default function ChatScreen() {
           }}
           style={[
             ss.dock,
-            pendingAttachments.length > 0 && [
-              ss.dockWithAttachments,
-              {
-                backgroundColor: T.isDark
-                  ? "rgba(22,22,24,0.96)"
-                  : "rgba(255,255,255,0.96)",
-              },
-            ],
+            pendingAttachments.length > 0 && ss.dockWithAttachments,
           ]}
         >
           {pendingAttachments.length > 0 && (
@@ -1283,21 +1276,6 @@ export default function ChatScreen() {
                 />
               </Animated.View>
             </View>
-            <View
-              style={[
-                ss.inputUnderline,
-                { backgroundColor: T.isDark ? "rgba(255,255,255,0.16)" : "#E5E7EB" },
-              ]}
-              pointerEvents="none"
-            />
-            <Animated.View
-              style={[
-                ss.inputFocusLine,
-                { backgroundColor: T.isDark ? "#76AEEA" : "#5B9AD9" },
-                focusLineStyle,
-              ]}
-              pointerEvents="none"
-            />
           </Animated.View>
 
           {/* C — black AI voice button */}
@@ -1863,7 +1841,8 @@ dockMicWrap: {
     paddingTop:        56,
     paddingBottom:     14,
     paddingHorizontal: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
+    borderBottomColor: "transparent",
   },
   expandClose: {
     width:          44,
@@ -1891,7 +1870,8 @@ dockMicWrap: {
     justifyContent:    "space-between",
     paddingHorizontal: 20,
     paddingTop:        12,
-    borderTopWidth:    StyleSheet.hairlineWidth,
+    borderTopWidth:    0,
+    borderTopColor:    "transparent",
   },
   expandCounter: {
     fontSize:   12,

@@ -48,7 +48,7 @@ function Row({
 }) {
   return (
     <TouchableOpacity
-      style={[ss.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: divider }]}
+      style={[ss.row, !last && { borderBottomWidth: 0, borderBottomColor: "transparent" }]}
       onPress={onPress}
       activeOpacity={onPress ? 0.65 : 1}
     >
@@ -77,7 +77,7 @@ function ToggleRow({
   last?:     boolean;
 }) {
   return (
-    <View style={[ss.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: divider }]}>
+    <View style={[ss.row, !last && { borderBottomWidth: 0, borderBottomColor: "transparent" }]}>
       <View style={ss.rowIcon}>
         <Feather name={icon} size={16} color={fg} style={{ opacity: 0.55 }} />
       </View>
@@ -118,7 +118,7 @@ export default function SettingsScreen() {
       {/* ── Floating back button (invisible header) ───────────────────────── */}
       <TouchableOpacity
         onPress={() => router.back()}
-        style={[ss.floatBack, { top: topPad + 10, backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)" }]}
+        style={[ss.floatBack, { top: topPad + 10, backgroundColor: "transparent" }]}
         hitSlop={14}
         activeOpacity={0.60}
       >
@@ -150,7 +150,7 @@ export default function SettingsScreen() {
                   style={[
                     ss.themeOption,
                     {
-                      borderColor:     active ? themeActiveBg : cardBorder,
+                      borderColor:     active ? themeActiveBg : "transparent",
                       backgroundColor: active ? themeActiveBg : "transparent",
                     },
                   ]}
@@ -397,8 +397,8 @@ const ss = StyleSheet.create({
     flexDirection:     "row",
     alignItems:        "center",
     paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.08)",
+    borderBottomWidth: 0,
+    borderBottomColor: "transparent",
   },
 
   destructiveLabel: {

@@ -157,11 +157,11 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
 
           {/* Menu sections */}
           {SECTIONS.map((section, si) => (
-            <View key={si} style={[ss.section, { backgroundColor: sectionBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0 }]}>
+            <View key={si} style={[ss.section, { backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0 }]}>
               {section.map((item, ii) => (
                 <TouchableOpacity
                   key={item.label}
-                  style={[ss.menuRow, ii < section.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border }]}
+                  style={[ss.menuRow, ii < section.length - 1 && { borderBottomWidth: 0, borderBottomColor: "transparent" }]}
                   onPress={() => handleItem(item.action)}
                   activeOpacity={0.6}
                 >
@@ -176,7 +176,7 @@ export default function ProfileMenu({ visible, onClose }: ProfileMenuProps) {
           ))}
 
           {/* Logout */}
-          <View style={[ss.section, { backgroundColor: sectionBg, borderColor: T.border, borderWidth: T.isDark ? StyleSheet.hairlineWidth : 0, marginTop: 0 }]}>
+          <View style={[ss.section, { backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, marginTop: 0 }]}>
             <TouchableOpacity
               style={ss.menuRow}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose(); }}
@@ -226,7 +226,7 @@ const ss = StyleSheet.create({
   premiumCTA:       { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 6, paddingVertical: 14, borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.16, shadowRadius: 10, elevation: 5 },
   premiumCTAText:   { fontSize: 15, fontFamily: "Inter_600SemiBold", letterSpacing: -0.2 },
 
-  section:   { backgroundColor: "#FFFFFF", borderRadius: 18, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+  section:   { backgroundColor: "transparent", borderRadius: 18, overflow: "hidden", shadowColor: "transparent", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
   menuRow:   { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16, gap: 14 },
   menuIcon:  { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", letterSpacing: -0.1 },

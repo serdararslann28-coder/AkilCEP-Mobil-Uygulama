@@ -74,7 +74,18 @@
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
+    "babel-preset-expo": "57.0.11",
     "expo-cloudflared": "^4.2.2",
     "typescript": "~6.0.3"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo",
+        "expo-build-properties",
+        "expo-image-picker",
+        "expo-location"
+      ]
+    }
   }
 }

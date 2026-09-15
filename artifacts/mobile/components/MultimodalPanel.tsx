@@ -269,17 +269,11 @@ export default function MultimodalPanel({
         style={[
           ss.panelShadow,
           panelStyle,
-          { shadowOpacity: T.isDark ? 0.28 : 0.10 },
+          { shadowOpacity: 0 },
         ]}
         pointerEvents={open ? "auto" : "none"}
       >
-        <View style={[ss.panelSurface, { backgroundColor: panelColor, borderColor }]}>
-          <BlurView
-            style={StyleSheet.absoluteFill}
-            tint={T.isDark ? "dark" : "light"}
-            intensity={Platform.OS === "android" ? 35 : 65}
-          />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: panelColor }]} />
+        <View style={[ss.panelSurface, { borderColor: "transparent" }]}>
           {actions.map((action, index) => (
             <React.Fragment key={action.id}>
               <ActionRow
@@ -290,9 +284,6 @@ export default function MultimodalPanel({
                 isDark={T.isDark}
                 onPress={action.handler}
               />
-              {index < actions.length - 1 && (
-                <View style={[ss.divider, { backgroundColor: dividerColor }]} />
-              )}
             </React.Fragment>
           ))}
         </View>
@@ -304,7 +295,7 @@ export default function MultimodalPanel({
 const ss = StyleSheet.create({
   backdrop: {
     zIndex: 150,
-    backgroundColor: "rgba(0,0,0,0.025)",
+    backgroundColor: "transparent",
   },
   panelShadow: {
     position: "absolute",
