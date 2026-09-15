@@ -1,0 +1,525 @@
+AKILCEP — GLOBAL GHOST UI SYSTEM
+================================
+
+THIS IS A GLOBAL UI REFACTOR.
+
+DO NOT REBUILD THE APP LOGIC.
+DO NOT REMOVE FEATURES.
+DO NOT BREAK NAVIGATION.
+DO NOT BREAK AUTHENTICATION.
+DO NOT BREAK CHAT.
+DO NOT BREAK API CONNECTIONS.
+DO NOT BREAK DATABASE CONNECTIONS.
+DO NOT BREAK EXISTING FUNCTIONALITY.
+
+ONLY REFACTOR THE VISUAL UI SYSTEM.
+
+==================================================
+CORE DESIGN PRINCIPLE
+==================================================
+
+AKILCEP MUST USE A GLOBAL "GHOST UI" DESIGN LANGUAGE.
+
+The principle is:
+
+"CONTAINERS MAY EXIST FOR LAYOUT,
+BUT THEY MUST NOT VISUALLY ANNOUNCE THEMSELVES."
+
+Containers can be used for:
+- layout
+- spacing
+- alignment
+- positioning
+- flex structure
+- scrolling
+- touch areas
+
+BUT unnecessary visual containers must become invisible.
+
+The content remains fully visible.
+
+==================================================
+GHOST CONTAINER RULE
+==================================================
+
+Whenever a container does NOT need to visually separate content, make it a GHOST CONTAINER.
+
+Ghost containers must use:
+
+backgroundColor: transparent
+borderWidth: 0
+borderColor: transparent
+shadowOpacity: 0
+shadowRadius: 0
+elevation: 0
+boxShadow: none
+backdropFilter: none
+blur: none
+
+DO NOT set:
+
+opacity: 0
+
+because child content must remain fully visible.
+
+The container can still exist technically,
+but the user must not visually perceive it as a card or panel.
+
+==================================================
+1 — HEADER / TOP BAR
+==================================================
+
+Apply Ghost UI to all headers and top bars.
+
+REMOVE unnecessary visible header backgrounds.
+
+NO:
+- header cards
+- floating header panels
+- rounded header rectangles
+- header shadows
+- header borders
+- glass header backgrounds
+
+Headers should visually integrate into the screen.
+
+Use transparent / invisible containers.
+
+Icons and text remain fully visible.
+
+If a header genuinely requires visual separation for usability,
+keep only the minimum necessary visual treatment.
+
+==================================================
+2 — FOOTER / BOTTOM BAR
+==================================================
+
+Apply Ghost UI to all bottom bars and footers.
+
+NO:
+- floating footer cards
+- bottom panels
+- rounded footer containers
+- unnecessary footer backgrounds
+- footer shadows
+- footer borders
+
+Bottom controls should appear directly on the screen surface.
+
+Fixed positioning is allowed.
+
+The container itself should remain visually invisible.
+
+Ensure content has enough bottom padding so scrolling content is never hidden.
+
+==================================================
+3 — SIDEDRAWER
+==================================================
+
+Apply the Ghost UI system to the entire SideDrawer.
+
+The drawer itself remains a single continuous surface.
+
+NO visible:
+- header card
+- logo card
+- menu cards
+- conversation cards
+- footer card
+- floating panels
+
+The SideDrawer should feel like ONE CONTINUOUS SURFACE.
+
+Logo, menu items, conversation history and bottom controls should visually belong to the same surface.
+
+The drawer opening behavior must remain unchanged.
+
+==================================================
+4 — LOGO AREAS
+==================================================
+
+All logo containers must become visually invisible unless a visible background is explicitly required by the brand design.
+
+NO:
+- logo cards
+- logo panels
+- logo backgrounds
+- rounded logo boxes
+- logo shadows
+- floating logo containers
+
+The logo should appear directly on the underlying screen surface.
+
+The logo itself must remain fully visible.
+
+==================================================
+5 — MENU ITEMS
+==================================================
+
+Apply Ghost UI to menu rows.
+
+Menu items should NOT look like cards.
+
+NO:
+- individual card backgrounds
+- borders
+- shadows
+- floating rectangles
+- unnecessary rounded containers
+
+Use clean spacing and typography.
+
+Active/selected states may still have a subtle visual indicator when necessary for usability.
+
+But avoid large card-like backgrounds.
+
+==================================================
+6 — CHAT MESSAGE CONTAINERS
+==================================================
+
+Apply Ghost UI to the outer containers surrounding chat messages.
+
+IMPORTANT:
+
+DO NOT destroy message readability.
+
+DO NOT remove intentional message bubbles if they are part of the actual conversational design.
+
+Instead:
+
+Remove unnecessary OUTER cards and wrapper panels.
+
+The conversation should feel lightweight and native.
+
+Avoid:
+- unnecessary message section cards
+- outer background panels
+- redundant nested containers
+- excessive rounded rectangles
+- unnecessary shadows
+
+Keep intentional user/assistant message styling where it improves readability.
+
+==================================================
+7 — INPUT AREA
+==================================================
+
+Apply Ghost UI to unnecessary containers surrounding the chat input.
+
+The input itself may retain a subtle usable shape if needed.
+
+BUT:
+
+NO unnecessary outer card.
+
+NO double-container appearance.
+
+NO container around another container around the input.
+
+Remove redundant backgrounds and borders.
+
+The input should feel integrated into the screen.
+
+Keep:
+- text input
+- send button
+- attachment button
+- voice controls
+- keyboard behavior
+- focus behavior
+
+fully functional.
+
+==================================================
+8 — NAVIGATION AREAS
+==================================================
+
+Apply Ghost UI to navigation containers.
+
+NO unnecessary:
+- navigation cards
+- floating navigation panels
+- duplicate backgrounds
+- decorative borders
+- shadows
+
+Navigation icons and labels remain visible.
+
+Navigation must remain easy to understand and tap.
+
+Do not remove accessibility or touch targets.
+
+==================================================
+9 — TOOLBARS
+==================================================
+
+Apply Ghost UI to toolbars.
+
+Toolbars should visually disappear into the surrounding screen unless a divider is genuinely necessary.
+
+NO:
+- toolbar cards
+- floating toolbar panels
+- unnecessary backgrounds
+- unnecessary borders
+- unnecessary shadows
+
+Keep all toolbar actions functional.
+
+==================================================
+10 — FLOATING CONTAINERS
+==================================================
+
+Identify every unnecessary floating container.
+
+If it exists only because of layout:
+
+CONVERT IT TO A GHOST CONTAINER.
+
+Remove:
+- background
+- border
+- shadow
+- elevation
+- blur
+- glass effect
+
+If a floating element is an actual important action,
+KEEP THE ACTION ITSELF.
+
+Only remove unnecessary visual container styling.
+
+==================================================
+11 — UNNECESSARY SECTION / CONTAINER BOXES
+==================================================
+
+Inspect the entire application for redundant visual containers.
+
+Look for nested structures such as:
+
+Screen
+ └── Card
+      └── Container
+           └── Content
+
+If the Card or Container exists only to create a visual box,
+remove its visual styling.
+
+Prefer:
+
+Screen
+ └── Invisible Layout Container
+      └── Content
+
+Do not blindly delete containers that are required for:
+- layout
+- scrolling
+- positioning
+- animation
+- touch handling
+- navigation
+- state management
+
+Only remove their unnecessary visual appearance.
+
+==================================================
+12 — DESIGN HIERARCHY
+==================================================
+
+Ghost UI does NOT mean "make everything invisible."
+
+The following must remain visually clear:
+
+- primary actions
+- important buttons
+- selected states
+- warnings
+- premium features
+- profile information
+- important settings
+- confirmation dialogs
+- destructive actions
+
+Use visible UI only when it improves hierarchy or usability.
+
+The goal is NOT:
+
+"Everything is transparent."
+
+The goal is:
+
+"Nothing looks like a card unless it actually needs to be a card."
+
+==================================================
+13 — AKILCEP VISUAL LANGUAGE
+==================================================
+
+Use:
+
+Apple-inspired minimalism.
+Clean typography.
+Generous spacing.
+White surfaces.
+Strong hierarchy.
+Premium simplicity.
+Natural content flow.
+
+Avoid excessive cards.
+
+Avoid excessive borders.
+
+Avoid excessive shadows.
+
+Avoid excessive rounded rectangles.
+
+Avoid unnecessary visual layers.
+
+AKILCEP should feel like a native premium application,
+not a collection of cards placed on a screen.
+
+==================================================
+14 — COMPONENT REFACTOR
+==================================================
+
+Before changing code:
+
+SCAN THE ENTIRE UI COMPONENT TREE.
+
+Identify:
+
+- Header components
+- Footer components
+- SideDrawer
+- Logo wrappers
+- Menu rows
+- Chat wrappers
+- Input wrappers
+- Navigation containers
+- Toolbars
+- Floating containers
+- Section containers
+- Card components
+- Redundant nested Views
+
+Then refactor only their visual styling.
+
+DO NOT break business logic.
+
+DO NOT change API logic.
+
+DO NOT change database logic.
+
+DO NOT change authentication logic.
+
+DO NOT change navigation logic unless required to preserve the existing drawer behavior.
+
+==================================================
+15 — DO NOT CREATE A NEW DESIGN SYSTEM THAT USES MORE CARDS
+==================================================
+
+THIS IS CRITICAL.
+
+Do NOT replace old cards with new cards.
+
+Do NOT add more wrappers.
+
+Do NOT create decorative containers just to make the interface look "premium."
+
+Premium does NOT mean more boxes.
+
+AKILCEP'S PREMIUM LOOK SHOULD COME FROM:
+
+spacing
+typography
+alignment
+white space
+hierarchy
+motion
+subtle interaction
+
+NOT FROM EXCESSIVE CARDS.
+
+==================================================
+16 — RESPONSIVENESS
+==================================================
+
+The Ghost UI system must work across:
+
+- Android
+- iOS
+- small screens
+- large screens
+- different aspect ratios
+- keyboard open state
+- keyboard closed state
+
+Do not use fixed dimensions that break layouts.
+
+==================================================
+17 — PERFORMANCE
+==================================================
+
+Do not add unnecessary animations.
+
+Do not add expensive blur effects.
+
+Do not add unnecessary shadows.
+
+Do not create unnecessary nested components.
+
+Keep the UI lightweight.
+
+==================================================
+18 — FINAL VISUAL QA
+==================================================
+
+After implementation, inspect EVERY major screen.
+
+Check:
+
+[ ] Header is visually integrated.
+[ ] Footer is visually integrated.
+[ ] SideDrawer uses the Ghost UI system.
+[ ] Logo areas have no unnecessary cards.
+[ ] Menu rows have no unnecessary cards.
+[ ] Chat has no redundant outer cards.
+[ ] Input has no redundant outer container.
+[ ] Navigation has no unnecessary panels.
+[ ] Toolbars have no unnecessary cards.
+[ ] Floating containers are ghosted where appropriate.
+[ ] Redundant section containers are visually invisible.
+[ ] Important buttons remain visible.
+[ ] Important states remain visible.
+[ ] Accessibility/touch targets remain intact.
+[ ] Scrolling still works.
+[ ] Keyboard behavior still works.
+[ ] Navigation still works.
+[ ] Existing functionality still works.
+
+==================================================
+FINAL RULE
+==================================================
+
+AKILCEP SHOULD FOLLOW THIS DESIGN RULE:
+
+"CONTENT IS VISIBLE.
+LAYOUT CONTAINERS ARE INVISIBLE.
+IMPORTANT ACTIONS REMAIN VISIBLE.
+UNNECESSARY CARDS DISAPPEAR."
+
+DO NOT MAKE EVERYTHING TRANSPARENT.
+
+REMOVE ONLY UNNECESSARY VISUAL CONTAINERS.
+
+KEEP FUNCTIONAL CONTAINERS.
+
+KEEP IMPORTANT UI HIERARCHY.
+
+MAKE THE ENTIRE APPLICATION FEEL LIKE ONE CLEAN,
+CONNECTED, PREMIUM INTERFACE.
+
+THIS IS A GLOBAL VISUAL REFACTOR.
+
+DO NOT STOP AFTER FIXING ONE SCREEN.
+
+CHECK THE ENTIRE AKILCEP APPLICATION.
