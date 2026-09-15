@@ -30,6 +30,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --ignore-scripts
 
+      - name: Generate Android project
+        working-directory: artifacts/mobile
+        run: npx expo prebuild --platform android --no-install
+
       - name: Build AAB
         working-directory: artifacts/mobile/android
         run: |
