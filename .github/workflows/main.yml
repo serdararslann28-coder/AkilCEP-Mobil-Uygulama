@@ -11,24 +11,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.26.1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --ignore-scripts
 
-      - name: Install Expo & EAS CLI
-        run: npm install -g expo-cli eas-cli
+      - name: Build AAB
+        working-directory: artifacts/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease
 
-      - name: Build Android AAB
-        run: eas build --platform android --profile production --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: AkılCEP-AAB
+          path: artifacts/mobile/android/app/build/outputs/bundle/release/*.aab
