@@ -1,4 +1,3 @@
-
 name: Build Android AAB
 
 on:
@@ -35,26 +34,121 @@ jobs:
         working-directory: artifacts/mobile
         run: npx expo prebuild --platform android --no-install
 
+      - name: Restore Google Play upload keystore
+        working-directory: artifacts/mobile/android
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > app/upload-keystore.jks
+          test -s app/upload-keystore.jks
+          echo "Upload keystore restored."
+
+      - name: Configure release signing and versionCode
+        working-directory: artifacts/mobile/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          VERSION_CODE="${GITHUB_RUN_NUMBER}"
+
+          echo "Using versionCode: $VERSION_CODE"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("app/build.gradle")
+          text = path.read_text()
+
+          # Add the Google Play upload signing configuration.
+          signing_block = """signingConfigs {
+                  releaseUpload {
+                      storeFile file('upload-keystore.jks')
+                      storePassword System.getenv('KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('KEY_ALIAS')
+                      keyPassword System.getenv('KEY_PASSWORD')
+                  }
+          """
+
+          if "releaseUpload {" not in text:
+              text = text.replace(
+                  "signingConfigs {",
+                  signing_block,
+                  1
+              )
+
+          # The generated Expo project has debug signing on debug and release.
+          # Replace ONLY the second occurrence, which belongs to release.
+          old = "signingConfig signingConfigs.debug"
+          positions = [m.start() for m in re.finditer(re.escape(old), text)]
+
+          if len(positions) >= 2:
+              pos = positions[1]
+              text = text[:pos] + "signingConfig signingConfigs.releaseUpload" + text[pos + len(old):]
+          elif "signingConfig signingConfigs.releaseUpload" not in text:
+              raise SystemExit("Release signingConfig could not be located.")
+
+          # Set versionCode automatically from GitHub Actions run number.
+          match = re.search(r"(\bversionCode\s+)\d+", text)
+
+          if not match:
+              raise SystemExit("versionCode could not be located.")
+
+          version_code = "${VERSION_CODE}"
+          text = text[:match.start()] + match.group(1) + version_code + text[match.end():]
+
+          path.write_text(text)
+          PY
+
+          echo "=== Release signing check ==="
+          grep -n -A8 "releaseUpload" app/build.gradle
+
+          echo "=== versionCode check ==="
+          grep -n "versionCode" app/build.gradle
+
+      - name: Verify upload key
+        working-directory: artifacts/mobile/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          keytool -list \
+            -keystore app/upload-keystore.jks \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS" \
+            -v | grep -E "Alias name:|SHA1:|SHA256:"
+
       - name: Check Expo and Babel configuration
         working-directory: artifacts/mobile
         run: |
           echo "=== Expo version ==="
           npx expo --version
+
           echo "=== Babel config ==="
           cat babel.config.js || true
+
           echo "=== Metro config ==="
           cat metro.config.js || true
 
       - name: Build AAB and show real error
         working-directory: artifacts/mobile/android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
+
           ./gradlew bundleRelease --stacktrace 2>&1 | tee build.log
+
           EXIT_CODE=${PIPESTATUS[0]}
+
           echo ""
           echo "========================================"
           echo "AKILCEP BUILD SONUCU"
           echo "========================================"
+
           if [ "$EXIT_CODE" -ne 0 ]; then
             echo "BUILD FAILED"
             echo ""
@@ -63,6 +157,7 @@ jobs:
           else
             echo "BUILD SUCCESS"
           fi
+
           exit $EXIT_CODE
 
       - name: Upload AAB
