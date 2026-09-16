@@ -3,6 +3,9 @@ name: Build Android AAB
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -49,54 +52,68 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
         run: |
-          VERSION_CODE="${GITHUB_RUN_NUMBER}"
-
           echo "Using versionCode: $VERSION_CODE"
 
           python3 - <<'PY'
           from pathlib import Path
+          import os
           import re
 
           path = Path("app/build.gradle")
           text = path.read_text()
 
-          # Add the Google Play upload signing configuration.
-          signing_block = """signingConfigs {
-                  releaseUpload {
-                      storeFile file('upload-keystore.jks')
-                      storePassword System.getenv('KEYSTORE_PASSWORD')
-                      keyAlias System.getenv('KEY_ALIAS')
-                      keyPassword System.getenv('KEY_PASSWORD')
-                  }
-          """
-
           if "releaseUpload {" not in text:
               text = text.replace(
                   "signingConfigs {",
-                  signing_block,
+                  """signingConfigs {
+                      releaseUpload {
+                          storeFile file('upload-keystore.jks')
+                          storePassword System.getenv('KEYSTORE_PASSWORD')
+                          keyAlias System.getenv('KEY_ALIAS')
+                          keyPassword System.getenv('KEY_PASSWORD')
+                      }""",
                   1
               )
 
-          # The generated Expo project has debug signing on debug and release.
-          # Replace ONLY the second occurrence, which belongs to release.
-          old = "signingConfig signingConfigs.debug"
-          positions = [m.start() for m in re.finditer(re.escape(old), text)]
+          occurrences = list(
+              re.finditer(
+                  r'\bsigningConfig\s+signingConfigs\.debug\b',
+                  text
+              )
+          )
 
-          if len(positions) >= 2:
-              pos = positions[1]
-              text = text[:pos] + "signingConfig signingConfigs.releaseUpload" + text[pos + len(old):]
+          if len(occurrences) >= 2:
+              m = occurrences[1]
+              text = (
+                  text[:m.start()]
+                  + "signingConfig signingConfigs.releaseUpload"
+                  + text[m.end():]
+              )
           elif "signingConfig signingConfigs.releaseUpload" not in text:
-              raise SystemExit("Release signingConfig could not be located.")
+              raise SystemExit(
+                  "Release signingConfig could not be located."
+              )
 
-          # Set versionCode automatically from GitHub Actions run number.
-          match = re.search(r"(\bversionCode\s+)\d+", text)
+          version_code = os.environ["VERSION_CODE"]
 
-          if not match:
-              raise SystemExit("versionCode could not be located.")
+          if not version_code.isdigit():
+              raise SystemExit(
+                  f"Invalid VERSION_CODE: {version_code}"
+              )
 
-          version_code = "${VERSION_CODE}"
-          text = text[:match.start()] + match.group(1) + version_code + text[match.end():]
+          text, count = re.subn(
+              r'(\bversionCode\s+)\d+',
+              lambda m: m.group(1) + version_code,
+              text,
+              count=1
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  "versionCode could not be located."
+              )
 
           path.write_text(text)
           PY
@@ -166,3 +183,8 @@ jobs:
         with:
           name: AkılCEP-AAB
           path: artifacts/mobile/android/app/build/outputs/bundle/release/*.aab
+
+      - name: Cleanup signing key
+        if: always()
+        run: |
+          rm -f artifacts/mobile/android/app/upload-keystore.jks
