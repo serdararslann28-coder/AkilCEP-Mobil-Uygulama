@@ -177,7 +177,17 @@ jobs:
 
           exit $EXIT_CODE
 
-      - name: Upload AAB
+      - name: Upload AAB to Google Play Internal Testing
+        if: success()
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.akilcep.ai
+          releaseFiles: artifacts/mobile/android/app/build/outputs/bundle/release/*.aab
+          tracks: internal
+          status: completed
+
+      - name: Upload AAB Artifact to GitHub
         if: success()
         uses: actions/upload-artifact@v4
         with:
