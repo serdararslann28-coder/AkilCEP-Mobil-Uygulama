@@ -1800,7 +1800,7 @@ dockMicWrap: {
     elevation: 0,
   },
 
-  // C — AI voice button 46×46, radius 23
+  // C — AI voice button 42×42, radius 21
   dockAiShell: {
     width:          46,
     height:         46,
