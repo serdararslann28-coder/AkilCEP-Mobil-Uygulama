@@ -49,3 +49,12 @@ Thumbs.db
 .local/
 
 artifacts/mobile/upload-keystore.base64
+
+# AkılCEP Admin secrets/build
+artifacts/admin/.env*
+artifacts/admin/dist/
+
+# Local backup files
+*.backup
+*.backup-*
+.replit.backup-*
