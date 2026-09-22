@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import path from "node:path";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,6 +31,12 @@ app.use(cors());
 // Covers the validated 24 MB decoded attachment budget after base64 expansion.
 app.use(express.json({ limit: "34mb" }));
 app.use(express.urlencoded({ extended: true, limit: "34mb" }));
+
+
+app.get("/privacy", (_req, res) => {
+  const privacyPath = path.resolve(process.cwd(), "../../site/privacy.html");
+  res.sendFile(privacyPath);
+});
 
 app.use("/api", router);
 
