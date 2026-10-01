@@ -30,6 +30,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: pnpm dlx expo@latest prebuild --platform android --non-interactive
+      - name: Include generated Android project in EAS archive
+        working-directory: artifacts/mobile
+        run: |
+          printf "\n!android/\n!android/**\n" >> .easignore
+          echo "Android native project will be included in EAS archive."
+          test -f android/gradlew && echo "gradlew OK" || (echo "gradlew MISSING"; exit 1)
       - name: Build Android AAB with EAS
         working-directory: artifacts/mobile
         env:
