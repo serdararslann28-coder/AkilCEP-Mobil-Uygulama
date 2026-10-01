@@ -1,4 +1,4 @@
-name: Android AAB
+name: Android AAB + Google Play
 
 on:
   workflow_dispatch:
@@ -26,11 +26,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup EAS
-        run: pnpm exec eas-cli --version
-
-      - name: Build Android AAB
+      - name: Build Android AAB with EAS
         working-directory: artifacts/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: pnpm exec eas-cli build --platform android --profile production --non-interactive
+        run: |
+          pnpm exec eas-cli build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --wait \
+            --json > eas-build.json
+
+      - name: Download AAB
+        working-directory: artifacts/mobile
+        run: |
+          BUILD_URL=$(jq -r '.[0].artifacts.buildUrl' eas-build.json)
+
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "❌ AAB URL bulunamadı."
+            cat eas-build.json
+            exit 1
+          fi
+
+          echo "AAB indiriliyor..."
+          curl -L "$BUILD_URL" -o AkilCEP.aab
+
+          ls -lh AkilCEP.aab
+
+      - name: Upload to Google Play Internal Testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.akilcep.ai
+          releaseFiles: artifacts/mobile/AkilCEP.aab
+          tracks: internal
+          status: completed
