@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Android native project
+        working-directory: artifacts/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: pnpm dlx expo@latest prebuild --platform android --non-interactive
       - name: Build Android AAB with EAS
         working-directory: artifacts/mobile
         env:
