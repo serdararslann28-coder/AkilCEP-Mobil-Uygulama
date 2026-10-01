@@ -30,12 +30,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm exec eas-cli build \
+          pnpm dlx eas-cli@latest build \
             --platform android \
             --profile production \
             --non-interactive \
             --wait \
-            --json > eas-build.json
+            --verbose-logs
 
       - name: Download AAB
         working-directory: artifacts/mobile
