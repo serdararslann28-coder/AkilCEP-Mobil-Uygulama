@@ -1,4 +1,4 @@
-name: Android AAB + Google Play
+name: Android AAB
 
 on:
   workflow_dispatch:
@@ -22,42 +22,40 @@ jobs:
           version: 10.26.1
           run_install: false
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Android AAB with EAS
-        working-directory: artifacts/mobile
+      - name: Prepare Android signing
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          pnpm dlx eas-cli@latest build \
-            --platform android \
-            --profile production \
-            --non-interactive \
-            --wait \
-            --verbose-logs
+          echo "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > artifacts/mobile/android/release.keystore
+          test -s artifacts/mobile/android/release.keystore
+          echo "Android keystore hazır."
 
-      - name: Download AAB
-        working-directory: artifacts/mobile
+      - name: Build signed Android AAB
+        working-directory: artifacts/mobile/android
+        env:
+          ANDROID_KEYSTORE_PATH: release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          BUILD_URL=$(jq -r '.[0].artifacts.buildUrl' eas-build.json)
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
 
-          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
-            echo "❌ AAB URL bulunamadı."
-            cat eas-build.json
-            exit 1
-          fi
-
-          echo "AAB indiriliyor..."
-          curl -L "$BUILD_URL" -o AkilCEP.aab
-
-          ls -lh AkilCEP.aab
-
-      - name: Upload to Google Play Internal Testing
+      - name: Upload AAB to Google Play Internal Testing
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.akilcep.ai
-          releaseFiles: artifacts/mobile/AkilCEP.aab
-          tracks: internal
+          releaseFiles: artifacts/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
           status: completed
