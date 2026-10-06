@@ -36,14 +36,14 @@ jobs:
         env:
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
         run: |
-          echo "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > artifacts/mobile/android/release.keystore
-          test -s artifacts/mobile/android/release.keystore
+          echo "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > artifacts/mobile/android/app/release.keystore
+          test -s artifacts/mobile/android/app/release.keystore
           echo "Android keystore hazır."
 
       - name: Build signed Android AAB
         working-directory: artifacts/mobile/android
         env:
-          ANDROID_KEYSTORE_PATH: release.keystore
+          ANDROID_KEYSTORE_PATH: app/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
