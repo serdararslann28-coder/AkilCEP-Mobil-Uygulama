@@ -44,7 +44,15 @@ artifactId = "artifacts/mobile"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace/artifacts/mobile && pnpm exec expo start --dev-client --tunnel --port 8082"
+args = "pnpm --filter @workspace/mobile run dev"
+cwd = "./artifacts/mobile"
+waitForPort = 18115
+ensurePreviewReachable = "/status"
+router = "expo-domain"
+
+[workflows.workflow.tasks.env]
+PORT = "18115"
+BASE_PATH = "/"
 
 [[workflows.workflow]]
 name = "artifacts/api-server: API Server"
@@ -65,6 +73,15 @@ router = "path"
 
 [workflows.workflow.tasks.env]
 PORT = "8080"
+
+[[workflows.workflow]]
+name = "AkılCEP devlomint buld"
+mode = "sequential"
+author = 58414628
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = " cd /home/runner/workspace/artifacts/mobile && pnpm exec expo start --dev-client --tunnel --port 8082"
 
 [agent]
 stack = "PNPM_WORKSPACE"

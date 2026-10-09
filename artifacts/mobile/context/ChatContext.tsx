@@ -129,10 +129,7 @@ function generateId(): string {
 
 // Resolve API base — works both in dev (proxied) and production
 function getApiBase(): string {
-  const domain = process.env["EXPO_PUBLIC_DOMAIN"];
-  if (domain) return `https://${domain}/api`;
-  // Fallback for local dev without EXPO_PUBLIC_DOMAIN
-  return "/api";
+  return "https://6b195a2e-c87f-4826-a304-801ef9d75712-00-1rby46999ylmh.sisko.replit.dev/api";
 }
 
 interface ChatContextType {

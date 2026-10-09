@@ -168,7 +168,7 @@ router.post("/chat", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-20b",
         messages: groqMessages,
         max_tokens: 2048,
         temperature: 0.7
