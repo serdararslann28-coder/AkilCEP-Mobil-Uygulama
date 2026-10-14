@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './getWeatherCitiesParams';
+export * from './getWeatherCurrentParams';
 export * from './healthStatus';
 export * from './openaiConversation';
 export * from './openaiConversationInput';
@@ -13,4 +15,15 @@ export * from './openaiConversationWithMessages';
 export * from './openaiError';
 export * from './openaiMessage';
 export * from './openaiMessageInput';
+export * from './openaiTranscriptionInput';
+export * from './openaiTranscriptionResponse';
 export * from './openaiVoiceMessageInput';
+export * from './openaiVoiceMessageResponse';
+export * from './weatherCities';
+export * from './weatherCity';
+export * from './weatherConditions';
+export * from './weatherConditionsCurrent';
+export * from './weatherConditionsCurrentIsDay';
+export * from './weatherConditionsProvider';
+export * from './weatherFailure';
+export * from './weatherFailureResponse';

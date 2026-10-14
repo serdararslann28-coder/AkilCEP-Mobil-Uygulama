@@ -15,7 +15,7 @@ import { router }      from "expo-router";
 import { StatusBar }   from "expo-status-bar";
 import React, { useEffect } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   interpolate,

@@ -1,13 +1,17 @@
 /**
  * MarkdownText — lightweight markdown renderer for AkılCEP chat.
  *
- * Block-level: # h1, ## h2, ### h3, - bullet, 1. numbered, ``` code, --- divider, paragraphs.
- * Inline:      **bold**, *italic*, `code`.
+ * Blocks: headings, lists, copyable fenced code, tables, dividers and paragraphs.
+ * Inline: bold, italic, code and HTTP(S) links. No HTML or executable URI schemes.
  * Keeps Inter font family and base typography consistent with aiText style.
  */
 import React, { memo } from "react";
+import * as Clipboard from "expo-clipboard";
 import {
+  Alert,
+  Linking,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,23 +25,39 @@ interface Props {
 }
 
 // ── Inline span types ─────────────────────────────────────────────────────────
-interface Span { t: string; b?: boolean; em?: boolean; c?: boolean }
+interface Span { t: string; b?: boolean; em?: boolean; c?: boolean; href?: string }
+
+function safeLink(url: string): boolean {
+  try { return ["https:", "http:"].includes(new URL(url).protocol); } catch { return false; }
+}
 
 function parseInline(raw: string): Span[] {
   const out: Span[] = [];
   let s = raw;
   while (s.length > 0) {
+    const escaped = s.match(/^\\([\\`*_{}\[\]()#+\-.!>])/);
+    if (escaped) { out.push({ t: escaped[1] }); s = s.slice(escaped[0].length); continue; }
+    const link = s.match(/^\[([^\]]+)\]\(([^)\s]+)\)/);
+    if (link) {
+      out.push(...parseInline(link[1]).map(span => ({ ...span,
+        ...(safeLink(link[2]) ? { href: link[2] } : {}) })));
+      s = s.slice(link[0].length); continue;
+    }
     // **bold** — must check before *italic*
-    const bm = s.match(/^\*\*(.+?)\*\*/s);
-    if (bm) { out.push({ t: bm[1], b: true }); s = s.slice(bm[0].length); continue; }
+    const bm = s.startsWith("**")
+      ? s.match(/^(\*\*)(.+?)\1(?!\*)/s)
+      : s.match(/^(__)(.+?)\1(?!_)/s);
+    if (bm) { out.push(...parseInline(bm[2]).map(span => ({ ...span, b: true }))); s = s.slice(bm[0].length); continue; }
     // *italic*
-    const im = s.match(/^\*(.+?)\*/s);
-    if (im) { out.push({ t: im[1], em: true }); s = s.slice(im[0].length); continue; }
+    const previousCharacter = out[out.length - 1]?.t.slice(-1) ?? "";
+    const im = s.startsWith("_") && /[\p{L}\p{N}]/u.test(previousCharacter)
+      ? null : s.match(/^(\*|_)(.+?)\1/s);
+    if (im) { out.push(...parseInline(im[2]).map(span => ({ ...span, em: true }))); s = s.slice(im[0].length); continue; }
     // `code`
     const cm = s.match(/^`(.+?)`/s);
     if (cm) { out.push({ t: cm[1], c: true }); s = s.slice(cm[0].length); continue; }
     // plain text until next special or end
-    const nx = s.search(/\*\*|\*|`/);
+    const nx = s.search(/\*\*|\*|`|\[|\\|_/);
     if (nx === -1) { out.push({ t: s }); break; }
     if (nx === 0)  { out.push({ t: s[0] }); s = s.slice(1); continue; }
     out.push({ t: s.slice(0, nx) });
@@ -52,33 +72,70 @@ type Block =
   | { k: 'bullet';   depth: number; text: string }
   | { k: 'numbered'; n: number;     text: string }
   | { k: 'code';    text: string }
+  | { k: 'table'; headers: string[]; rows: string[][] }
   | { k: 'divider' }
   | { k: 'para';    text: string }
+
+function tableCells(line: string): string[] {
+  const source = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells = [""];
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] === "\\" && source[i + 1] === "|") {
+      cells[cells.length - 1] += "|"; i++;
+    } else if (source[i] === "|") {
+      cells.push("");
+    } else {
+      cells[cells.length - 1] += source[i];
+    }
+  }
+  return cells.map(cell => cell.trim());
+}
 
 function parseBlocks(raw: string): Block[] {
   const lines  = raw.split('\n');
   const blocks: Block[] = [];
   let inCode   = false;
+  let codeFence = "";
   let codeBuf: string[] = [];
 
-  for (const line of lines) {
-    // Code fence
-    if (line.trimStart().startsWith('```')) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    // Closing fences must match the opener and cannot have a language suffix.
+    const fence = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    if (fence && (!inCode || (
+      fence[1][0] === codeFence[0] && fence[1].length >= codeFence.length && !fence[2].trim()
+    ))) {
       if (inCode) {
         blocks.push({ k: 'code', text: codeBuf.join('\n') });
         codeBuf = [];
         inCode  = false;
       } else {
         inCode = true;
+        codeFence = fence[1];
       }
       continue;
     }
     if (inCode) { codeBuf.push(line); continue; }
 
+    if (line.includes("|") && index + 1 < lines.length &&
+        tableCells(lines[index + 1]).every(cell => /^:?-{3,}:?$/.test(cell))) {
+      const headers = tableCells(line);
+      if (headers.length === tableCells(lines[index + 1]).length) {
+        const rows: string[][] = [];
+        index++;
+        while (index + 1 < lines.length && lines[index + 1].includes("|") && lines[index + 1].trim()) {
+          rows.push(tableCells(lines[++index]));
+        }
+        blocks.push({ k: "table", headers, rows }); continue;
+      }
+    }
+
     // Headings (must check h3 before h2 before h1)
-    const h3 = line.match(/^### (.+)/); if (h3) { blocks.push({ k: 'h3', text: h3[1] }); continue; }
-    const h2 = line.match(/^## (.+)/);  if (h2) { blocks.push({ k: 'h2', text: h2[1] }); continue; }
-    const h1 = line.match(/^# (.+)/);   if (h1) { blocks.push({ k: 'h1', text: h1[1] }); continue; }
+    const heading = line.match(/^(#{1,6}) (.+)/);
+    if (heading) {
+      blocks.push({ k: heading[1].length === 1 ? "h1" : heading[1].length === 2 ? "h2" : "h3", text: heading[2] });
+      continue;
+    }
 
     // Horizontal rule
     if (/^-{3,}$/.test(line.trim())) { blocks.push({ k: 'divider' }); continue; }
@@ -99,7 +156,12 @@ function parseBlocks(raw: string): Block[] {
     if (line.trim() === '') continue;
 
     // Regular paragraph
-    blocks.push({ k: 'para', text: line });
+    const previous = blocks[blocks.length - 1];
+    if (previous?.k === "para" && index > 0 && lines[index - 1].trim() !== "") {
+      previous.text += "\n" + line;
+    } else {
+      blocks.push({ k: 'para', text: line });
+    }
   }
 
   // Close any unclosed code block
@@ -119,19 +181,17 @@ function InlineText({ spans, baseStyle, codeClr, codeBg }: {
 }) {
   return (
     <Text style={baseStyle}>
-      {spans.map((sp, i) =>
-        sp.c ? (
-          <Text key={i} style={{ fontFamily: MONO, color: codeClr, backgroundColor: codeBg }}>
-            {` ${sp.t} `}
-          </Text>
-        ) : sp.b ? (
-          <Text key={i} style={{ fontFamily: 'Inter_700Bold' }}>{sp.t}</Text>
-        ) : sp.em ? (
-          <Text key={i} style={{ fontStyle: 'italic' as const }}>{sp.t}</Text>
-        ) : (
-          <Text key={i}>{sp.t}</Text>
-        )
-      )}
+      {spans.map((sp, i) => (
+        <Text key={i} accessibilityRole={sp.href ? "link" : undefined}
+          onPress={sp.href ? () => Linking.openURL(sp.href!).catch(() =>
+            Alert.alert("Bağlantı açılamadı", "Lütfen daha sonra tekrar deneyin.")) : undefined}
+          style={[
+            sp.b && { fontFamily: "Inter_700Bold" },
+            sp.em && { fontStyle: "italic" },
+            sp.c && { fontFamily: MONO, color: codeClr, backgroundColor: codeBg },
+            sp.href && { color: "#267BD5", textDecorationLine: "underline" },
+          ]}>{sp.t}</Text>
+      ))}
     </Text>
   );
 }
@@ -204,14 +264,40 @@ const MarkdownText = memo(function MarkdownText({ text, color, isDark }: Props) 
 
           case 'code':
             return (
+              <View key={i} style={[ss.codeBlock, { backgroundColor: codeBg }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Kodu kopyala"
+                  hitSlop={8}
+                  onPress={() => Clipboard.setStringAsync(block.text).catch(() =>
+                    Alert.alert("Kod kopyalanamadı", "Lütfen tekrar deneyin."))}
+                  style={{ alignSelf: "flex-end", paddingHorizontal: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: codeClr, fontSize: 12 }}>Kopyala</Text>
+                </Pressable>
               <ScrollView
-                key={i}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={[ss.codeBlock, { backgroundColor: codeBg }]}
                 contentContainerStyle={ss.codeContent}
               >
                 <Text style={[ss.codeText, { color: codeClr }]}>{block.text}</Text>
+              </ScrollView>
+              </View>
+            );
+
+          case 'table':
+            return (
+              <ScrollView key={i} horizontal showsHorizontalScrollIndicator>
+                <View>
+                  {[block.headers, ...block.rows].map((row, rowIndex) => (
+                    <View key={rowIndex} style={{ flexDirection: "row", borderBottomWidth: StyleSheet.hairlineWidth, borderColor: divClr }}>
+                      {block.headers.map((_, column) => (
+                        <View key={column} style={{ width: 150, paddingVertical: 8, paddingHorizontal: 10 }}>
+                          <InlineText spans={parseInline(row[column] ?? "")}
+                            baseStyle={[ss.base, { color }, rowIndex === 0 && { fontFamily: "Inter_700Bold" }]}
+                            codeClr={codeClr} codeBg={codeBg} />
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
               </ScrollView>
             );
 

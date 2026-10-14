@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/context/AuthContext";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import * as FileSystem from "expo-file-system/legacy";
 import React, {
   createContext,
@@ -128,8 +130,40 @@ function generateId(): string {
 }
 
 // Resolve API base — works both in dev (proxied) and production
-function getApiBase(): string {
+export function getApiBase(): string {
   return "https://6b195a2e-c87f-4826-a304-801ef9d75712-00-1rby46999ylmh.sisko.replit.dev/api";
+}
+
+export async function readChatResponse(res: Response): Promise<string> {
+  const data = await res.json().catch(() => null) as {
+    ok?: boolean;
+    response?: string;
+    code?: string;
+    error?: string;
+  } | null;
+  if (res.ok && data?.ok && typeof data.response === "string" && data.response.trim()) {
+    return data.response;
+  }
+  const errors: Record<string, string> = {
+    provider_not_configured: "AI hizmeti sunucuda yapılandırılmamış. Lütfen daha sonra tekrar deneyin.",
+    provider_auth_error: "AI hizmetinin sunucu yetkilendirmesi başarısız. Lütfen daha sonra tekrar deneyin.",
+    model_unavailable: "Seçili AI modeli şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+    provider_request_failed: "AI hizmeti isteği işleyemedi. Lütfen tekrar deneyin.",
+    provider_timeout: "AI yanıtı zaman aşımına uğradı. Lütfen tekrar deneyin.",
+    provider_connection_failed: "AI hizmetine bağlantı kurulamadı. Lütfen tekrar deneyin.",
+    empty_response: "AI hizmetinden geçerli bir yanıt alınamadı. Lütfen tekrar deneyin.",
+  };
+  if (res.status === 429 || data?.error === "rate_limited" || data?.code === "rate_limited") {
+    return "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
+  }
+  // Only display known safe diagnostics, never arbitrary upstream errors/HTML.
+  if (data?.code && Object.prototype.hasOwnProperty.call(errors, data.code)) {
+    return errors[data.code];
+  }
+  if (res.ok && data?.ok) {
+    return errors.empty_response;
+  }
+  return "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
 }
 
 interface ChatContextType {
@@ -165,6 +199,9 @@ const ChatContext = createContext<ChatContextType | null>(null);
 const STORAGE_KEY = "@akilcep_conversations";
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const profileRef = useRef(user);
+  profileRef.current = user;
   const [conversations,       setConversations]       = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isTyping,            setIsTyping]            = useState(false);
@@ -175,6 +212,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // Abort controller for in-flight Gemini requests
   const abortRef = useRef<AbortController | null>(null);
+  const pendingTextRequestRef = useRef<{ request: AbortController; conversation: Conversation } | null>(null);
+  const accountIdRef = useRef(user?.id);
+  useEffect(() => {
+    if (accountIdRef.current !== user?.id) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setIsTyping(false);
+    }
+    accountIdRef.current = user?.id;
+  }, [user?.id]);
 
   useEffect(() => {
     void loadConversations();
@@ -295,6 +342,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     (content: string, attachments: ChatAttachment[] = []) => {
       if (!content.trim() && attachments.length === 0) return;
 
+      const pendingConversation = pendingTextRequestRef.current?.request === abortRef.current
+        ? pendingTextRequestRef.current.conversation : null;
       // Cancel previous in-flight request
       abortRef.current?.abort();
       const abort = new AbortController();
@@ -309,7 +358,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       };
 
       // Build or continue conversation
-      let conv = currentConversation;
+      let conv = pendingConversation ?? currentConversation;
       if (!conv) {
         conv = {
           id:        generateId(),
@@ -336,7 +385,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             : conv.title,
       };
 
-      setCurrentConversation(updatedConv);
+      pendingTextRequestRef.current = { request: abort, conversation: updatedConv };
+      persistConversation(updatedConv);
       setIsTyping(true);
 
       void (async () => {
@@ -470,12 +520,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             throw new Error("attachment_total_size");
           }
 
+          const account = profileRef.current;
+          let personalization: { token: string } | null = null;
+          if (account && !account.isGuest && isSupabaseConfigured) {
+            try {
+              const { data } = await supabase.auth.getSession();
+              if (data.session?.user.id === account.id && data.session.access_token)
+                personalization = { token: data.session.access_token };
+            } catch {
+              console.warn("[chat] Personalization session unavailable");
+            }
+          }
+          if (abort.signal.aborted || abortRef.current !== abort || profileRef.current?.id !== account?.id) return;
           const res = await fetch(`${getApiBase()}/gemini/chat`, {
             method:  "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json",
+              ...(personalization ? { Authorization: `Bearer ${personalization.token}` } : {}) },
             signal:  abort.signal,
             body:    JSON.stringify({
               message: messageForApi,
+              ...(account && !account.isGuest ? { profileNameHint: account.fullName } : {}),
               history: historyForApi,
               attachments: inlineAttachments.map(({ data, mimeType, name, metadataOnly }) => ({
                 data,
@@ -486,26 +550,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             }),
           });
 
-          if (abort.signal.aborted) return;
+          if (abort.signal.aborted || abortRef.current !== abort || profileRef.current?.id !== account?.id) return;
 
-          let aiText: string;
+          const aiText = await readChatResponse(res);
 
-          if (res.status === 429) {
-            // Rate-limit: technical details stay in server logs
-            aiText = "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.";
-          } else if (!res.ok) {
-            aiText = "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.";
-          } else {
-            const data = await res.json() as { ok: boolean; response?: string; error?: string };
-            aiText =
-              data.ok && data.response
-                ? data.response
-                : data.error === "rate_limited"
-                  ? "AkılCEP şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin."
-                  : (data.error ?? "Beklenmedik bir hata oluştu.");
-          }
-
-          if (abort.signal.aborted) return;
+          if (abort.signal.aborted || abortRef.current !== abort || profileRef.current?.id !== account?.id) return;
 
           const aiMsg: Message = {
             id:        generateId(),
@@ -525,14 +574,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         } catch (err: unknown) {
           if ((err as { name?: string })?.name === "AbortError") return;
 
-          if (abort.signal.aborted) return;
+          if (abort.signal.aborted || abortRef.current !== abort) return;
 
           const aiMsg: Message = {
             id:        generateId(),
             role:      "assistant",
             content:   err instanceof Error && err.message.startsWith("attachment_")
               ? "Eklerden biri okunamadı, desteklenmiyor veya boyut sınırını aşıyor. Eki kaldırıp tekrar deneyin."
-              : "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+              : "Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.",
             timestamp: Date.now(),
           };
 
@@ -544,7 +593,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setIsTyping(false);
           persistConversation(finalConv);
         } finally {
-          if (abortRef.current === abort) abortRef.current = null;
+          if (pendingTextRequestRef.current?.request === abort) pendingTextRequestRef.current = null;
+          if (abortRef.current === abort) {
+            abortRef.current = null;
+            setIsTyping(false);
+          }
         }
       })();
     },
@@ -696,11 +749,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         content:   aiText.trim(),
         timestamp: now + 1,
       };
+      // Voice transcripts arrive before their reply; append only supplied roles.
+      const incoming = [userMsg, aiMsg].filter((message) => message.content.length > 0);
+      const titleSeed = userMsg.content || aiMsg.content;
 
       setCurrentConversation((prev) => {
         const base: Conversation = prev ?? {
           id:        generateId(),
-          title:     userText.trim().slice(0, 40) + (userText.trim().length > 40 ? "…" : ""),
+          title:     titleSeed.slice(0, 40) + (titleSeed.length > 40 ? "…" : ""),
           messages:  [],
           createdAt: now,
           model:     "gemini-2.5-flash",
@@ -708,8 +764,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         const updated: Conversation = {
           ...base,
-          title:    base.messages.length === 0 ? userMsg.content.slice(0, 40) : base.title,
-          messages: [...base.messages, userMsg, aiMsg],
+          title:    base.messages.length === 0 ? titleSeed.slice(0, 40) : base.title,
+          messages: [...base.messages, ...incoming],
         };
 
         setConversations((convs) => {

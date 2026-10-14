@@ -40,10 +40,12 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { useChat } from "@/context/ChatContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
+import { VEIL_COLORS_LIGHT, VEIL_STOPS } from "@/constants/translucentBars";
 import ProfileMenu from "@/components/ProfileMenu";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -382,7 +384,17 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         {...panResponder.panHandlers}
       >
         <View style={[ss.ghostHeader, { paddingTop: topPad + 14 }]}>
+          <LinearGradient
+            testID="drawer-top-veil"
+            pointerEvents="none"
+            colors={VEIL_COLORS_LIGHT}
+            locations={VEIL_STOPS}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: -32 }}
+          />
           <View style={ss.header}>
+
             <View pointerEvents="none" style={ss.brand}>
               <Image
                 source={leafLogo}
@@ -512,6 +524,15 @@ const SideMenu = forwardRef<SideMenuHandle, Props>(function SideMenu(
         </ScrollView>
 
         <View style={[ss.ghostBottomContainer, { paddingBottom: btmPad }]}>
+          <LinearGradient
+            testID="drawer-bottom-veil"
+            pointerEvents="none"
+            colors={VEIL_COLORS_LIGHT}
+            locations={VEIL_STOPS}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
+            style={{ position: "absolute", left: 0, right: 0, top: -32, bottom: 0 }}
+          />
           <View style={ss.bottomActions}>
             <TouchableOpacity
               style={ss.newChatAction}

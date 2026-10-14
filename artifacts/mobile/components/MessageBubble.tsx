@@ -9,7 +9,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   ActionSheetIOS,
@@ -412,36 +412,12 @@ function UserAttachments({
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-export default function MessageBubble({ message, isLatest, onEditImage }: Props) {
+export default function MessageBubble({ message, onEditImage }: Props) {
   const { theme: T } = useTheme();
   const isUser = message.role === "user";
 
-  // For image messages, skip typewriter — show text immediately
-  const hasGeneratedImage = !isUser && !!message.imageData;
-
-  // Typewriter for latest AI text-only message
-  const [shown, setShown] = useState(
-    (isLatest && !isUser && !hasGeneratedImage) ? "" : message.content
-  );
-  const idxR = useRef(0);
-  const tmrR = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!isLatest || isUser || hasGeneratedImage) { setShown(message.content); return; }
-    idxR.current = 0;
-    setShown("");
-    const tick = () => {
-      idxR.current += 2;
-      if (idxR.current <= message.content.length) {
-        setShown(message.content.slice(0, idxR.current));
-        tmrR.current = setTimeout(tick, 11);
-      } else {
-        setShown(message.content);
-      }
-    };
-    tmrR.current = setTimeout(tick, 60);
-    return () => { if (tmrR.current) clearTimeout(tmrR.current); };
-  }, [message.content, isLatest, isUser, hasGeneratedImage]);
+  // The API returns a complete logical message, not a token stream.
+  // Render it directly; replaying it character-by-character breaks Markdown.
 
   // Timestamp fade
   const tsOp   = useSharedValue(0);
@@ -511,9 +487,7 @@ export default function MessageBubble({ message, isLatest, onEditImage }: Props)
         />
       ) : (
         <View style={ss.aiContent}>
-          {shown === message.content
-            ? <MarkdownText text={shown} color={textClr} isDark={T.isDark} />
-            : <Text style={[ss.aiText, { color: textClr }]}>{shown}</Text>}
+          <MarkdownText text={message.content} color={textClr} isDark={T.isDark} />
         </View>
       )}
 

@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  GetWeatherCitiesParams,
+  GetWeatherCurrentParams,
   HealthStatus,
   OpenaiConversation,
   OpenaiConversationInput,
@@ -27,7 +29,13 @@ import type {
   OpenaiError,
   OpenaiMessage,
   OpenaiMessageInput,
-  OpenaiVoiceMessageInput
+  OpenaiTranscriptionInput,
+  OpenaiTranscriptionResponse,
+  OpenaiVoiceMessageInput,
+  OpenaiVoiceMessageResponse,
+  WeatherCities,
+  WeatherConditions,
+  WeatherFailureResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -39,6 +47,174 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+export const getGetWeatherCurrentUrl = (params: GetWeatherCurrentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weather/current?${stringifiedParams}` : `/api/weather/current`
+}
+
+/**
+ * @summary Keyless current conditions, normalized for the atmosphere engine
+ */
+export const getWeatherCurrent = async (params: GetWeatherCurrentParams, options?: RequestInit): Promise<WeatherConditions> => {
+
+  return customFetch<WeatherConditions>(getGetWeatherCurrentUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWeatherCurrentQueryKey = (params?: GetWeatherCurrentParams,) => {
+    return [
+    `/api/weather/current`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWeatherCurrentQueryOptions = <TData = Awaited<ReturnType<typeof getWeatherCurrent>>, TError = ErrorType<WeatherFailureResponse>>(params: GetWeatherCurrentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeatherCurrent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeatherCurrentQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeatherCurrent>>> = ({ signal }) => getWeatherCurrent(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeatherCurrent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWeatherCurrentQueryResult = NonNullable<Awaited<ReturnType<typeof getWeatherCurrent>>>
+export type GetWeatherCurrentQueryError = ErrorType<WeatherFailureResponse>
+
+
+/**
+ * @summary Keyless current conditions, normalized for the atmosphere engine
+ */
+
+export function useGetWeatherCurrent<TData = Awaited<ReturnType<typeof getWeatherCurrent>>, TError = ErrorType<WeatherFailureResponse>>(
+ params: GetWeatherCurrentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeatherCurrent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWeatherCurrentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWeatherCitiesUrl = (params: GetWeatherCitiesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weather/cities?${stringifiedParams}` : `/api/weather/cities`
+}
+
+/**
+ * @summary Keyless city geocoding search
+ */
+export const getWeatherCities = async (params: GetWeatherCitiesParams, options?: RequestInit): Promise<WeatherCities> => {
+
+  return customFetch<WeatherCities>(getGetWeatherCitiesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWeatherCitiesQueryKey = (params?: GetWeatherCitiesParams,) => {
+    return [
+    `/api/weather/cities`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWeatherCitiesQueryOptions = <TData = Awaited<ReturnType<typeof getWeatherCities>>, TError = ErrorType<WeatherFailureResponse>>(params: GetWeatherCitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeatherCities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeatherCitiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeatherCities>>> = ({ signal }) => getWeatherCities(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeatherCities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWeatherCitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getWeatherCities>>>
+export type GetWeatherCitiesQueryError = ErrorType<WeatherFailureResponse>
+
+
+/**
+ * @summary Keyless city geocoding search
+ */
+
+export function useGetWeatherCities<TData = Awaited<ReturnType<typeof getWeatherCities>>, TError = ErrorType<WeatherFailureResponse>>(
+ params: GetWeatherCitiesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeatherCities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWeatherCitiesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
 
 
 
@@ -573,12 +749,12 @@ export const getSendOpenaiVoiceMessageUrl = (id: number,) => {
 }
 
 /**
- * @summary Send audio and receive a streaming voice response
+ * @summary Send audio or a recognized transcript and receive a voice-friendly text reply
  */
 export const sendOpenaiVoiceMessage = async (id: number,
-    openaiVoiceMessageInput: OpenaiVoiceMessageInput, options?: RequestInit): Promise<unknown> => {
+    openaiVoiceMessageInput: OpenaiVoiceMessageInput, options?: RequestInit): Promise<OpenaiVoiceMessageResponse> => {
 
-  return customFetch<unknown>(getSendOpenaiVoiceMessageUrl(id),
+  return customFetch<OpenaiVoiceMessageResponse>(getSendOpenaiVoiceMessageUrl(id),
   {
     ...options,
     method: 'POST',
@@ -623,7 +799,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SendOpenaiVoiceMessageMutationError = ErrorType<unknown>
 
     /**
- * @summary Send audio and receive a streaming voice response
+ * @summary Send audio or a recognized transcript and receive a voice-friendly text reply
  */
 export const useSendOpenaiVoiceMessage = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendOpenaiVoiceMessage>>, TError,{id: number;data: BodyType<OpenaiVoiceMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -634,5 +810,76 @@ export const useSendOpenaiVoiceMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendOpenaiVoiceMessageMutationOptions(options));
+    }
+
+export const getTranscribeOpenaiAudioUrl = () => {
+
+
+
+
+  return `/api/openai/transcribe`
+}
+
+/**
+ * @summary Transcribe a completed recording in Turkish
+ */
+export const transcribeOpenaiAudio = async (openaiTranscriptionInput: OpenaiTranscriptionInput, options?: RequestInit): Promise<OpenaiTranscriptionResponse> => {
+
+  return customFetch<OpenaiTranscriptionResponse>(getTranscribeOpenaiAudioUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      openaiTranscriptionInput,)
+  }
+);}
+
+
+
+
+export const getTranscribeOpenaiAudioMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transcribeOpenaiAudio>>, TError,{data: BodyType<OpenaiTranscriptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transcribeOpenaiAudio>>, TError,{data: BodyType<OpenaiTranscriptionInput>}, TContext> => {
+
+const mutationKey = ['transcribeOpenaiAudio'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transcribeOpenaiAudio>>, {data: BodyType<OpenaiTranscriptionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  transcribeOpenaiAudio(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TranscribeOpenaiAudioMutationResult = NonNullable<Awaited<ReturnType<typeof transcribeOpenaiAudio>>>
+    export type TranscribeOpenaiAudioMutationBody = BodyType<OpenaiTranscriptionInput>
+    export type TranscribeOpenaiAudioMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Transcribe a completed recording in Turkish
+ */
+export const useTranscribeOpenaiAudio = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transcribeOpenaiAudio>>, TError,{data: BodyType<OpenaiTranscriptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transcribeOpenaiAudio>>,
+        TError,
+        {data: BodyType<OpenaiTranscriptionInput>},
+        TContext
+      > => {
+      return useMutation(getTranscribeOpenaiAudioMutationOptions(options));
     }
 

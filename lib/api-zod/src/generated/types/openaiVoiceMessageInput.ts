@@ -6,7 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface OpenaiVoiceMessageInput {
+export type OpenaiVoiceMessageInput = (unknown & {
   /** Base64-encoded audio data */
-  audio: string;
-}
+  audio?: string;
+  /**
+     * Already recognized text; avoids a second transcription
+     * @minLength 1
+     * @maxLength 4000
+     */
+  text?: string;
+});

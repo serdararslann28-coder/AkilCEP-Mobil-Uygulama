@@ -9,6 +9,71 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Keyless current conditions, normalized for the atmosphere engine
+ */
+export const getWeatherCurrentQueryLatitudeMin = -90;
+export const getWeatherCurrentQueryLatitudeMax = 90;
+
+export const getWeatherCurrentQueryLongitudeMin = -180;
+export const getWeatherCurrentQueryLongitudeMax = 180;
+
+
+
+export const GetWeatherCurrentQueryParams = zod.object({
+  "latitude": zod.coerce.number().min(getWeatherCurrentQueryLatitudeMin).max(getWeatherCurrentQueryLatitudeMax),
+  "longitude": zod.coerce.number().min(getWeatherCurrentQueryLongitudeMin).max(getWeatherCurrentQueryLongitudeMax)
+})
+
+export const GetWeatherCurrentResponse = zod.object({
+  "provider": zod.enum(['open-meteo']),
+  "current": zod.object({
+  "time": zod.string(),
+  "temperature_2m": zod.number(),
+  "apparent_temperature": zod.number(),
+  "precipitation": zod.number(),
+  "rain": zod.number(),
+  "showers": zod.number(),
+  "snowfall": zod.number(),
+  "weather_code": zod.number(),
+  "cloud_cover": zod.number(),
+  "wind_speed_10m": zod.number(),
+  "is_day": zod.union([zod.literal(0),zod.literal(1)]),
+  "description": zod.string()
+}).describe('Current WMO conditions; rain and precipitation in mm, snowfall in cm, wind in km\/h.')
+})
+
+
+/**
+ * @summary Keyless city geocoding search
+ */
+export const getWeatherCitiesQueryQueryMin = 2;
+export const getWeatherCitiesQueryQueryMax = 120;
+
+
+
+export const GetWeatherCitiesQueryParams = zod.object({
+  "query": zod.coerce.string().min(getWeatherCitiesQueryQueryMin).max(getWeatherCitiesQueryQueryMax)
+})
+
+export const getWeatherCitiesResponseResultsItemLatitudeMin = -90;
+export const getWeatherCitiesResponseResultsItemLatitudeMax = 90;
+
+export const getWeatherCitiesResponseResultsItemLongitudeMin = -180;
+export const getWeatherCitiesResponseResultsItemLongitudeMax = 180;
+
+
+
+export const GetWeatherCitiesResponse = zod.object({
+  "results": zod.array(zod.object({
+  "name": zod.string(),
+  "latitude": zod.number().min(getWeatherCitiesResponseResultsItemLatitudeMin).max(getWeatherCitiesResponseResultsItemLatitudeMax),
+  "longitude": zod.number().min(getWeatherCitiesResponseResultsItemLongitudeMin).max(getWeatherCitiesResponseResultsItemLongitudeMax),
+  "resolvedAt": zod.number().optional()
+}))
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -95,14 +160,36 @@ export const SendOpenaiMessageBody = zod.object({
 
 
 /**
- * @summary Send audio and receive a streaming voice response
+ * @summary Send audio or a recognized transcript and receive a voice-friendly text reply
  */
 export const SendOpenaiVoiceMessageParams = zod.object({
   "id": zod.coerce.number()
 })
 
-export const SendOpenaiVoiceMessageBody = zod.object({
-  "audio": zod.string().describe('Base64-encoded audio data')
+export const sendOpenaiVoiceMessageBodyThreeTextMax = 4000;
+
+
+
+export const SendOpenaiVoiceMessageBody = zod.union([zod.unknown(),zod.unknown()]).and(zod.object({
+  "audio": zod.string().optional().describe('Base64-encoded audio data'),
+  "text": zod.string().min(1).max(sendOpenaiVoiceMessageBodyThreeTextMax).optional().describe('Already recognized text; avoids a second transcription')
+}))
+
+export const SendOpenaiVoiceMessageResponse = zod.object({
+  "userText": zod.string(),
+  "assistantText": zod.string()
+})
+
+
+/**
+ * @summary Transcribe a completed recording in Turkish
+ */
+export const TranscribeOpenaiAudioBody = zod.object({
+  "audio": zod.string().describe('Base64-encoded completed audio recording')
+})
+
+export const TranscribeOpenaiAudioResponse = zod.object({
+  "text": zod.string()
 })
 
 

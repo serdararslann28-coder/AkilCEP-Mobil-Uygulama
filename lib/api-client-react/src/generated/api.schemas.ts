@@ -5,6 +5,69 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface WeatherFailure {
+  code: string;
+  error: string;
+}
+
+export type WeatherConditionsProvider = typeof WeatherConditionsProvider[keyof typeof WeatherConditionsProvider];
+
+
+export const WeatherConditionsProvider = {
+  'open-meteo': 'open-meteo',
+} as const;
+
+export type WeatherConditionsCurrentIsDay = typeof WeatherConditionsCurrentIsDay[keyof typeof WeatherConditionsCurrentIsDay];
+
+
+export const WeatherConditionsCurrentIsDay = {
+  NUMBER_0: 0,
+  NUMBER_1: 1,
+} as const;
+
+/**
+ * Current WMO conditions; rain and precipitation in mm, snowfall in cm, wind in km/h.
+ */
+export type WeatherConditionsCurrent = {
+  time: string;
+  temperature_2m: number;
+  apparent_temperature: number;
+  precipitation: number;
+  rain: number;
+  showers: number;
+  snowfall: number;
+  weather_code: number;
+  cloud_cover: number;
+  wind_speed_10m: number;
+  is_day: WeatherConditionsCurrentIsDay;
+  description: string;
+};
+
+export interface WeatherConditions {
+  provider: WeatherConditionsProvider;
+  /** Current WMO conditions; rain and precipitation in mm, snowfall in cm, wind in km/h. */
+  current: WeatherConditionsCurrent;
+}
+
+export interface WeatherCity {
+  name: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  latitude: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  longitude: number;
+  resolvedAt?: number;
+}
+
+export interface WeatherCities {
+  results: WeatherCity[];
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;
@@ -27,9 +90,29 @@ export interface OpenaiMessageInput {
   content: string;
 }
 
-export interface OpenaiVoiceMessageInput {
+export type OpenaiVoiceMessageInput = (unknown & {
   /** Base64-encoded audio data */
+  audio?: string;
+  /**
+     * Already recognized text; avoids a second transcription
+     * @minLength 1
+     * @maxLength 4000
+     */
+  text?: string;
+});
+
+export interface OpenaiVoiceMessageResponse {
+  userText: string;
+  assistantText: string;
+}
+
+export interface OpenaiTranscriptionInput {
+  /** Base64-encoded completed audio recording */
   audio: string;
+}
+
+export interface OpenaiTranscriptionResponse {
+  text: string;
 }
 
 export interface OpenaiConversationWithMessages {
@@ -46,4 +129,30 @@ export interface OpenaiError {
 export interface HealthStatus {
   status: string;
 }
+
+/**
+ * Safe weather configuration, validation, quota or upstream error
+ */
+export type WeatherFailureResponse = WeatherFailure;
+
+export type GetWeatherCurrentParams = {
+/**
+ * @minimum -90
+ * @maximum 90
+ */
+latitude: number;
+/**
+ * @minimum -180
+ * @maximum 180
+ */
+longitude: number;
+};
+
+export type GetWeatherCitiesParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+query: string;
+};
 

@@ -10,23 +10,25 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 const router: IRouter = Router();
 
 router.post("/conversations/:id/voice-messages", async (req, res) => {
-  const { audio } = req.body as { audio?: string };
-  if (!audio) {
-    res.status(400).json({ error: "audio field required (base64)" });
+  const { audio, text } = req.body as { audio?: string; text?: string };
+  if ((text !== undefined && (typeof text !== "string" || !text.trim() || text.length > 4000))
+    || (!text && (typeof audio !== "string" || !audio))) {
+    res.status(400).json({ error: "Valid text (1–4000 characters) or base64 audio required" });
     return;
   }
 
   try {
     // 1. Transcribe audio → text
-    const audioBuffer = Buffer.from(audio, "base64");
-    const file = new File([audioBuffer], "voice.m4a", { type: "audio/m4a" });
-
-    const transcription = await openai.audio.transcriptions.create({
-      model: "gpt-4o-mini-transcribe",
-      file,
-      response_format: "json",
-    });
-    const userText = transcription.text?.trim() ?? "";
+    let userText = text?.trim() ?? "";
+    if (!userText) {
+      // Preserve installed clients that still send completed recordings.
+      const audioBuffer = Buffer.from(audio!, "base64");
+      const file = new File([audioBuffer], "voice.m4a", { type: "audio/m4a" });
+      const transcription = await openai.audio.transcriptions.create({
+        model: "gpt-4o-mini-transcribe", file, response_format: "json", language: "tr",
+      });
+      userText = transcription.text?.trim() ?? "";
+    }
 
     if (!userText) {
       res.json({ userText: "", assistantText: "" });

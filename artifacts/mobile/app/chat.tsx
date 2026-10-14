@@ -8,21 +8,15 @@
  * No separate voice screen. Voice lives entirely inside the chat.
  */
 import { Feather } from "@expo/vector-icons";
-import {
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-  useAudioRecorder,
-  type AudioRecorder,
-} from "expo-audio";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
-import * as Speech from "expo-speech";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -31,6 +25,7 @@ import {
   BackHandler,
   FlatList,
   Image,
+  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -40,6 +35,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
@@ -69,68 +65,65 @@ import MultimodalPanel  from "@/components/MultimodalPanel";
 import MessageBubble    from "@/components/MessageBubble";
 import ImageGenCard     from "@/components/ImageGenCard";
 import ThinkingCard     from "@/components/ThinkingCard";
-import VoiceOrbPanel    from "@/components/VoiceOrbPanel";
-import { AkilMic }      from "@/components/AkilMic";
+import EarthOrb         from "@/components/EarthOrb";
+import { useVoiceSession } from "@/hooks/useVoiceSession";
 import { useChat, type ChatAttachment } from "@/context/ChatContext";
 import { useLanguage }  from "@/context/LanguageContext";
 import { useTheme }     from "@/context/ThemeContext";
+import { VEIL_COLORS_LIGHT, VEIL_COLORS_DARK, VEIL_STOPS } from "@/constants/translucentBars";
+import WeatherExperience from "@/components/WeatherExperience";
+import { useWeatherAtmosphere } from "@/hooks/useWeatherAtmosphere";
+import { useRainAmbience } from "@/hooks/useRainAmbience";
+import { useAuth } from "@/context/AuthContext";
 
 const leafOnly = require("@/assets/images/leaf-only-transparent.png");
 
-const API_BASE = `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`;
+const SURFACE_LIGHT = "rgba(255,255,255,0.72)";
+const SURFACE_DARK = "rgba(66,66,68,0.72)";
+const WEATHER_BLUE = { light: "#1976D2", dark: "#64B5F6" } as const;
+const HEADER_WEATHER = {
+  rain: { icon: "cloud-rain", label: "Yağmurlu" },
+  snow: { icon: "cloud-snow", label: "Karlı" },
+  sun: { icon: "sun", label: "Açık" },
+  clouds: { icon: "cloud", label: "Bulutlu" },
+  storm: { icon: "cloud-lightning", label: "Fırtınalı" },
+  fog: { icon: "wind", label: "Sisli" },
+  "partly-cloudy": { icon: "cloud", label: "Parçalı bulutlu" },
+} as const;
 
-// ── Voice phase ────────────────────────────────────────────────────────────────
-type VoicePhase = "idle" | "listening" | "thinking" | "speaking";
-
-const MIN_INPUT_H = 42;   // single-line underlined input
+const MIN_INPUT_H = 44;   // compact single-line capsule; grows with the draft
 const MAX_INPUT_H = 120;  // ~5 lines before scroll kicks in
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const MAX_ATTACHMENT_COUNT = 10;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_BYTES = 24 * 1024 * 1024;
 
-// ── Waveform bars — animated 4-bar equaliser inside the AI button ─────────────
-// Runs entirely on UI thread via Reanimated — zero JS-thread involvement at 60 FPS.
-function WaveformBars({ active }: { active: boolean }) {
-  const h1 = useSharedValue(0.35);
-  const h2 = useSharedValue(0.65);
-  const h3 = useSharedValue(0.45);
-  const h4 = useSharedValue(0.55);
-
-  useEffect(() => {
-    const cfg = (ms: number) => ({ duration: ms, easing: Easing.inOut(Easing.ease) });
-    if (active) {
-      // Active: each bar has a distinct period — no two bars feel in sync
-      h1.value = withRepeat(withSequence(withTiming(1.00, cfg(260)), withTiming(0.20, cfg(260))), -1, false);
-      h2.value = withRepeat(withSequence(withTiming(0.25, cfg(200)), withTiming(0.92, cfg(200))), -1, false);
-      h3.value = withRepeat(withSequence(withTiming(0.88, cfg(320)), withTiming(0.18, cfg(320))), -1, false);
-      h4.value = withRepeat(withSequence(withTiming(0.40, cfg(240)), withTiming(0.95, cfg(240))), -1, false);
-    } else {
-      // Idle: very slow, almost imperceptible breathing — calm, not dead
-      h1.value = withRepeat(withSequence(withTiming(0.45, cfg(1700)), withTiming(0.25, cfg(1700))), -1, false);
-      h2.value = withRepeat(withSequence(withTiming(0.82, cfg(2100)), withTiming(0.52, cfg(2100))), -1, false);
-      h3.value = withRepeat(withSequence(withTiming(0.52, cfg(1900)), withTiming(0.30, cfg(1900))), -1, false);
-      h4.value = withRepeat(withSequence(withTiming(0.68, cfg(1500)), withTiming(0.42, cfg(1500))), -1, false);
-    }
-  }, [active]);
-
-  const s1 = useAnimatedStyle(() => ({ height: 4 + h1.value * 14 }));
-  const s2 = useAnimatedStyle(() => ({ height: 4 + h2.value * 14 }));
-  const s3 = useAnimatedStyle(() => ({ height: 4 + h3.value * 14 }));
-  const s4 = useAnimatedStyle(() => ({ height: 4 + h4.value * 14 }));
-
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 2.5 }}>
-      {([s1, s2, s3, s4] as const).map((s, i) => (
-        <Animated.View key={i} style={[{ width: 2.5, borderRadius: 2, backgroundColor: "#FFFFFF" }, s]} />
-      ))}
-    </View>
-  );
+// Both layers use the same keyboard/inset geometry. Padding inside an inverted
+// list is not a viewport boundary: older messages can still scroll through it.
+function voiceLayoutBottom(
+  composerHeight: number, inset: number, stageHeight: number, keyboardY: number,
+  height: number, headerBottom: number, orbDiameter: number, progress: number,
+) {
+  "worklet";
+  const keyboardHeight = Math.max(0, -keyboardY);
+  const keyboardReveal = Math.min(1, keyboardHeight / 48);
+  const stageBottom = composerHeight + inset * (1 - keyboardReveal) + 10 * keyboardReveal + 8;
+  const visibleBottom = height - keyboardHeight - stageBottom;
+  const orbCenter = visibleBottom - stageHeight + 8 + orbDiameter / 2;
+  const centeredOrb = (headerBottom + visibleBottom) / 2;
+  const shift = (centeredOrb - orbCenter) * progress;
+  return {
+    stageBottom,
+    stageTranslateY: -keyboardHeight + shift,
+    messageBottom: Math.max(0, stageBottom + stageHeight + keyboardHeight - shift),
+  };
 }
 
 export default function ChatScreen() {
   const { theme: T }   = useTheme();
   const { t }          = useLanguage();
+  const { user } = useAuth();
+  const weather = useWeatherAtmosphere(user?.id ?? "guest");
   const insets          = useSafeAreaInsets();
   const {
     currentMessages,
@@ -149,28 +142,69 @@ export default function ChatScreen() {
   const [inputText,    setInputText]    = useState("");
   const [menuVisible,      setMenuVisible]  = useState(false);
   const [secretModal,      setSecretModal]  = useState(false);
+  const [moreOpen,         setMoreOpen]     = useState(false);
   const [exitSecretModal,  setExitModal]    = useState(false);
   const [expandedOpen,     setExpandedOpen] = useState(false);
-  const [voicePhase,       setVoicePhase]   = useState<VoicePhase>("idle");
+  const [panelOpen, setPanelOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const [composerContentHeight, setComposerContentHeight] = useState(72);
 
-  const isSecretChat = !!currentConversation?.isPrivate;
-
   const flatListRef     = useRef<FlatList>(null);
+  const nearLatestRef = useRef(true);
   const textInputRef    = useRef<TextInput>(null);
   const inputFocusedRef = useRef(false);
   const inputBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoreInputFocusRef = useRef(false);
   const sideMenuRef     = useRef<SideDrawerHandle>(null);
   const menuVisibleRef  = useRef(false);
-  const voicePhaseRef   = useRef<VoicePhase>("idle");
-  const voiceRecorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const sttRecorder     = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recordingRef    = useRef<AudioRecorder | null>(null);
-  const abortRef        = useRef<AbortController | null>(null);
-  const voiceConvIdRef  = useRef<number>(0);
-  const permGrantedRef  = useRef<boolean | null>(null); // null = unchecked
+  const sendingRef      = useRef(false);
+  const params          = useLocalSearchParams<{ voice?: string }>();
+  const legacyVoiceRef  = useRef(params.voice === "1");
+  const legacyConsumedRef = useRef(false);
+  const { width: winW, height: winH } = useWindowDimensions();
+  const [kbVisible, setKbVisible] = useState(false);
+  const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
+  const [stageH, setStageH] = useState(0);
+  const [voiceView, setVoiceView] = useState<"chat" | "orb">("chat");
+  const voiceViewProgress = useSharedValue(0);
+
+  const voice = useVoiceSession({
+    injectMessages,
+    onDictation: (text) => setInputText((draft) =>
+      `${draft.trimEnd()}${draft.trim() ? " " : ""}${text}`.slice(0, 4000)
+    ),
+    currentConversationId: currentConversation?.id ?? null,
+    blocked: menuVisible || secretModal || exitSecretModal || panelOpen || moreOpen || isTyping,
+  });
+  const voiceExitRef = useRef(voice.exit);
+  voiceExitRef.current = voice.exit;
+  const exitVoice = useCallback(() => { void voiceExitRef.current(); }, []);
+
+  useEffect(() => {
+    const a = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", event => {
+      setKbVisible(true);
+      setKeyboardTop(event.endCoordinates.screenY);
+    });
+    const b = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => {
+      setKbVisible(false);
+      setKeyboardTop(null);
+    });
+    return () => { a.remove(); b.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (params.voice === "1" && !legacyConsumedRef.current) {
+      legacyConsumedRef.current = true;
+      legacyVoiceRef.current = true;
+      void voice.enter();
+      router.setParams({ voice: undefined });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.voice]);
+
+  useEffect(() => {
+    if (panelOpen && voice.enabled) exitVoice();
+  }, [panelOpen, voice.enabled, exitVoice]);
 
   const scrollToLatest = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -182,17 +216,26 @@ export default function ChatScreen() {
     return setTimeout(() => textInputRef.current?.focus(), delay);
   }, []);
 
+  const openMenu = useCallback(() => {
+    Keyboard.dismiss();
+    setMenuVisible(true);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      const focusTimer = focusComposer();
-      return () => clearTimeout(focusTimer);
-    }, [focusComposer]),
+      const focusTimer = legacyVoiceRef.current ? null : focusComposer();
+      return () => {
+        if (focusTimer) clearTimeout(focusTimer);
+        exitVoice();
+      };
+    }, [focusComposer, exitVoice]),
   );
 
   const beginNewConversation = useCallback(() => {
+    exitVoice();
     startNewConversation();
     focusComposer();
-  }, [focusComposer, startNewConversation]);
+  }, [exitVoice, focusComposer, startNewConversation]);
 
   useEffect(() => {
     menuVisibleRef.current = menuVisible;
@@ -220,26 +263,15 @@ export default function ChatScreen() {
   useEffect(() => {
     if (Platform.OS === "web") return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (!menuVisible) return false;
-      setMenuVisible(false);
-      return true;
+      if (menuVisible) { setMenuVisible(false); return true; }
+      if (voice.enabled) { exitVoice(); return true; }
+      return false;
     });
     return () => subscription.remove();
-  }, [menuVisible]);
-
-  // ── STT — lightweight speech-to-text that fills the input field ─────────────
-  const [sttListening,  setSttListening]  = useState(false);
-  const sttRecordingRef = useRef<AudioRecorder | null>(null);
-  const sttAbortRef     = useRef<AbortController | null>(null);
-
-  const applyVoice = (p: VoicePhase) => {
-    voicePhaseRef.current = p;
-    setVoicePhase(p);
-  };
+  }, [menuVisible, voice.enabled, exitVoice]);
 
   const hasText     = inputText.trim().length > 0;
   const hasComposerContent = hasText || pendingAttachments.length > 0;
-  const hasMessages = currentMessages.length > 0;
   const topPad      = insets.top;
   const bottomInset = insets.bottom;
 
@@ -266,10 +298,17 @@ export default function ChatScreen() {
       return [...current, ...accepted];
     });
   };
-  const isSpeaking  = voicePhase === "speaking";
+  const isSpeaking  = voice.phase === "speaking";
+  const rainSound = useRainAmbience({
+    data: weather.atmosphereData,
+    openingId: weather.openingId,
+    active: weather.active && !menuVisible,
+    blocked: voice.enabled || voice.phase !== "idle",
+    userKey: user?.id ?? "guest",
+  });
 
   // Keep the dock in the root edge-to-edge coordinate space. Its safe-area
-  // contribution lives inside the measured dock and fades out as the IME opens,
+  // contribution lives in the outer dock and transitions to a 10dp IME gap,
   // so neither the navigation bar nor the keyboard inset is counted twice.
   const { reanimated: kbReanimated } = useKeyboardContext();
   const kbH = kbReanimated.height;
@@ -277,7 +316,7 @@ export default function ChatScreen() {
     const keyboardReveal = Math.min(1, Math.abs(kbH.value) / 48);
     return {
       bottom: 0,
-      paddingBottom: bottomInset * (1 - keyboardReveal),
+      paddingBottom: bottomInset * (1 - keyboardReveal) + 10 * keyboardReveal,
       transform: [{ translateY: kbH.value }],
     };
   });
@@ -287,36 +326,20 @@ export default function ChatScreen() {
     bottom: -kbH.value,
   }));
 
-  // ── Right icon crossfade: 0 = Secret Chat (lock), 1 = New Chat (edit-3) ─────
-  const rightIconAnim = useSharedValue(hasMessages ? 1 : 0);
-  useEffect(() => {
-    // Show edit-3 only when messages exist AND not in secret mode
-    rightIconAnim.value = withTiming((hasMessages && !isSecretChat) ? 1 : 0, { duration: 200 });
-  }, [hasMessages, isSecretChat]);
-  const lockStyle = useAnimatedStyle(() => ({ opacity: 1 - rightIconAnim.value, position: "absolute" }));
-  const editStyle = useAnimatedStyle(() => ({ opacity: rightIconAnim.value,     position: "absolute" }));
-
-  // ── Secret active badge: fades in when isSecretChat = true ──────────────────
-  const badgeAnim = useSharedValue(0);
-  useEffect(() => {
-    badgeAnim.value = withTiming(isSecretChat ? 1 : 0, { duration: 280 });
-  }, [isSecretChat]);
-  const badgeStyle = useAnimatedStyle(() => ({
-    opacity:   badgeAnim.value,
-    transform: [{ scale: 0.82 + badgeAnim.value * 0.18 }],
-  }));
-
-  const isListening= voicePhase === "listening";
-
   // ── Send button spring ─────────────────────────────────────────────────────
   const sendScale = useSharedValue(1);
   const sendStyle = useAnimatedStyle(() => ({ transform: [{ scale: sendScale.value }] }));
 
   const handleSend = async () => {
-    if (!hasComposerContent) return;
-    let verifiedAttachments = pendingAttachments;
+    if (!hasComposerContent || sendingRef.current) return;
+    sendingRef.current = true;
     try {
-      verifiedAttachments = pendingAttachments.map((attachment) => {
+    const body = inputText.trim();
+    const attachmentsNow = pendingAttachments;
+    if (voice.enabled) await voice.exit();
+    let verifiedAttachments = attachmentsNow;
+    try {
+      verifiedAttachments = attachmentsNow.map((attachment) => {
         const file = new FileSystem.File(attachment.uri);
         if (!file.exists) throw new Error("attachment_unreadable");
         const actualSize = file.size;
@@ -338,56 +361,27 @@ export default function ChatScreen() {
       duration: 720,
       easing: Easing.out(Easing.cubic),
     });
-    sendMessage(inputText.trim(), verifiedAttachments);
+    sendMessage(body, verifiedAttachments);
     scrollToLatest();
     setInputText("");
     setPendingAttachments([]);
     inputHeightSV.value = withTiming(MIN_INPUT_H, { duration: 160 });
     setScrollEnabled(false);
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   useEffect(() => {
-    if (currentMessages[0]?.id) scrollToLatest();
+    if (currentMessages[0]?.id && nearLatestRef.current) scrollToLatest();
   }, [currentMessages[0]?.id, scrollToLatest]);
 
-  // ── Watermark logo — breathing + speaking boost ────────────────────────────
-  const loScale = useSharedValue(1);
-  const loOp    = useSharedValue(T.isDark ? 0.05 : 0.07);
-
   useEffect(() => {
-    // Base breathing loop
-    loScale.value = withRepeat(
-      withSequence(
-        withTiming(1.055, { duration: 4600, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0,   { duration: 4600, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    );
-    loOp.value = withRepeat(
-      withSequence(
-        withTiming(T.isDark ? 0.075 : 0.10, { duration: 4600, easing: Easing.inOut(Easing.ease) }),
-        withTiming(T.isDark ? 0.045 : 0.065,{ duration: 4600, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1, false,
-    );
-  }, [T.isDark]);
-
-  // Boost watermark opacity when AI is speaking — feels alive
-  useEffect(() => {
-    if (isSpeaking) {
-      loOp.value = withTiming(T.isDark ? 0.18 : 0.22, { duration: 600 });
-    } else {
-      loOp.value = withTiming(T.isDark ? 0.05 : 0.07, { duration: 800 });
-    }
-  }, [isSpeaking, T.isDark]);
-
-  const logoStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: loScale.value }],
-    opacity:   loOp.value,
-  }));
+    nearLatestRef.current = true;
+    scrollToLatest(false);
+  }, [currentConversation?.id, scrollToLatest]);
 
   // ── Panel — multimodal AI toolbox ──────────────────────────────────────────
-  const [panelOpen, setPanelOpen] = useState(false);
 
   // + button rotation: 0° at rest → 45° (becomes ✕) when panel open
   const plusRotSV = useSharedValue(0);
@@ -610,328 +604,133 @@ export default function ChatScreen() {
     }
   }, [hasComposerContent]);
 
-  // ── Cleanup on unmount ─────────────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-      sttAbortRef.current?.abort();
-      safeStopRecording();
-      try { Speech.stop(); } catch {}
-    };
-  }, []);
-
-  // ── Permission helper ──────────────────────────────────────────────────────
-  const ensurePermission = async (): Promise<boolean> => {
-    if (permGrantedRef.current === true) return true;
-    try {
-      const { granted } = await requestRecordingPermissionsAsync();
-      permGrantedRef.current = granted;
-      if (!granted) {
-        Alert.alert(
-          t("chat.alert.micPerm"),
-          t("chat.alert.micPermMsg"),
-          [{ text: t("common.ok") }]
-        );
-      }
-      return granted;
-    } catch {
-      return false;
-    }
-  };
-
-  // ── Lazy-create voice conversation on backend ──────────────────────────────
-  const ensureVoiceConv = async (): Promise<number> => {
-    if (voiceConvIdRef.current > 0) return voiceConvIdRef.current;
-    try {
-      const res = await fetch(`${API_BASE}/openai/conversations`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ title: t("chat.voiceConversationTitle") }),
-      });
-      if (res.ok) {
-        const data = await res.json() as { id: number };
-        voiceConvIdRef.current = data.id;
-        return data.id;
-      }
-    } catch {}
-    return 0;
-  };
-
-  // ── Recording helpers ──────────────────────────────────────────────────────
-  const safeStopRecording = async () => {
-    const rec = recordingRef.current;
-    recordingRef.current = null;
-    if (!rec) return;
-    try { await rec.stop(); } catch {}
-  };
-
-  // ── Mic button handler ─────────────────────────────────────────────────────
-  const handleMicPress = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const p = voicePhaseRef.current;
-
-    if (Platform.OS === "web") {
-      Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.voiceModeMsg"));
-      return;
-    }
-
-    if (p === "idle") {
-      const ok = await ensurePermission();
-      if (!ok) return;
-      await startListening();
-
-    } else if (p === "listening") {
-      await stopAndProcess();
-
-    } else {
-      // thinking or speaking — cancel
-      abortRef.current?.abort();
-      try { Speech.stop(); } catch {}
-      await safeStopRecording();
-      try {
-        await setAudioModeAsync({
-          allowsRecording:   true,
-          playsInSilentMode: true,
-        });
-      } catch {}
-      applyVoice("idle");
-    }
-  };
-
   // ── Adaptive height ──────────────────────────────────────────────────────────
   const HEIGHT_ANIM = { duration: 160 } as const;
+  useEffect(() => {
+    if (inputText.length === 0) {
+      inputHeightSV.value = withTiming(MIN_INPUT_H, { duration: 160 });
+      setScrollEnabled(false);
+    }
+  }, [inputText, inputHeightSV]);
+
   const onContentSizeChange = (e: { nativeEvent: { contentSize: { height: number } } }) => {
-    const h = e.nativeEvent.contentSize.height;
+    // Web may report the previous controlled height after clearing the field.
+    const h = inputText.length === 0 ? MIN_INPUT_H : e.nativeEvent.contentSize.height;
     const clamped = Math.min(Math.max(h, MIN_INPUT_H), MAX_INPUT_H);
     inputHeightSV.value = withTiming(clamped, HEIGHT_ANIM);
     setScrollEnabled(h > MAX_INPUT_H);
   };
 
-  // ── STT helpers — mic icon fills input field (no navigation) ────────────────
-  const handleSttPress = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert(t("chat.alert.voiceInput"), t("chat.alert.voiceInputMsg"));
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (sttListening) { await stopStt(); } else { await startStt(); }
-  };
-
-  const startStt = async () => {
-    const ok = await ensurePermission();
-    if (!ok) return;
-    try {
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await sttRecorder.prepareToRecordAsync();
-      sttRecorder.record();
-      sttRecordingRef.current = sttRecorder;
-      setSttListening(true);
-    } catch {
-      Alert.alert(t("chat.alert.voiceInput"), t("chat.alert.micStartFail"));
-    }
-  };
-
-  const stopStt = async () => {
-    const rec = sttRecordingRef.current;
-    sttRecordingRef.current = null;
-    setSttListening(false);
-    if (!rec) return;
-    try {
-      await rec.stop();
-      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-      const uri = rec.uri;
-      if (!uri) return;
-      let base64: string;
-      try {
-        base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-      } catch {
-        const resp = await fetch(uri);
-        const blob = await resp.blob();
-        base64 = await blobToBase64(blob);
-      }
-      const abort = new AbortController();
-      sttAbortRef.current = abort;
-      const res = await fetch(`${API_BASE}/openai/transcribe`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        signal:  abort.signal,
-        body:    JSON.stringify({ audio: base64 }),
+  const voiceActive = voice.phase === "listening" || voice.phase === "thinking";
+  const voiceStageEnabled = voice.enabled && voice.mode === "conversation";
+  const voiceOrbOnly = voiceStageEnabled && voiceView === "orb";
+  const voiceSwipeEnabled = voiceStageEnabled && !menuVisible && !panelOpen
+    && !moreOpen && !secretModal && !exitSecretModal && !expandedOpen;
+  const voiceSwipeResponder = useMemo(() => {
+    let startProgress = 0;
+    let cancelled = false;
+    const settle = (view: "chat" | "orb") => {
+      setVoiceView(view);
+      voiceViewProgress.value = withTiming(view === "orb" ? 1 : 0, {
+        duration: 220, easing: Easing.out(Easing.cubic),
       });
-      if (abort.signal.aborted || !res.ok) return;
-      const data = await res.json() as { text?: string };
-      const t = data.text?.trim() ?? "";
-      if (t) setInputText((prev) => (prev ? `${prev} ${t}` : t));
-    } catch (err: unknown) {
-      if ((err as { name?: string })?.name === "AbortError") return;
-    }
-  };
-
-  // ── Start recording ────────────────────────────────────────────────────────
-  const startListening = async () => {
-    try {
-      await setAudioModeAsync({
-        allowsRecording:   true,
-        playsInSilentMode: true,
-      });
-
-      await voiceRecorder.prepareToRecordAsync();
-      voiceRecorder.record();
-      recordingRef.current = voiceRecorder;
-      applyVoice("listening");
-    } catch (err) {
-      console.warn("[voice] startListening:", err);
-      Alert.alert(t("chat.alert.recError"), t("chat.alert.recErrorMsg"));
-    }
-  };
-
-  // ── Stop → encode → send ───────────────────────────────────────────────────
-  const stopAndProcess = async () => {
-    applyVoice("thinking");
-    const rec = recordingRef.current;
-    recordingRef.current = null;
-    if (!rec) { applyVoice("idle"); return; }
-
-    try {
-      await rec.stop();
-
-      await setAudioModeAsync({
-        allowsRecording:   false,
-        playsInSilentMode: true,
-      });
-
-      const uri = rec.uri;
-      if (!uri) { applyVoice("idle"); return; }
-
-      // Read as base64 — reliable on Expo Go native
-      let base64: string;
-      try {
-        base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: 'base64',
-        });
-      } catch {
-        // Fallback blob path
-        const resp = await fetch(uri);
-        const blob = await resp.blob();
-        base64 = await blobToBase64(blob);
-      }
-
-      const convId = await ensureVoiceConv();
-      await sendToBackend(base64, convId);
-    } catch (err) {
-      console.warn("[voice] stopAndProcess:", err);
-      applyVoice("idle");
-    }
-  };
-
-  // ── Backend: Whisper STT + GPT reply ──────────────────────────────────────
-  const sendToBackend = async (audioBase64: string, convId: number) => {
-    const abort = new AbortController();
-    abortRef.current = abort;
-
-    try {
-      const res = await fetch(
-        `${API_BASE}/openai/conversations/${convId}/voice-messages`,
-        {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          signal:  abort.signal,
-          body:    JSON.stringify({ audio: audioBase64 }),
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, { dx, dy, numberActiveTouches }) =>
+        voiceSwipeEnabled && numberActiveTouches === 1
+        && Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx) * 1.8,
+      onPanResponderGrant: () => {
+        cancelled = false;
+        startProgress = voiceViewProgress.value;
+        voiceViewProgress.value = startProgress;
+      },
+      onPanResponderMove: (_, { dx, dy, numberActiveTouches }) => {
+        if (numberActiveTouches !== 1) cancelled = true;
+        if (!cancelled && Math.abs(dy) > Math.abs(dx) * 1.8) {
+          voiceViewProgress.value = Math.max(0, Math.min(1, startProgress - dy / 140));
         }
-      );
-
-      if (abort.signal.aborted) return;
-
-      if (!res.ok) {
-        Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.serverError"));
-        applyVoice("idle");
-        return;
-      }
-
-      const data = await res.json() as {
-        userText?:      string;
-        assistantText?: string;
-        error?:         string;
-      };
-
-      if (abort.signal.aborted) return;
-
-      const userText = data.userText?.trim()      ?? "";
-      const aiText   = data.assistantText?.trim() ?? "";
-
-      if (!aiText) {
-        // Nothing transcribed or empty reply — silent reset
-        applyVoice("idle");
-        return;
-      }
-
-      // Add both messages to chat
-      injectMessages(userText, aiText);
-
-      // Speak the reply
-      await speakReply(aiText, abort);
-    } catch (err: unknown) {
-      if ((err as { name?: string })?.name === "AbortError") return;
-      console.warn("[voice] sendToBackend:", err);
-      applyVoice("idle");
+      },
+      onPanResponderRelease: (_, { dx, dy }) => {
+        if (!cancelled && Math.abs(dy) >= 48 && Math.abs(dy) > Math.abs(dx) * 1.8) {
+          settle(dy < 0 ? "orb" : "chat");
+        } else {
+          settle(voiceView);
+        }
+      },
+      onPanResponderTerminationRequest: () => true,
+      onPanResponderTerminate: () => settle(voiceView),
+    });
+  }, [voiceSwipeEnabled, voiceView, voiceViewProgress]);
+  useEffect(() => {
+    if (!voiceStageEnabled) {
+      setVoiceView("chat");
+      voiceViewProgress.value = 0;
     }
+  }, [voiceStageEnabled, voiceViewProgress]);
+  const orbSize = Math.max(0, Math.min(
+    kbVisible ? 84 : Math.min(winW * 0.52, winH * 0.24, 224),
+    winW - 64,
+    Math.min(winH, keyboardTop ?? winH) - topPad - 72 - composerContentHeight
+      - (kbVisible ? 0 : bottomInset) - 110 - 96,
+  ));
+  const voiceMessagesStyle = useAnimatedStyle(() => ({
+    opacity: 1 - voiceViewProgress.value,
+    // Reserve the actual viewport, including while the existing orb moves
+    // between layouts. Scroll-content padding alone cannot prevent overlap.
+    marginBottom: voiceStageEnabled
+      ? voiceLayoutBottom(
+        composerContentHeight, bottomInset, stageH, kbH.value,
+        winH, topPad + 72, orbSize, voiceViewProgress.value,
+      ).messageBottom
+      : 0,
+  }));
+  const phaseLabel: Record<string, string> = {
+    idle: voice.paused ? "Durduruldu · yeniden başlatabilirsiniz" : "Dinlemeye hazırlanıyor", listening: "Dinliyorum",
+    thinking: "Düşünüyorum", speaking: "Konuşuyor",
   };
-
-  // ── expo-speech TTS ────────────────────────────────────────────────────────
-  const restoreRecordingMode = async () => {
-    try {
-      await setAudioModeAsync({
-        allowsRecording:   true,
-        playsInSilentMode: true,
-      });
-    } catch {}
+  const ink = T.isDark ? "#F2F0EC" : "#111111";
+  const onRightAction = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (hasComposerContent) { void handleSend(); return; }
+    if (!voice.enabled) { Keyboard.dismiss(); void voice.enter(); return; }
+    exitVoice();
   };
-
-  const speakReply = async (text: string, abort: AbortController) => {
-    if (abort.signal.aborted) return;
-    applyVoice("speaking");
-
-    try {
-      Speech.speak(text, {
-        language: "tr-TR",
-        rate:     0.88,
-        pitch:    1.0,
-        onDone: () => {
-          void restoreRecordingMode().then(() => {
-            if (!abort.signal.aborted) applyVoice("idle");
-          });
-        },
-        onStopped: () => { void restoreRecordingMode(); },
-        onError:   () => {
-          void restoreRecordingMode().then(() => {
-            if (!abort.signal.aborted) applyVoice("idle");
-          });
-        },
-      });
-    } catch (err) {
-      console.warn("[voice] speakReply:", err);
-      await restoreRecordingMode();
-      applyVoice("idle");
-    }
-  };
-
-  // ── Colour tokens ──────────────────────────────────────────────────────────
-
-  const logoTint     = T.isDark ? "#888888"                 : "#5A5A5A";
-
-  const voiceActive = voicePhase !== "idle";
+  const dictating = voice.enabled && voice.mode === "dictation";
+  const micDisabled = isTyping || voice.phase === "thinking";
+  const rightLabel = hasComposerContent ? "Gönder"
+    : !voice.enabled ? "Sesli konuş"
+    : "Sesli sohbeti kapat";
+  const RATE_OPTS = [0.75, 0.88, 1.0] as const;
+  const rateLabel = (r: number) => (r <= 0.75 ? "Yavaş" : r >= 1 ? "Hızlı" : "Normal");
+  const stageKbStyle = useAnimatedStyle(() => {
+    const { stageBottom, stageTranslateY } = voiceLayoutBottom(
+      composerContentHeight, bottomInset, stageH, kbH.value,
+      winH, topPad + 72, orbSize, voiceViewProgress.value,
+    );
+    return {
+      bottom: stageBottom,
+      transform: [{ translateY: stageTranslateY }],
+    };
+  });
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const weatherRowData = !voiceStageEnabled && weather.live && weather.atmosphereData &&
+    Number.isFinite(weather.atmosphereData.temperature) ? weather.atmosphereData : null;
   return (
     <View
-      style={[ss.root, { backgroundColor: T.isDark ? T.bg : "#FFFFFF" }]}
+      style={[ss.root, { backgroundColor: T.isDark ? T.bg : "#FAFAFB" }]}
       {...edgeSwipeResponder.panHandlers}
     >
+      <WeatherExperience weather={weather} isDark={T.isDark}
+        bottomInset={bottomInset}
+        enabled={!voiceStageEnabled && !menuVisible} />
       <StatusBar
         style={T.isDark ? "light" : "dark"}
       />
       <Animated.View
         pointerEvents="none"
-        style={[ss.composerAura, rootAuraPositionStyle, auraStyle]}
+        style={[ss.composerAura, { display: "none" }, rootAuraPositionStyle, auraStyle]}
       >
         <Svg width="100%" height="100%" viewBox="0 0 400 540">
           <Defs>
@@ -948,7 +747,7 @@ export default function ChatScreen() {
       </Animated.View>
       <Animated.View
         pointerEvents="none"
-        style={[ss.sendLightWave, rootAuraPositionStyle, sendWaveStyle]}
+        style={[ss.sendLightWave, { display: "none" }, rootAuraPositionStyle, sendWaveStyle]}
       >
         <Svg width="100%" height="100%" viewBox="0 0 400 560">
           <Defs>
@@ -1001,70 +800,17 @@ export default function ChatScreen() {
       <SideDrawer
         ref={sideMenuRef}
         visible={menuVisible}
-        onOpen={() => setMenuVisible(true)}
+        onOpen={openMenu}
         onClose={() => setMenuVisible(false)}
       />
 
-      {/* ════ WATERMARK LOGO ════ */}
-      <View style={ss.logoFrame} pointerEvents="none">
-        <Animated.Image
-          source={leafOnly}
-          style={[ss.logoImg, { tintColor: logoTint }, logoStyle]}
-          resizeMode="contain"
-        />
-      </View>
-
-      {/* ════ FLOATING ICONS — sit directly on the screen surface ════ */}
-
-      {/* Left: Menu */}
-      <TouchableOpacity
-        style={[ss.floatBtn, { top: topPad + 10, left: 18 }]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMenuVisible(true); }}
-        hitSlop={14} activeOpacity={0.55}
-      >
-        <Feather name="menu" size={18} color={T.fgSoft} />
-      </TouchableOpacity>
-
-      {/* Center: leaf logo + secret active badge — non-interactive */}
-      <View style={[ss.floatCenter, { top: topPad + 6 }]} pointerEvents="none">
-        <Image
-          source={leafOnly}
-          style={[ss.floatLogo, { tintColor: T.isDark ? "#FFFFFF" : "#111111" }]}
-          resizeMode="contain"
-        />
-        {/* "Gizli" badge — slides in below logo when secret mode is active */}
-        <Animated.View style={[ss.secretBadge, { backgroundColor: T.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.055)", borderColor: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.09)" }, badgeStyle]}>
-          <Feather name="lock" size={7} color={T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"} />
-          <Text style={[ss.secretBadgeText, { color: T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)" }]}>{t("chat.secretBadge")}</Text>
-        </Animated.View>
-      </View>
-
-      {/* Right: message-circle (secret/empty) ↔ edit-3 (new chat) */}
-      <TouchableOpacity
-        style={[ss.floatBtn, { top: topPad + 10, right: 18 }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          if (isSecretChat)              { setExitModal(true); }
-          else if (!hasMessages)         { setSecretModal(true); }
-          else                           { beginNewConversation(); }
-        }}
-        hitSlop={14} activeOpacity={0.55}
-      >
-        <Animated.View style={lockStyle}>
-          <Feather
-            name="message-circle"
-            size={18}
-            color={isSecretChat
-              ? (T.isDark ? "rgba(255,255,255,0.88)" : "rgba(0,0,0,0.66)")
-              : T.fgSoft}
-          />
-        </Animated.View>
-        <Animated.View style={editStyle}>
-          <Feather name="edit-3" size={18} color={T.fgSoft} />
-        </Animated.View>
-      </TouchableOpacity>
-
       {/* ════ MESSAGES ════ */}
+      <Animated.View
+        style={[ss.flex, { minHeight: 0, overflow: "hidden", marginTop: weatherRowData ? topPad + 88 : 0 }, voiceMessagesStyle]}
+        pointerEvents={voiceOrbOnly ? "none" : "auto"}
+        accessibilityElementsHidden={voiceOrbOnly}
+        importantForAccessibility={voiceOrbOnly ? "no-hide-descendants" : "auto"}
+      >
       <KeyboardAvoidingView
         style={ss.flex}
         behavior="padding"
@@ -1082,34 +828,187 @@ export default function ChatScreen() {
             />
           )}
           inverted
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onScroll={(event) => {
+            // In an inverted list the newest end is offset zero.
+            nearLatestRef.current = event.nativeEvent.contentOffset.y < 80;
+          }}
+          scrollEventThrottle={32}
+          onContentSizeChange={() => {
+            if (nearLatestRef.current) scrollToLatest(false);
+          }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             ss.msgList,
-            { paddingTop: composerContentHeight + bottomInset },
+            { paddingTop: voiceStageEnabled ? 8 : composerContentHeight + bottomInset + 4 + 8 },
           ]}
-          ListHeaderComponent={isTyping ? (
+          ListFooterComponent={<View style={{ height: weatherRowData ? 8 : topPad + 72 }} />}
+          ListHeaderComponent={<>
+            {weather.greeting && !voiceStageEnabled && (
+              <View style={{ paddingHorizontal: 24, paddingVertical: 10, flexDirection: "row", gap: 8 }}>
+                <Text testID="weather-greeting" style={{ flex: 1, color: T.fgSoft, fontSize: 14, lineHeight: 21 }}>
+                  {weather.greeting}
+                </Text>
+                <Pressable onPress={weather.dismissGreeting} hitSlop={10}
+                  testID="weather-greeting-dismiss" accessibilityRole="button" accessibilityLabel="Karşılamayı kapat">
+                  <Feather name="x" size={15} color={T.fgSoft} />
+                </Pressable>
+              </View>
+            )}
+            {isTyping ? (
             imagePending ? (
               <ImageGenCard />
             ) : (
               <ThinkingCard label={
-                visionPending ? t("chat.visionPending") : undefined
+                visionPending ? t("chat.visionPending") : "AkılCEP yazıyor…"
               } />
             )
           ) : null}
+          </>}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
-          ListFooterComponent={<View style={{ height: topPad + 46 }} />}
         />
 
-        {/* ════ VOICE ORB PANEL — slides in above input ════ */}
-        <VoiceOrbPanel phase={voicePhase} isDark={T.isDark} />
 
       </KeyboardAvoidingView>
+      </Animated.View>
+
+      {/* ════ TOP OVERLAY ════ */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={T.isDark ? VEIL_COLORS_DARK : VEIL_COLORS_LIGHT}
+        locations={VEIL_STOPS}
+        style={[ss.topVeil, { height: topPad + 86 }]}
+      />
+      <View pointerEvents="box-none" style={[ss.topOverlay, { paddingTop: topPad + 8 }]}>
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingTop: topPad + 8, alignItems: "center" }]}>
+          <View style={{ height: 42, justifyContent: "center" }}>
+            <Image source={leafOnly} resizeMode="contain" style={{ width: 27, height: 27, tintColor: T.isDark ? "#FFFFFF" : "#000000" }} />
+          </View>
+        </View>
+        <Pressable accessibilityLabel="Menü" testID="chat-menu-button" accessibilityRole="button" style={[ss.topCircle, { backgroundColor: T.isDark ? SURFACE_DARK : SURFACE_LIGHT }]} onPress={openMenu}>
+          <Feather name="menu" size={20} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+        </Pressable>
+        <View style={[ss.topCapsule, { backgroundColor: T.isDark ? SURFACE_DARK : "rgba(245,245,247,0.94)" }]}>
+          <Pressable accessibilityLabel="Yeni sohbet" testID="chat-new-button" accessibilityRole="button" style={ss.topCapBtn} onPress={beginNewConversation}>
+            <Feather name="edit" size={20} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+          </Pressable>
+          <View pointerEvents="none" style={[ss.topCapDivider, { backgroundColor: T.isDark ? "rgba(255,255,255,0.18)" : "#DADADD" }]} />
+          <Pressable accessibilityLabel="Daha fazla" testID="chat-more-button" accessibilityRole="button" style={ss.topCapBtn} onPress={() => setMoreOpen((v) => !v)}>
+            <Feather name="more-vertical" size={20} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+          </Pressable>
+        </View>
+      </View>
+      {weatherRowData && (
+        <View testID="chat-weather-indicator" pointerEvents="none" accessible accessibilityRole="text"
+          accessibilityLabel={`${weatherRowData.description ?? HEADER_WEATHER[weatherRowData.kind].label}, ${Math.round(weatherRowData.temperature)} derece Celsius`}
+          style={[ss.topWeather, { top: topPad + 62 }]}>
+          <Feather name={weatherRowData.kind === "sun" && !weatherRowData.isDay ? "moon" : HEADER_WEATHER[weatherRowData.kind].icon}
+            size={14} color={T.isDark ? WEATHER_BLUE.dark : WEATHER_BLUE.light} accessible={false} />
+          <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={[ss.topWeatherDegree, { color: T.fgSoft }]}>
+            <Text style={{ color: T.isDark ? WEATHER_BLUE.dark : WEATHER_BLUE.light }}>{Math.round(weatherRowData.temperature)}°</Text>
+            {" · "}{weatherRowData.description ?? HEADER_WEATHER[weatherRowData.kind].label}
+          </Text>
+        </View>
+      )}
+      {moreOpen && (
+        <>
+          <Pressable accessibilityLabel="Menüyü kapat" style={[StyleSheet.absoluteFill, { zIndex: 180 }]} onPress={() => setMoreOpen(false)} />
+          <View style={[ss.morePop, { top: topPad + 60, backgroundColor: T.isDark ? "#2A2A2C" : "#FFFFFF" }]}>
+            {([
+              ["edit", t("chat.newChat"), "chat-more-new", beginNewConversation],
+              ["lock", t("chat.secretModal.title"), "chat-more-secret", () => setSecretModal(true)],
+              ["menu", "Menü", "chat-more-drawer", openMenu],
+              ["cloud", "Hava atmosferi", "chat-more-weather", weather.openCity],
+            ] as const).map(([icon, label, id, fn]) => (
+              <Pressable key={id} testID={id} accessibilityLabel={label} accessibilityRole="button" style={ss.moreItem} onPress={() => { setMoreOpen(false); fn(); }}>
+                <Feather name={icon} size={17} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+                <Text style={{ color: T.isDark ? "#EEE" : "#1C1C1E", fontSize: 15, fontFamily: "Inter_400Regular" }}>{label}</Text>
+              </Pressable>
+            ))}
+            <Pressable testID="chat-rain-sound" accessibilityRole="switch"
+              accessibilityState={{ checked: rainSound.enabled }} accessibilityLabel="Yağmur sesi"
+              style={ss.moreItem} onPress={rainSound.toggle}>
+              <Feather name={rainSound.enabled ? "volume-2" : "volume-x"} size={17} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+              <Text style={{ color: T.isDark ? "#EEE" : "#1C1C1E", fontSize: 15, fontFamily: "Inter_400Regular" }}>
+                {rainSound.failed ? "Yağmur sesi kullanılamıyor" : `Yağmur sesi: ${rainSound.enabled ? "açık" : "kapalı"}`}
+              </Text>
+            </Pressable>
+            {voice.available && (
+              <>
+                <Pressable accessibilityRole="switch" accessibilityState={{ checked: voice.voiceReplyEnabled }} accessibilityLabel="Sesli yanıt" style={ss.moreItem} onPress={() => voice.setVoiceReplyEnabled(!voice.voiceReplyEnabled)}>
+                  <Feather name={voice.voiceReplyEnabled ? "volume-2" : "volume-x"} size={17} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+                  <Text style={{ color: T.isDark ? "#EEE" : "#1C1C1E", fontSize: 15, fontFamily: "Inter_400Regular" }}>{voice.voiceReplyEnabled ? "Sesli yanıt: açık" : "Sesli yanıt: kapalı"}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Konuşma hızı" style={ss.moreItem} onPress={() => {
+                  const k = RATE_OPTS.findIndex((r) => r === voice.speechRate);
+                  voice.setSpeechRate(RATE_OPTS[(k + 1) % RATE_OPTS.length]);
+                }}>
+                  <Feather name="sliders" size={17} color={T.isDark ? "#EEE" : "#1C1C1E"} />
+                  <Text style={{ color: T.isDark ? "#EEE" : "#1C1C1E", fontSize: 15, fontFamily: "Inter_400Regular" }}>{`Konuşma hızı: ${rateLabel(voice.speechRate)}`}</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* Only the non-interactive middle area owns mode gestures. The list,
+          header and composer keep their existing responders. */}
+      {voiceOrbOnly && (
+        <View
+          testID="voice-orb-swipe-area"
+          style={{ position: "absolute", top: topPad + 72, left: 0, right: 0,
+            bottom: composerContentHeight + bottomInset + 8, zIndex: 19 }}
+          {...voiceSwipeResponder.panHandlers}
+        />
+      )}
+      {voiceStageEnabled && (
+        <Animated.View
+          pointerEvents="box-none"
+          onLayout={(e) => setStageH(e.nativeEvent.layout.height)}
+          testID="voice-orb-stage"
+          style={[{ position: "absolute", left: 0, right: 0, alignItems: "center", paddingTop: 8, paddingBottom: 6, paddingHorizontal: 28, minWidth: 0, zIndex: 20, backgroundColor: "transparent" }, stageKbStyle]}
+        >
+          <View
+            testID="voice-orb-gesture"
+            {...voiceSwipeResponder.panHandlers}
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel={voiceOrbOnly ? "Orb görünümü" : "Sesli sohbet görünümü"}
+            accessibilityHint="Orb görünümü için yukarı, sohbet görünümü için aşağı kaydırın."
+            accessibilityActions={[
+              { name: "increment", label: "Orb görünümünü aç" },
+              { name: "decrement", label: "Sohbet görünümünü aç" },
+            ]}
+            onAccessibilityAction={({ nativeEvent }) => {
+              const view = nativeEvent.actionName === "increment" ? "orb" : "chat";
+              setVoiceView(view);
+              voiceViewProgress.value = withTiming(view === "orb" ? 1 : 0, { duration: 220 });
+            }}
+          >
+            {orbSize > 0 && <EarthOrb size={orbSize} phase={voice.phase} active={isSpeaking && !menuVisible && !panelOpen} />}
+          </View>
+          <View pointerEvents="none" accessibilityLiveRegion="polite" style={{ alignItems: "center", marginTop: 6, maxWidth: "100%" }}>
+            <Text style={{ fontSize: 13, color: T.isDark ? "#A8A8AD" : "#6B7078", fontFamily: "Inter_400Regular", textAlign: "center" }}>{voice.available ? phaseLabel[voice.phase] : "Mikrofonla sesli sohbet yalnızca mobil cihazlarda çalışır."}</Text>
+            {!!voice.userText && !kbVisible && <Text accessibilityElementsHidden={voiceOrbOnly} importantForAccessibility={voiceOrbOnly ? "no-hide-descendants" : "auto"} numberOfLines={2} style={{ opacity: voiceOrbOnly ? 0 : 1, marginTop: 4, fontSize: 14, color: ink, fontFamily: "Inter_400Regular", textAlign: "center" }}>{voice.userText}</Text>}
+          </View>
+        </Animated.View>
+      )}
 
       {/* ════ FLOATING DOCK — absolute, floats over content, tracks keyboard ════ */}
       <Animated.View
         style={[ss.inputOuter, dockKbStyle]}
       >
+        <LinearGradient
+          testID="chat-composer-veil"
+          pointerEvents="none"
+          colors={T.isDark ? VEIL_COLORS_DARK : VEIL_COLORS_LIGHT}
+          locations={VEIL_STOPS}
+          start={{ x: 0.5, y: 1 }}
+          end={{ x: 0.5, y: 0 }}
+          style={ss.composerVeil}
+        />
         <View
           onLayout={(event) => {
             const nextHeight = event.nativeEvent.layout.height;
@@ -1119,6 +1018,7 @@ export default function ChatScreen() {
           }}
           style={[
             ss.dock,
+            { backgroundColor: T.isDark ? "#2C2C2E" : "#FFFFFF" },
             pendingAttachments.length > 0 && ss.dockWithAttachments,
           ]}
         >
@@ -1182,10 +1082,12 @@ export default function ChatScreen() {
 
           <View style={ss.composerRow}>
 
-          {/* A — minimal plus action, no card or capsule */}
+          {/* A — attachment action inside the shared composer capsule */}
           <Animated.View style={[ss.dockPlus, plusPressStyle]}>
             <Pressable
-              style={ss.dockPlusInner}
+              style={[ss.dockPlusInner, { backgroundColor: "transparent" }]}
+              accessibilityLabel="Ekle"
+              testID="chat-plus-button"
               onPressIn={() => {
                 restoreInputFocusRef.current = inputFocusedRef.current;
                 plusScaleSV.value = withTiming(1, PRESS_IN);
@@ -1193,6 +1095,7 @@ export default function ChatScreen() {
               }}
               onPressOut={() => { plusScaleSV.value = withTiming(0, PRESS_OUT); }}
               onPress={() => {
+                exitVoice();
                 setPanelOpen((current) => !current);
                 if (restoreInputFocusRef.current) {
                   setTimeout(() => {
@@ -1206,38 +1109,40 @@ export default function ChatScreen() {
               hitSlop={4}
             >
               <Animated.View style={plusRotAnim}>
-                <Feather name="plus" size={21} color={T.isDark ? "#EDEBE7" : "#222222"} />
+                <Feather name="plus" size={22} color={ink} />
               </Animated.View>
             </Pressable>
           </Animated.View>
 
-          {/* B — open input surface with a single underline */}
+          {/* B — the same editable draft for text and voice modes */}
           <Animated.View style={[ss.underlineInput, inputFieldAnim]}>
             <View style={ss.underlineInputRow}>
               <AnimatedTextInput
                 ref={textInputRef}
-                autoFocus
+                accessibilityLabel="Mesaj"
+                testID="chat-input"
+                autoFocus={!legacyVoiceRef.current}
                 style={[
                   ss.dockField,
                   inputFieldAnim,
                   {
-                    color: T.isDark ? "#F2F0EC" : "#111111",
+                    color: T.isDark ? "#F2F0EC" : "#4A4A4F",
                     opacity: voiceActive ? 0.45 : 1,
+                    minWidth: 0,
                   },
                 ]}
-                placeholder={sttListening ? t("chat.listening") : t("chat.placeholder")}
-                placeholderTextColor={sttListening
-                  ? (T.isDark ? "#76AEEA" : "#5B9AD9")
-                  : (T.isDark ? "rgba(255,255,255,0.36)" : "#A7ABB2")}
+                placeholder="AkılCEP’e sor"
+                placeholderTextColor={T.isDark ? "rgba(255,255,255,0.36)" : "#85858A"}
+                underlineColorAndroid="transparent"
                 multiline
                 scrollEnabled={scrollEnabled}
                 value={inputText}
                 onContentSizeChange={onContentSizeChange}
-                onChangeText={setInputText}
+                onChangeText={(v) => { if (voice.enabled) exitVoice(); setInputText(v); }}
                 maxLength={4000}
                 returnKeyType="send"
                 onSubmitEditing={() => { if (hasComposerContent) void handleSend(); }}
-                editable={!voiceActive && !sttListening}
+                editable={!voiceActive}
                 onFocus={() => {
                   if (inputBlurTimerRef.current) {
                     clearTimeout(inputBlurTimerRef.current);
@@ -1256,59 +1161,89 @@ export default function ChatScreen() {
                 }}
               />
 
-              {/* Mic */}
-              <Animated.View style={[ss.dockMicWrap, micScaleStyle]}>
-                <AkilMic
-                  listening={sttListening}
-                  size={20}
-                  color={sttListening
-                    ? (T.isDark ? "#76AEEA" : "#5B9AD9")
-                    : (T.isDark ? "rgba(255,255,255,0.60)" : "#2E2E2E")}
-                  onPressIn={() => {
-                    micScaleSV.value   = withTiming(0.95, { duration: 120 });
-                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  onPressOut={() => {
-                    micScaleSV.value   = withTiming(1.0, { duration: 120 });
-                  }}
-                  onPress={handleSttPress}
-                  hitSlop={8}
-                />
-              </Animated.View>
             </View>
           </Animated.View>
 
-          {/* C — black AI voice button */}
-          <Animated.View style={[ss.dockAiShell, aiCombinedStyle]}>
+          {voiceStageEnabled ? (
+            <>
+              <Pressable
+                testID="voice-stop-button"
+                accessibilityRole="button"
+                accessibilityLabel={voice.paused ? "Sesli sohbeti yeniden başlat" : "Durdur"}
+                hitSlop={4}
+                style={ss.voiceCtl}
+                onPress={voice.paused ? voice.action : voice.stop}
+              >
+                {voice.paused
+                  ? <Feather name="play" size={18} color="#D93025" />
+                  : <View style={ss.voiceStopSquare} />}
+              </Pressable>
+              <Pressable
+                testID="voice-close-button"
+                accessibilityRole="button"
+                accessibilityLabel="Sesli sohbeti kapat"
+                hitSlop={4}
+                style={[ss.voiceCtl, { backgroundColor: "#D93025" }]}
+                onPress={exitVoice}
+              >
+                <Feather name="x" size={20} color="#FFFFFF" />
+              </Pressable>
+            </>
+          ) : (
+            <>
+          {/* Dictation mic — existing voice.enter/action infrastructure */}
+          <Animated.View style={micScaleStyle}>
+            <Pressable
+              testID="chat-dictation-button"
+              accessibilityRole="button"
+              accessibilityLabel={dictating ? "Dikteyi bitir" : "Sesle yaz"}
+              accessibilityState={{ disabled: micDisabled }}
+              disabled={micDisabled}
+              hitSlop={4}
+              style={[ss.voiceCtl, { backgroundColor: "transparent", opacity: micDisabled ? 0.4 : 1 }]}
+              onPressIn={() => { micScaleSV.value = withTiming(0.95, { duration: 120 }); }}
+              onPressOut={() => { micScaleSV.value = withTiming(1, { duration: 120 }); }}
+              onPress={() => {
+                if (dictating) void voice.action();
+                else void voice.enter({ mode: "dictation" });
+              }}
+            >
+              <Feather name="mic" size={20} color={ink} />
+            </Pressable>
+          </Animated.View>
+          {/* D — live voice when empty; existing send action when a draft is present */}
+          <Animated.View style={[ss.dockAiShell, sendStyle]}>
             <Pressable
               style={ss.dockAiBody}
-              onPressIn={() => {
-                sendPressGlow.value = withTiming(1, PRESS_IN);
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              }}
+              accessibilityRole="button"
+              accessibilityLabel={rightLabel}
+              accessibilityState={{ disabled: isTyping || dictating }}
+              disabled={isTyping || dictating}
+              testID="chat-send-voice-button"
+              onPressIn={() => { sendPressGlow.value = withTiming(1, PRESS_IN); }}
               onPressOut={() => { sendPressGlow.value = withTiming(0, PRESS_OUT); }}
-              onPress={hasComposerContent ? () => { void handleSend(); } : () => {
-                if (Platform.OS === "web") {
-                  Alert.alert(t("chat.alert.voiceMode"), t("chat.alert.voiceMobileOnly"));
-                  return;
-                }
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push("/voice");
-              }}
+              onPress={onRightAction}
               hitSlop={4}
             >
               <Animated.View
-                style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: "rgba(255,255,255,0.14)" }, sendPressHighlightStyle]}
+                style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: T.isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)" }, sendPressHighlightStyle]}
                 pointerEvents="none"
               />
-              <Animated.View style={[ss.iconCenter, arrowSendIconAnim]}>
-                <Feather name="arrow-up" size={20} color="#FFFFFF" />
-              </Animated.View>
-              <Animated.View style={[ss.iconCenter, arrowVoiceIconAnim]}>
-                <WaveformBars active={voiceActive || sttListening} />
-              </Animated.View>
+              <View style={ss.iconCenter}>
+                {hasComposerContent || (voiceStageEnabled && voice.phase !== "idle") ? (
+                  <Feather name={hasComposerContent ? "arrow-up" : "square"} size={20} color="#FFFFFF" />
+                ) : (
+                  <View style={ss.voiceWave} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    {[6, 14, 18, 11, 5].map((height, index) => (
+                      <View key={index} style={[ss.voiceWaveBar, { height }]} />
+                    ))}
+                  </View>
+                )}
+              </View>
             </Pressable>
           </Animated.View>
+            </>
+          )}
 
           </View>
         </View>
@@ -1329,6 +1264,7 @@ export default function ChatScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setSecretModal(false);
+                exitVoice();
                 startSecretConversation();
               }}
             >
@@ -1353,7 +1289,7 @@ export default function ChatScreen() {
       >
         <View style={[ss.expandModal, { backgroundColor: T.bg }]}>
           {/* Header */}
-          <View style={[ss.expandHeader, { borderBottomColor: T.isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }]}>
+          <View style={ss.expandHeader}>
             <TouchableOpacity
               style={ss.expandClose}
               onPress={() => setExpandedOpen(false)}
@@ -1480,72 +1416,10 @@ function ThinkingDots({ color, size = 4 }: { color: string; size?: number }) {
   );
 }
 
-// ── Blob → base64 fallback ─────────────────────────────────────────────────────
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const r = reader.result as string;
-      resolve(r.split(",")[1] ?? r);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
   root:  { flex: 1, width: "100%" },
   flex:  { flex: 1 },
-
-  // Watermark
-  logoFrame: {
-    ...StyleSheet.absoluteFill,
-    alignItems:     "center",
-    justifyContent: "center",
-    pointerEvents:  "none",
-  },
-  logoImg: { width: 300, height: 300 },
-
-  // Floating icon buttons — absolutely placed on the screen surface
-  floatBtn: {
-    position:       "absolute",
-    width:          36,
-    height:         36,
-    alignItems:     "center",
-    justifyContent: "center",
-    zIndex:         10,
-  },
-  // Center leaf logo — horizontally centered, non-interactive
-  floatCenter: {
-    position:       "absolute",
-    left:           0,
-    right:          0,
-    height:         36,
-    alignItems:     "center",
-    justifyContent: "center",
-    zIndex:         9,
-  },
-  floatLogo: {
-    width:  20,
-    height: 20,
-  },
-  // Secret active badge — shown below center logo
-  secretBadge: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    gap:               3,
-    marginTop:         4,
-    paddingHorizontal: 6,
-    paddingVertical:   2,
-    borderRadius:      99,
-    borderWidth:       1,
-  },
-  secretBadgeText: {
-    fontSize:      9,
-    fontFamily:    "Inter_500Medium",
-    letterSpacing: 0.3,
-  },
 
   // Modals
   modalOverlay: {
@@ -1614,6 +1488,21 @@ const ss = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
 
+  topOverlay: {
+    position: "absolute", top: 0, left: 0, right: 0, zIndex: 160,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: 14, paddingBottom: 10,
+  },
+  topVeil: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 159 },
+  topWeather: { position: "absolute", left: 24, right: 24, height: 20, zIndex: 160, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  topWeatherDegree: { fontSize: 12, lineHeight: 16, fontFamily: "Inter_500Medium", fontVariant: ["tabular-nums"], includeFontPadding: false },
+  topCircle: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  topCapsule: { height: 42, borderRadius: 21, flexDirection: "row", alignItems: "center", paddingHorizontal: 4, overflow: "hidden" },
+  topCapBtn: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
+  topCapDivider: { width: StyleSheet.hairlineWidth, height: 18 },
+  morePop: { position: "absolute", right: 14, zIndex: 200, borderRadius: 18, paddingVertical: 6, minWidth: 200, elevation: 6, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  moreItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+
   // Messages
   msgList: { paddingTop: 20, paddingBottom: 8 },
 
@@ -1626,6 +1515,7 @@ const ss = StyleSheet.create({
     paddingTop:        4,
     alignItems:        "center",
   },
+  composerVeil: { position: "absolute", left: 0, right: 0, top: -32, bottom: 0 },
   composerAura: {
     position: "absolute",
     left: "-8%",
@@ -1645,27 +1535,33 @@ const ss = StyleSheet.create({
 
   // ── Floating input dock styles ────────────────────────────────────────────
 
-  // Row container — 92% of screen width, centred by inputOuter
+  // One capsule with fixed side margins; the measured height still reserves list space.
   dock: {
-    width:             "92%",
+    alignSelf:         "stretch",
+    marginHorizontal:  12,
     minWidth:          0,
-    paddingVertical:   4,
+    minHeight:         46,
+    paddingVertical:   1,
+    paddingHorizontal: 8,
+    borderRadius:      23,
+    backgroundColor:   "transparent",
+    boxShadow:         "0px 2px 8px rgba(0, 0, 0, 0.04)",
   },
   dockWithAttachments: {
-    borderRadius:      18,
-    paddingHorizontal: 8,
+    borderRadius:      26,
+    paddingHorizontal: 10,
     paddingTop:        8,
     paddingBottom:     6,
   },
   composerRow: {
     flexDirection: "row",
     alignItems:    "center",
-    gap:           8,
+    gap:           4,
     width:         "100%",
     minWidth:      0,
   },
 
-  // A — Plus icon with a generous touch target, no visual container
+  // A — Small plus icon with an expanded touch target
   dockPlus: {
     width:  44,
     height: 44,
@@ -1673,12 +1569,19 @@ const ss = StyleSheet.create({
   dockPlusInner: {
     width:           44,
     height:          44,
+    borderRadius:    22,
     backgroundColor: "transparent",
     alignItems:      "center",
     justifyContent:  "center",
   },
 
-  // B — Spacious input with a single understated underline
+  voiceCtl: {
+    width: 44, height: 44, borderRadius: 22, alignItems: "center",
+    justifyContent: "center", backgroundColor: "rgba(0,0,0,0.06)",
+  },
+  voiceStopSquare: { width: 14, height: 14, borderRadius: 3, backgroundColor: "#D93025" },
+
+  // B — Flexible input surface inside the shared composer capsule
   underlineInput: {
     flex:       1,
     minWidth:   0,
@@ -1764,15 +1667,20 @@ const ss = StyleSheet.create({
   dockField: {
     flex:              1,
     minHeight:         26,
-    maxHeight:         104,
-    fontSize:          16,
+    maxHeight:         MAX_INPUT_H,
+    fontSize:          15,
+    lineHeight:        20,
     fontFamily:        "Inter_400Regular",
     letterSpacing:     -0.3,
-    paddingVertical:   0,
+    paddingVertical:   4,
     paddingHorizontal: 0,
+    borderWidth:       0,
+    backgroundColor:   "transparent",
     textAlignVertical: "center",
+    outlineWidth:      0,
+    outlineColor:      "transparent",
     paddingLeft: 0,
-    paddingRight:      8,
+    paddingRight:      0,
   },
   inputUnderline: {
     position: "absolute",
@@ -1788,39 +1696,33 @@ const ss = StyleSheet.create({
     bottom:   0,
     height:   1,
   },
-  // Mic touch target — 44×44 (minimum Apple HIG)
-dockMicWrap: {
-    width:          40,
-    height:         40,
-    alignItems:     "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-
-  // C — AI voice button 42×42, radius 21
+  // C — Compact send button; hitSlop expands its touch target to 44×44
   dockAiShell: {
-    width:          46,
-    height:         46,
-    borderRadius:   23,
+    width:          36,
+    height:         36,
+    borderRadius:   18,
     alignItems:     "center",
     justifyContent: "center",
-    shadowColor:    "#000",
-    shadowOffset:   { width: 0, height: 2 },
-    shadowOpacity:  0.15,
-    shadowRadius:   5,
-    elevation:      3,
   },
   dockAiBody: {
-    width:           46,
-    height:          46,
-    borderRadius:    23,
-    backgroundColor: "#0A0A0A",
+    width:           36,
+    height:          36,
+    borderRadius:    18,
+    backgroundColor: "#000000",
     alignItems:      "center",
     justifyContent:  "center",
     overflow:        "hidden",
+  },
+  voiceWave: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  voiceWaveBar: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: "#FFFFFF",
   },
 
   // Icon layers stacked absolutely inside the AI circle

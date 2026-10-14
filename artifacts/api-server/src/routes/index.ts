@@ -8,10 +8,12 @@ import geminiTestRouter from "./gemini/test";
 import geminiChatRouter from "./gemini/chat";
 import geminiVisionRouter from "./gemini/vision";
 import imageGenerateRouter from "./image/generate";
+import weatherRouter from "./weather";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(weatherRouter);
 router.use("/admin", adminRouter);
 router.use("/admin", adminDashboardRouter);
 router.use("/openai", conversationsRouter);
